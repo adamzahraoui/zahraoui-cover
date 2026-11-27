@@ -15,13 +15,13 @@ const lifecycle = { isActive: z.boolean().optional(), isPublished: z.boolean().o
 const create = partnerFields.extend(lifecycle)
 const edit = partnerFields.partial().extend({ version: versionField, ...lifecycle }).refine(body => Object.keys(body).length > 1)
 const verify = z.strictObject({ version: versionField, reference: z.string().trim().min(3).max(160) })
-const listInput = z.strictObject({
+export const partnerList = z.strictObject({
   ...pagination, active: z.enum(['true', 'false']).optional(),
   status: z.enum(['UNVERIFIED', 'VERIFIED', 'ACTIVE', 'INACTIVE', 'PUBLISHED']).optional(),
   productSlug: productSlug.optional(),
 })
 const rowFields = { id: true, name: true, displayName: true, categories: true, isActive: true, isPublished: true, verifiedAt: true, version: true } as const
-const states: Record<NonNullable<z.infer<typeof listInput>['status']>, Prisma.PartnerWhereInput> = {
+const states: Record<NonNullable<z.infer<typeof partnerList>['status']>, Prisma.PartnerWhereInput> = {
   UNVERIFIED: { verifiedAt: null }, VERIFIED: { verifiedAt: { not: null } }, ACTIVE: eligiblePartner,
   INACTIVE: { isActive: false }, PUBLISHED: { ...eligiblePartner, isPublished: true },
 }
@@ -72,21 +72,26 @@ export function publicPartnerRoutes(db: PrismaClient) {
   return routes
 }
 
+export function partnerWhere(input: z.infer<typeof partnerList>) {
+  const search = input.q && searchPrefix(input.q)
+  const where: Prisma.PartnerWhereInput = {
+    AND: [
+      input.status ? states[input.status] : {},
+      input.active === undefined ? {} : { isActive: input.active === 'true' },
+      input.productSlug ? { categories: { has: toProductSlug(input.productSlug) } } : {},
+      search ? { OR: [{ name: { startsWith: search, mode: 'insensitive' } }, { displayName: { startsWith: search, mode: 'insensitive' } }] } : {},
+    ],
+  }
+  return where
+}
+
 export function partnerAdminRoutes(db: PrismaClient) {
   const routes = Router()
   const admin = requireRole('ADMIN')
   routes.get('/', async (request, response) => {
-    const input = parseQuery(listInput, request.query)
+    const input = parseQuery(partnerList, request.query)
     const { page, limit, skip } = pageBounds(input)
-    const search = input.q && searchPrefix(input.q)
-    const where: Prisma.PartnerWhereInput = {
-      AND: [
-        input.status ? states[input.status] : {},
-        input.active === undefined ? {} : { isActive: input.active === 'true' },
-        input.productSlug ? { categories: { has: toProductSlug(input.productSlug) } } : {},
-        search ? { OR: [{ name: { startsWith: search, mode: 'insensitive' } }, { displayName: { startsWith: search, mode: 'insensitive' } }] } : {},
-      ],
-    }
+    const where = partnerWhere(input)
     const [rows, total] = await db.$transaction([
       db.partner.findMany({ where, skip, take: limit, select: rowFields, orderBy: [{ name: 'asc' }, { id: 'asc' }] }),
       db.partner.count({ where }),

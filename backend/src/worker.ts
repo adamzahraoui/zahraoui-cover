@@ -3,6 +3,7 @@ import { loadConfig } from './config/env.js'
 import { connectPrisma } from './database/prisma.js'
 import { deliverNextQuote, generateNextQuotePdf, maintainQuoteJobs } from './modules/quotes/jobs.js'
 import { deliverNextRenewal, maintainContracts } from './modules/contracts/reminders.js'
+import { expireImports } from './modules/imports/routes.js'
 import { cleanAuthRecords, deliverNextMail, smtpMailer } from './modules/notifications/mail-jobs.js'
 
 async function run() {
@@ -24,6 +25,7 @@ async function run() {
           await cleanAuthRecords(database)
           await maintainQuoteJobs(database)
           await maintainContracts(database)
+          await expireImports(database)
           nextCleanup = Date.now() + 60_000
         }
         const mail = mailer && !stopping && await deliverNextMail(database, config, mailer)

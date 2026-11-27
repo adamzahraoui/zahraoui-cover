@@ -25,6 +25,8 @@ B10 adds live partner administration and a minimal public partner feed in the sa
 
 B11 adds the staff document inventory to the existing Express API and React console. PostgreSQL holds searchable metadata and links to quote revisions and contracts. The API and worker share the same private filesystem and checksum validation. [Document management](27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md)
 
+B12 adds the administrator-only import and export module. It receives bounded spreadsheet bytes, uses the same CRM, partner and policy services, and stores only job metadata and redacted results in PostgreSQL. Exports apply existing list filters and fixed field allowlists. [Spreadsheet implementation](28-EXCEL-IMPORT-EXPORT-IMPLEMENTATION.md)
+
 ## Proposed implementation tree
 
 ```text

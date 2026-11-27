@@ -1,12 +1,12 @@
 # 15 — Frontend and backend implementation status
 
-The local React frontend covers 19 public and 20 administration page types. The baseline browser matrix covered 40 concrete page views, including a public unknown-path example. B11 adds the Documents page and its own four-width verification. Quote confirmation is the final UI state of /devis. The admin root sends signed-in staff to the dashboard and visitors to login. Unknown admin paths show an authenticated fallback. The original Stitch archive and design files are preserved.
+The local React frontend covers 19 public and 21 administration page types. The baseline browser matrix covered 40 concrete page views, including a public unknown-path example. B11 and B12 add the Documents and Import / Export pages, each with a separate four-width verification. Quote confirmation is the final UI state of /devis. The admin root sends signed-in staff to the dashboard and visitors to login. Unknown admin paths show an authenticated fallback. The original Stitch archive and design files are preserved.
 
 ## Resume checkpoint
 
 At the frontend baseline, the routes, public forms, admin demo, reusable components and API preparation were already in place. The resumed work repeated browser verification, reviewed the reference layouts and finished the handoff documentation. Two issues were confirmed and fixed. The catalog now uses the compact Stitch mobile heading and puts the audience selector above the cards in the introduction. Browser-tab titles now follow each route’s heading, with the navigation focus effect running inside the route loading boundary.
 
-The frontend baseline is complete. Staff authentication, the catalog, quote intake, customer CRM, contact, assistance, issued quotes, contract registration, renewals, insurance partner management and the centralized document inventory now use the backend. Production release depends on approved imagery and the standalone brand asset, approved French company and legal content, and production settings.
+The frontend baseline is complete. Staff authentication, the catalog, quote intake, customer CRM, contact, assistance, issued quotes, contract registration, renewals, insurance partner management, the centralized document inventory, and spreadsheet import and export now use the backend. Production release depends on approved imagery and the standalone brand asset, approved French company and legal content, and production settings.
 
 ## Development milestones
 
@@ -68,6 +68,7 @@ The frontend baseline is complete. Staff authentication, the catalog, quote inta
 | A18 | Messages reçus · `/admin/messages` | Implemented | 4 widths | Read, process and refresh | Live contact inbox and archive | Reply dispatch and internal message notes are outside this phase |
 | A19 | Paramètres · `/admin/parametres` | Implemented | 4 widths | Local update, locked main phone | Fictional data; endpoint pending | Official details require confirmation |
 | A20 | Documents · `/admin/documents` | Implemented in B11 | 4 widths | Search, filters, related records, preview, download, upload and archival | Live private file metadata and storage | Uploads are limited to local testing |
+| A21 | Import / Export · `/admin/import-export` | Implemented in B12 | 4 widths | Templates, sheet and column selection, dry run, confirmation, exports and history | Admin-only backed by live validation and audit | Real legacy file compatibility and production import approval pending |
 
 ## Backend phase B1–B3
 
@@ -135,7 +136,16 @@ The frontend baseline is complete. Staff authentication, the catalog, quote inta
 - **Migration.** `20261127060000_document_management` extends the existing document table. All eight migrations applied to isolated PostgreSQL. A separate B10-to-B11 upgrade preserved two ready historical records, their frozen metadata, links and file bytes. Prisma schema validation and drift checks passed.
 - **Automated verification.** Both projects passed TypeScript, ESLint and production builds. Six unit tests and 53 PostgreSQL integration tests passed, including all 44 previous integration tests and nine B11 cases. Coverage includes access roles, CSRF, version conflicts, file integrity, interrupted uploads and state preservation after database and filesystem failures.
 - **Browser verification.** Chrome passed sign-in, Documents navigation, search and date/category filters, record links, a generated PDF preview, attachment upload/download, archival, refresh and anonymous access rejection at **390, 768, 1024 and 1440 px**. Historical PDFs matched byte for byte after additional uploads and archival. The checked layouts had no horizontal overflow or uncaught browser exceptions.
-- **Release limits.** Production PDF safeguards remain active. Malware scanning, an approved retention and document-handling policy, and private durable storage are still needed for production uploads. No automatic deletion or spreadsheet import was added. The original Stitch ZIP passed integrity and checksum checks.
+- **Release limits.** Production PDF safeguards remain active. Malware scanning, an approved retention and document-handling policy, and private durable storage are still needed for production uploads. B11 added no automatic deletion. Spreadsheet import was delivered later in B12. The original Stitch ZIP passed integrity and checksum checks.
+
+## Business phase B12
+
+- **Import and export.** Administrators can download CSV or XLSX templates, select worksheets, map columns, preview row errors and confirm imports. The wizard creates provisional clients, unverified and inactive partners, and external contract drafts. Filtered exports cover those three datasets plus quote requests and issued quotes. [Spreadsheet implementation](28-EXCEL-IMPORT-EXPORT-IMPLEMENTATION.md) · [Migration guide](29-LEGACY-DATA-MIGRATION-GUIDE.md)
+- **Migration.** `20261127070000_spreadsheet_imports` adds the import job table and optional unique legacy references. All nine migrations deployed in isolation. A B11-to-B12 upgrade preserved historical business records, document metadata and existing relationships. Prisma validation and fresh and upgrade drift checks passed.
+- **Security.** Admin-only routes, CSRF-protected writes, expiring previews, SHA-256 source checks, versioned and atomic confirmation, bounded archive processing, formula-safe exports and redacted audit events. Raw uploads are not persisted. Existing audit advisories in Prisma and lint tooling remain outside the spreadsheet dependency graph.
+- **Verification.** Frontend and backend TypeScript, ESLint and production builds passed. All 11 unit tests and 61 PostgreSQL integration tests passed, including the 6 unit and 53 integration cases carried over from B11.
+- **Browser.** Chrome verified the complete workflow at **390, 768, 1024 and 1440 px**, including rejecting invalid rows, downloading a diagnostic report, importing corrected data, verifying a partner separately, checking contract links, filtering exports and refreshing history. Advisor and anonymous access were denied. Imported drafts produced zero outbox jobs and Mailpit messages.
+- **Release limits.** Imports are limited to local and test environments. No real agency workbook has been reviewed. Production imports require approved handling, malware scanning, an approved legacy data and retention plan, and a tested restore. The original Stitch ZIP matched its recorded checksum.
 
 ## Differences from the Stitch prototypes
 

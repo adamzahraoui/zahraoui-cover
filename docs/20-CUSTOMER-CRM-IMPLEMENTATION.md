@@ -1,5 +1,7 @@
 # 20 — Customer CRM
 
+B12 spreadsheet imports create provisional customer records through the existing duplicate rules. [Legacy migration guide](29-LEGACY-DATA-MIGRATION-GUIDE.md)
+
 The staff console now uses PostgreSQL for customer search, profiles, creation, edits, verification and archives. The console keeps its French interface and the existing responsive list and profile patterns.
 
 ## What a customer record represents

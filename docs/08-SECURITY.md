@@ -27,6 +27,8 @@ B10 partner details and audit history require staff authentication. Only adminis
 
 B11 centralizes document reads and audits access. Each download checks the document parent, readiness, private file and checksum. Generated quote PDFs retain inline preview. Uploaded PDFs use attachment-only responses. Upload and archive require CSRF and use version checks. A shared account limit bounds upload attempts and only administrators can archive eligible supporting records. [Document security and recovery](27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md)
 
+B12 spreadsheet endpoints require ADMIN. Import mutations also require CSRF and check preview versions and the original digest. XLSX unpacking is bounded and uploads, templates and exports use account throttling. Import reports omit raw cells. Exports use content allowlists, spreadsheet formula protection and no-store responses. Production imports are disabled. [Spreadsheet safeguards](28-EXCEL-IMPORT-EXPORT-IMPLEMENTATION.md)
+
 ## Privacy before launch
 
 - Assign a controller and an approved privacy contact. Review data categories, lawful basis, rights and records with the agency's privacy adviser. The acknowledgement fields record the published notice and timestamp. The owner must confirm where a separate consent record and controls are required. [CNDP website compliance](https://www.cndp.ma/conformite-des-sites-web/)

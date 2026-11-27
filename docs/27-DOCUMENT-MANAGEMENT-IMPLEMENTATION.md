@@ -46,7 +46,7 @@ Staff mutations require the same-origin check and session CSRF token. Uploads al
 4. On failure the service attempts to remove the newly written file only after checking that its database row did not commit. If the database is unavailable or cleanup fails, the service leaves the file for review and records a technical document ID. Read failures for missing or corrupt files return a redacted error. File opening rejects symbolic links, unexpected file types, invalid keys and nonprivate permissions.
 5. To identify orphan candidates, an authorized operator can compare UUID filenames from the private directory against `documents.storage_key` and active quote-generation jobs during a quiet maintenance window. Compare matching database and storage backups, account for in-flight files and record technical identifiers only. Review results before any manual retention decision. B11 adds no automatic cleanup.
 
-The existing local-only quote, upload and private PDF storage gates remain in force. Production needs approved malware scanning, approved document-handling and retention policy, and private durable storage. Existing issuance and SMTP conditions still apply. A future spreadsheet import should use its own CSV/XLSX validation, temporary storage and lifecycle. The business document endpoints accept PDFs only.
+The existing local-only quote, upload and private PDF storage gates remain in force. Production needs approved malware scanning, approved document-handling and retention policy, and private durable storage. Existing issuance and SMTP conditions still apply. B12 spreadsheets use a distinct CSV/XLSX validator and temporary in-memory processing. The business document endpoints accept PDFs only.
 
 ## Verification
 

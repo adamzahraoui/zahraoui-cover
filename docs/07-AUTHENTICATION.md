@@ -14,6 +14,7 @@ The implemented operator command, API and frontend behavior are described in [16
 | B8 quote issue, delivery, cancellation, revision and decisions | — | — | Yes |
 | Contract read, draft preparation, renewal preparation and supporting PDF handling | — | Yes | Yes |
 | Document inventory, metadata, ready download and local approved PDF attachment | — | Yes | Yes |
+| Import, export, templates and import history | — | — | Yes |
 | Archive eligible supporting documents | — | — | Yes |
 | Insurer confirmation, activation and cancellation | — | — | Yes |
 

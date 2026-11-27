@@ -1,6 +1,6 @@
 # 05 — PostgreSQL data model
 
-This logical schema is implemented by the [Prisma model](../backend/prisma/schema.prisma) and the [foundation migration](../backend/prisma/migrations/20261127000000_foundation/migration.sql). Business modules and their domain validations will be added in later phases. Columns are required unless marked nullable. FK deletion defaults to RESTRICT. UK denotes a unique constraint with PostgreSQL's default distinct NULL behavior. UUID PKs use generated random UUIDs. All mutable records use positive versions, advanced with updated_at on successful writes. Store dates without a time and timestamps in UTC. Named CHECK constraints and expression/partial indexes live in the SQL migration. Primary and unique keys create their own indexes.
+This logical schema is implemented by the [Prisma model](../backend/prisma/schema.prisma) and the [foundation migration](../backend/prisma/migrations/20261127000000_foundation/migration.sql). Subsequent migrations extend the foundation through B12. Columns are required unless marked nullable. FK deletion defaults to RESTRICT. UK denotes a unique constraint with PostgreSQL's default distinct NULL behavior. UUID PKs use generated random UUIDs. All mutable records use positive versions, advanced with updated_at on successful writes. Store dates without a time and timestamps in UTC. Named CHECK constraints and expression/partial indexes live in the SQL migration. Primary and unique keys create their own indexes.
 
 ## Status enums and fixed values
 
@@ -18,6 +18,8 @@ This logical schema is implemented by the [Prisma model](../backend/prisma/schem
 | intake_action | QUOTE_REQUEST, ASSISTANCE, CONTACT |
 | quote_status | DRAFT, ISSUED, SENT, ACCEPTED, DECLINED, EXPIRED, CANCELLED |
 | contract_status | DRAFT, ACTIVE, CANCELLED, EXPIRED |
+| import_kind | CLIENTS, PARTNERS, CONTRACTS |
+| import_status | UPLOADED, VALIDATED, COMPLETED, EXPIRED |
 | document_kind | QUOTE_PDF, CONTRACT_PDF, CONTRACT_SUPPORT, BUSINESS_PDF |
 | document_status | QUEUED, READY, FAILED |
 | job_kind | REQUEST_ALERT, REQUEST_ACK, ASSISTANCE_ALERT, CONTACT_ALERT, CONTACT_ACK, RESET_EMAIL; B8 uses GENERATE_PDF and QUOTE_DELIVERY; B9 uses RENEWAL_ALERT |
@@ -441,6 +443,22 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 
 Search initially uses normalized phone or reference and escaped prefix matches on names or cities, with matching expression indexes (use text_pattern_ops for prefix B-tree indexes under non-C collation). Keep stable pagination and measure query plans before adding other indexes. Audit updates and domain writes commit together. Enforce last-read version checks and cross-record rules in transactions with consistent lock order.
 
+### import_jobs · B12
+
+| Column | PostgreSQL type and purpose |
+| --- | --- |
+| id | uuid PK |
+| kind, status | Import kind and lifecycle enums |
+| format, digest | csv/xlsx and SHA-256 hex of original file bytes |
+| administrator_id | FK staff_users.id with restricted deletion |
+| version | Optimistic write version |
+| created_at, expires_at, completed_at | Upload, diagnostic expiry and commit times |
+| selection, counts | JSON column indexes, review fingerprint and aggregate outcomes |
+| diagnostics | JSON line numbers and non-sensitive error codes, cleared after 30 minutes |
+| created_records | Committed row numbers and business UUIDs |
+
+Indexes cover owner history, expiry and file digests by kind. B12 adds nullable, unique `legacy_reference` values to `clients`, `partners` and `contracts`. Current business foreign keys remain the source of contract relationships. See [implementation](28-EXCEL-IMPORT-EXPORT-IMPLEMENTATION.md).
+
 ## Entity relationship diagram
 
 The diagram includes all 18 proposed tables. Optional and composite constraints are specified above. [Mermaid ER notation](https://mermaid.js.org/syntax/entityRelationshipDiagram.html)
@@ -483,6 +501,7 @@ erDiagram
     password_reset_tokens |o..o{ outbox_jobs : "reset_id"
     staff_users |o..o{ documents : "uploaded_by"
     documents |o..o{ outbox_jobs : "document_id"
+    staff_users ||..o{ import_jobs : "administrator_id"
     contracts |o..o{ outbox_jobs : "contract_id"
     staff_users {
         uuid id PK
@@ -534,6 +553,7 @@ erDiagram
     }
     clients {
         uuid id PK
+        varchar_80 legacy_reference UK
         timestamptz created_at
         timestamptz updated_at
         integer version
@@ -643,6 +663,7 @@ erDiagram
     }
     partners {
         uuid id PK
+        varchar_80 legacy_reference UK
         timestamptz created_at
         timestamptz updated_at
         integer version
@@ -698,6 +719,7 @@ erDiagram
     }
     contracts {
         uuid id PK
+        varchar_80 legacy_reference UK
         timestamptz created_at
         timestamptz updated_at
         integer version
@@ -744,6 +766,22 @@ erDiagram
         bytea sha256
         bigint size_bytes
         timestamptz ready_at
+    }
+    import_jobs {
+        uuid id PK
+        import_kind kind
+        import_status status
+        varchar_4 format
+        char_64 digest
+        uuid administrator_id FK
+        integer version
+        timestamptz created_at
+        timestamptz expires_at
+        timestamptz completed_at
+        jsonb selection
+        jsonb counts
+        jsonb diagnostics
+        jsonb created_records
     }
     agency_settings {
         smallint id PK

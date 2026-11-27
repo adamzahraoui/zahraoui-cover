@@ -1,5 +1,5 @@
 import type { PartnerDetail, PartnerInput, PartnerRow, PublicPartner, ContractDetail, ContractRow, PolicyFields, DecisionMethod, IssuedQuote, IssuedQuoteInput, IssuedQuoteRow, AssistanceCase, AssistanceIn, AssistancePatch, AssistanceRow, Client, ClientDetail, ClientIn, ContractOption, DuplicateClient, Message, MessageRow, MessageStatus, Auth, CatalogItem, CatalogWrite, ClientOption, ContactIn, Dashboard, Page, Product, ProductCard, QuoteNotice, QuoteRequestIn, QuoteRequestPatch, Receipt, RequestDetail, RequestRow, StaffOption } from '../types/api'
-import type { DocumentDetail, DocumentKind, DocumentPage } from '../types/api'
+import type { DocumentDetail, DocumentKind, DocumentPage, ExportKind, ImportJob, ImportKind, ImportUpload, SpreadsheetFormat } from '../types/api'
 import type { ProductSlug } from '../config/navigation'
 
 export class ApiError extends Error {
@@ -55,6 +55,30 @@ function post<T>(path: string, body?: object, headers?: Record<string, string>) 
 }
 
 // Auth, catalog and quote requests share the same-origin API.
+const spreadsheetMime = {
+  csv: 'text/csv', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+}
+function spreadsheetBody(file: File, format: SpreadsheetFormat, headers: Record<string, string>): RequestInit {
+  return { method: 'POST', headers: { ...headers, 'Content-Type': spreadsheetMime[format] }, body: file }
+}
+async function downloadExport(kind: ExportKind, query: URLSearchParams) {
+  const response = await fetch('/api/admin/exports/' + kind + '?' + query, { credentials: 'same-origin' })
+  if (response.status === 401) window.dispatchEvent(new Event('zc:session-expired'))
+  if (!response.ok) {
+    const failure = await response.json().catch(() => ({}))
+    throw new ApiError(response.status, failure.error?.code ?? 'HTTP_ERROR', undefined, failure.error?.message)
+  }
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = /filename="([a-zA-Z0-9_.-]+)"/.exec(response.headers.get('Content-Disposition') ?? '')?.[1] ?? 'export'
+  document.body.append(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 export const api = {
   catalog: (audience?: 'INDIVIDUAL' | 'BUSINESS', signal?: AbortSignal) =>
     request<ProductCard[]>(audience ? `/catalog?audience=${audience}` : '/catalog', { signal }),
@@ -131,6 +155,19 @@ export const api = {
     request<ContractDetail>('/admin/contracts/' + encodeURIComponent(id) + '/documents?version=' + version, {
       method: 'POST', headers: { 'Content-Type': file.type, 'X-CSRF-Token': csrf, 'X-Document-Filename': encodeURIComponent(file.name) }, body: file,
     }),
+  imports: (page: number, signal?: AbortSignal) =>
+    fetchJson<Page<ImportJob> & { importEnabled: boolean }>('/admin/imports?limit=10&page=' + page, { signal }),
+  importJob: (id: string, signal?: AbortSignal) => request<ImportJob>('/admin/imports/' + encodeURIComponent(id), { signal }),
+  uploadImport: (kind: ImportKind, format: SpreadsheetFormat, file: File, csrf: string) =>
+    request<ImportUpload>('/admin/imports?' + new URLSearchParams({ kind, format }),
+      spreadsheetBody(file, format, { 'X-CSRF-Token': csrf, 'X-Import-Filename': encodeURIComponent(file.name) })),
+  validateImport: (job: ImportJob, file: File, sheet: number, mapping: (string | null)[], csrf: string) =>
+    request<ImportJob>('/admin/imports/' + encodeURIComponent(job.id) + '/validate?version=' + job.version,
+      spreadsheetBody(file, job.format, { 'X-CSRF-Token': csrf, 'X-Import-Selection': encodeURIComponent(JSON.stringify({ sheet, mapping })) })),
+  confirmImport: (job: ImportJob, file: File, csrf: string) =>
+    request<ImportJob>('/admin/imports/' + encodeURIComponent(job.id) + '/confirm?confirmed=true&version=' + job.version,
+      spreadsheetBody(file, job.format, { 'X-CSRF-Token': csrf })),
+  downloadExport,
   dashboard: (signal?: AbortSignal) => request<Dashboard>('/admin/dashboard', { signal }),
   submitQuote: (input: QuoteRequestIn, key: string) => post<Receipt>('/quotes', input, { 'Idempotency-Key': key }),
   submitContact: (input: ContactIn, key: string) => post<Receipt>('/contact', input, { 'Idempotency-Key': key }),

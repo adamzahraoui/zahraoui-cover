@@ -1,6 +1,6 @@
 # 04 — Backend
 
-The foundation, staff authentication, catalog, anonymous quote intake, customer CRM, contact, assistance, issued quote management, private quote PDFs, local delivery, contract registration, renewals, partner management, centralized document management and dashboard summary are implemented. For current behavior see [Backend foundation](16-BACKEND-IMPLEMENTATION.md), [Live catalog](18-INSURANCE-CATALOG-IMPLEMENTATION.md) and [Quote requests](19-QUOTE-REQUEST-IMPLEMENTATION.md).
+The foundation, staff authentication, catalog, anonymous quote intake, customer CRM, contact, assistance, issued quote management, private quote PDFs, local delivery, contract registration, renewals, partner management, centralized document management, spreadsheet import and export, and dashboard summary are implemented. For current behavior see [Backend foundation](16-BACKEND-IMPLEMENTATION.md), [Live catalog](18-INSURANCE-CATALOG-IMPLEMENTATION.md) and [Quote requests](19-QUOTE-REQUEST-IMPLEMENTATION.md).
 
 | Module | Owns |
 | --- | --- |
@@ -17,6 +17,8 @@ The foundation, staff authentication, catalog, anonymous quote intake, customer 
 | Documents | Staff inventory and history, generated quote previews, private checksummed downloads, local contract PDF uploads and restricted archival. |
 
 ## Validation and persistence
+
+B12 previews bounded XLSX and CSV files in memory and confirms them in a single PostgreSQL transaction. Imports share the existing validators and creation services. Spreadsheet bytes are never stored in private PDF storage. [Import and export](28-EXCEL-IMPORT-EXPORT-IMPLEMENTATION.md)
 
 Parse JSON with a size cap, reject unknown fields, validate path and query parameters, normalize email and phone and enforce enum values. A random public idempotency key maps to a submission response for 24 hours. Store a keyed fingerprint of the canonical body. Check existing keys before revalidating time-dependent fields or current product/notice configuration. Identical repeats return the original reference. A changed body with the same key returns 409. A transaction-scoped advisory lock serializes attempts for the same key, and the database enforces uniqueness. Generate opaque references with database uniqueness and retry transient collisions.
 

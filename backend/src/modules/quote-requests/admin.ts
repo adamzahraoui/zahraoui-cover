@@ -14,7 +14,7 @@ const transitions: Record<RequestStatus, RequestStatus[]> = {
   QUOTE_SENT: ['ACCEPTED', 'DECLINED', 'CLOSED'], ACCEPTED: [], DECLINED: [], CLOSED: [],
 }
 const terminal = new Set<RequestStatus>(['ACCEPTED', 'DECLINED', 'CLOSED'])
-const listQuery = z.strictObject({
+export const quoteRequestList = z.strictObject({
   ...pagination, status: statusValues.optional(), productSlug: productSlug.optional(),
   assignedTo: z.uuid().optional(), from: z.iso.date().optional(), to: z.iso.date().optional(),
 }).refine(value => !value.from || !value.to || value.from <= value.to)
@@ -69,26 +69,31 @@ async function detail(database: Prisma.TransactionClient, id: string) {
   }
 }
 
+export async function quoteRequestWhere(database: Prisma.TransactionClient, input: z.infer<typeof quoteRequestList>) {
+  const where: Prisma.QuoteRequestWhereInput = {
+    status: input.status, assignedTo: input.assignedTo,
+    ...(input.productSlug ? { product: { slug: toProductSlug(input.productSlug) } } : {}),
+    ...(input.q ? { AND: input.q.split(/\s+/).map(term => {
+      const prefix = searchPrefix(term)
+      return { OR: [
+        { firstName: { startsWith: prefix, mode: 'insensitive' as const } },
+        { lastName: { startsWith: prefix, mode: 'insensitive' as const } },
+        { reference: { startsWith: prefix, mode: 'insensitive' as const } },
+        { phone: { startsWith: normalizePhone(term) ?? prefix } },
+        ...(normalizePhone(input.q!) ? [{ phone: normalizePhone(input.q!) }] : []),
+      ] }
+    }) } : {}),
+  }
+  where.createdAt = await dateRange(database, input.from, input.to)
+  return where
+}
+
 export function quoteAdminRoutes(database: PrismaClient) {
   const routes = Router()
   routes.get('/', async (request, response) => {
-    const input = parseQuery(listQuery, request.query)
+    const input = parseQuery(quoteRequestList, request.query)
     const { page, limit, skip } = pageBounds(input)
-    const where: Prisma.QuoteRequestWhereInput = {
-      status: input.status, assignedTo: input.assignedTo,
-      ...(input.productSlug ? { product: { slug: toProductSlug(input.productSlug) } } : {}),
-      ...(input.q ? { AND: input.q.split(/\s+/).map(term => {
-        const prefix = searchPrefix(term)
-        return { OR: [
-          { firstName: { startsWith: prefix, mode: 'insensitive' as const } },
-          { lastName: { startsWith: prefix, mode: 'insensitive' as const } },
-          { reference: { startsWith: prefix, mode: 'insensitive' as const } },
-          { phone: { startsWith: normalizePhone(term) ?? prefix } },
-          ...(normalizePhone(input.q!) ? [{ phone: normalizePhone(input.q!) }] : []),
-        ] }
-      }) } : {}),
-    }
-    where.createdAt = await dateRange(database, input.from, input.to)
+    const where = await quoteRequestWhere(database, input)
     const [rows, total] = await database.$transaction([
       database.quoteRequest.findMany({ where, skip, take: limit, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: requestRowSelect }),
       database.quoteRequest.count({ where }),

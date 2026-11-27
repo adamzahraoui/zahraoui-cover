@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import type { Contract, PrismaClient } from '@prisma/client'
 import { Router } from 'express'
@@ -8,15 +7,14 @@ import { ApiError } from '../../middleware/errors.js'
 import { jsonBody } from '../../middleware/request.js'
 import { currentSession, requireCsrf, requireRole } from '../auth/session.js'
 import { casablancaDate, pageBounds, pagination, parseQuery, productSlug, searchPrefix, toProductSlug, versionField } from '../business-inputs.js'
-import { lockActiveClient, recordHistory, staffAudit, staleRecord } from '../staff-records.js'
+import { recordHistory, staffAudit, staleRecord } from '../staff-records.js'
 import { quotePdfEnabled } from '../quotes/files.js'
 import { attachPdf, limitUpload, pdfBody, uploadVersion } from '../documents/uploads.js'
-import { lockEligiblePartner } from '../partners/model.js'
+import { createExternalPolicy, draftValues, externalPolicyInput, reference, validateLinks } from './external-policy.js'
 import { snapshotSchema } from '../quotes/model.js'
-import { addDays, contractConflict, contractFilter, contractRow, contractRowSelect, coverageStatus, dateOnly, lockContract, onDate, policyFields, validatePeriod } from './model.js'
+import { addDays, contractConflict, contractFilter, contractRow, contractRowSelect, coverageStatus, dateOnly, lockContract, onDate, policyFields } from './model.js'
 import { obsoleteReminders, scheduleReminders } from './reminders.js'
 
-const external = z.strictObject({ ...policyFields, clientId: z.uuid(), partnerId: z.uuid(), productSlug })
 const conversion = z.strictObject({ ...policyFields, quoteId: z.uuid(), quoteVersion: versionField })
 const edit = z.strictObject(policyFields).partial().extend({ version: versionField }).refine(body => Object.keys(body).length > 1)
 const statusInput = z.strictObject({
@@ -26,36 +24,14 @@ const statusInput = z.strictObject({
 }).refine(input => input.status === 'ACTIVE' ? Boolean(input.confirmationReference && input.confirmationOn && !input.reason)
   : Boolean(input.reason && !input.confirmationReference && !input.confirmationOn))
 const renewal = z.strictObject({ version: versionField, effectiveOn: z.iso.date(), expiresOn: z.iso.date() })
-const filters = z.strictObject({
+export const contractList = z.strictObject({
   ...pagination, clientId: z.uuid().optional(), quoteId: z.uuid().optional(), partnerId: z.uuid().optional(), productSlug: productSlug.optional(),
   status: contractFilter.optional(), expiresFrom: z.iso.date().optional(), expiresTo: z.iso.date().optional(),
   renewals: z.literal('true').optional(),
 }).refine(input => !input.expiresFrom || !input.expiresTo || input.expiresFrom <= input.expiresTo)
 
-function reference() {
-  return 'CTR-' + randomBytes(12).toString('hex').toUpperCase()
-}
 function missing() {
   return new ApiError(404, 'NOT_FOUND', 'Contrat introuvable.')
-}
-
-async function validateLinks(db: Prisma.TransactionClient, input: Pick<Contract, 'clientId' | 'partnerId' | 'productId'>, verified = false) {
-  const client = await lockActiveClient(db, input.clientId)
-  if (verified && client.provisional) throw contractConflict('Vérifiez l’identité du client avant l’activation.')
-  const provider = await lockEligiblePartner(db, input.partnerId, input.productId)
-  if (!provider) throw contractConflict('La compagnie doit être vérifiée et active pour cette assurance.')
-  return provider
-}
-
-function draftValues(input: Partial<z.infer<typeof external>>, existing?: Contract) {
-  const effectiveOn = input.effectiveOn ? onDate(input.effectiveOn) : existing?.effectiveOn
-  const expiresOn = input.expiresOn ? onDate(input.expiresOn) : existing?.expiresOn
-  if (!effectiveOn || !expiresOn) throw new ApiError(422, 'CONTRACT_DATES', 'Les deux dates sont obligatoires.')
-  validatePeriod(effectiveOn, expiresOn)
-  return {
-    effectiveOn, expiresOn, policyNumber: input.policyNumber, coverage: input.coverage, premiumMad: input.premiumMad,
-    internalNotes: input.internalNotes, renewalReminders: input.renewalReminders,
-  }
 }
 
 async function lockVersion(db: Prisma.TransactionClient, id: string, version: number) {
@@ -106,40 +82,45 @@ async function detail(db: Prisma.TransactionClient, id: string, config: Config) 
   }
 }
 
+export function contractWhere(input: z.infer<typeof contractList>) {
+  const today = onDate(casablancaDate())
+  const byStatus: Record<z.infer<typeof contractFilter>, Prisma.ContractWhereInput> = {
+    DRAFT: { status: 'DRAFT' }, CANCELLED: { status: 'CANCELLED' },
+    EXPIRED: { OR: [{ status: 'EXPIRED' }, { status: 'ACTIVE', expiresOn: { lte: today } }] },
+    ACTIVE: { status: 'ACTIVE', confirmationOn: { not: null }, effectiveOn: { lte: today }, expiresOn: { gt: today } },
+    SCHEDULED: { status: 'ACTIVE', confirmationOn: { not: null }, effectiveOn: { gt: today }, expiresOn: { gt: today } },
+    UNVERIFIED: { status: 'ACTIVE', confirmationOn: null, expiresOn: { gt: today } },
+  }
+  const search = input.q && searchPrefix(input.q)
+  const where: Prisma.ContractWhereInput = {
+    clientId: input.clientId, quoteId: input.quoteId, partnerId: input.partnerId,
+    product: input.productSlug ? { slug: toProductSlug(input.productSlug) } : undefined,
+    expiresOn: { gte: input.expiresFrom ? onDate(input.expiresFrom) : undefined, lte: input.expiresTo ? onDate(input.expiresTo) : undefined },
+    AND: [
+      input.status ? byStatus[input.status] : {},
+      input.renewals ? {
+        status: { in: ['ACTIVE', 'EXPIRED'] }, confirmationOn: { not: null },
+        expiresOn: { lte: onDate(addDays(dateOnly(today), 30)) },
+        successors: { none: { activatedAt: { not: null } } },
+      } : {},
+      search ? { OR: [
+        { reference: { startsWith: search, mode: 'insensitive' } },
+        { policyNumber: { startsWith: search, mode: 'insensitive' } },
+        { client: { displayName: { startsWith: search, mode: 'insensitive' } } },
+      ] } : {},
+    ],
+  }
+  return where
+}
+
 export function contractRoutes(db: PrismaClient, config: Config) {
   const routes = Router()
   const admin = requireRole('ADMIN')
 
   routes.get('/', async (request, response) => {
-    const input = parseQuery(filters, request.query)
+    const input = parseQuery(contractList, request.query)
     const { page, limit, skip } = pageBounds(input)
-    const today = onDate(casablancaDate())
-    const byStatus: Record<z.infer<typeof contractFilter>, Prisma.ContractWhereInput> = {
-      DRAFT: { status: 'DRAFT' }, CANCELLED: { status: 'CANCELLED' },
-      EXPIRED: { OR: [{ status: 'EXPIRED' }, { status: 'ACTIVE', expiresOn: { lte: today } }] },
-      ACTIVE: { status: 'ACTIVE', confirmationOn: { not: null }, effectiveOn: { lte: today }, expiresOn: { gt: today } },
-      SCHEDULED: { status: 'ACTIVE', confirmationOn: { not: null }, effectiveOn: { gt: today }, expiresOn: { gt: today } },
-      UNVERIFIED: { status: 'ACTIVE', confirmationOn: null, expiresOn: { gt: today } },
-    }
-    const search = input.q && searchPrefix(input.q)
-    const where: Prisma.ContractWhereInput = {
-      clientId: input.clientId, quoteId: input.quoteId, partnerId: input.partnerId,
-      product: input.productSlug ? { slug: toProductSlug(input.productSlug) } : undefined,
-      expiresOn: { gte: input.expiresFrom ? onDate(input.expiresFrom) : undefined, lte: input.expiresTo ? onDate(input.expiresTo) : undefined },
-      AND: [
-        input.status ? byStatus[input.status] : {},
-        input.renewals ? {
-          status: { in: ['ACTIVE', 'EXPIRED'] }, confirmationOn: { not: null },
-          expiresOn: { lte: onDate(addDays(dateOnly(today), 30)) },
-          successors: { none: { activatedAt: { not: null } } },
-        } : {},
-        search ? { OR: [
-          { reference: { startsWith: search, mode: 'insensitive' } },
-          { policyNumber: { startsWith: search, mode: 'insensitive' } },
-          { client: { displayName: { startsWith: search, mode: 'insensitive' } } },
-        ] } : {},
-      ],
-    }
+    const where = contractWhere(input)
     const [rows, total] = await db.$transaction([
       db.contract.findMany({ where, skip, take: limit, select: contractRowSelect, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
       db.contract.count({ where }),
@@ -187,16 +168,10 @@ export function contractRoutes(db: PrismaClient, config: Config) {
     } catch (error) { uniqueConflict(error) }
   })
   routes.post('/external', requireCsrf, async (request, response) => {
-    const input = jsonBody(request, external)
+    const input = jsonBody(request, externalPolicyInput)
     try {
       const data = await db.$transaction(async transaction => {
-        const product = await transaction.insuranceProduct.findUnique({ where: { slug: toProductSlug(input.productSlug) }, select: { id: true } })
-        if (!product) throw contractConflict('Assurance introuvable.')
-        await validateLinks(transaction, { ...input, productId: product.id })
-        const record = await transaction.contract.create({ data: {
-          ...draftValues(input), clientId: input.clientId, partnerId: input.partnerId, productId: product.id,
-          reference: reference(), createdBy: currentSession(response).user.id,
-        } })
+        const record = await createExternalPolicy(transaction, input, currentSession(response).user.id)
         await staffAudit(transaction, response, 'contract', record.id, 'CONTRACT_EXTERNAL_DRAFT_CREATED')
         return detail(transaction, record.id, config)
       })

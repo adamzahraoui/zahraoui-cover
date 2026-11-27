@@ -33,6 +33,8 @@ B10 checks current carrier eligibility for policy drafts, confirmation and renew
 
 Contract details and renewal history link to [Documents](27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md) with the selected policy filter. Local policy, supporting and other approved attachments share the same contract sequence and private storage.
 
+B12 imports external policies through the same draft service. Imported contracts require stable customer and partner references and keep reminders disabled until staff review. [Migration guide](29-LEGACY-DATA-MIGRATION-GUIDE.md)
+
 ## Privacy and storage
 
 [The contract router](../backend/src/modules/contracts/routes.ts) checks MIME and file size, requires a PDF signature and classic cross-reference table, and rejects recognizable active names, encryption and compressed object containers. This narrow test path can reject otherwise legitimate PDFs. It does not perform malware scanning. Production upload is disabled. The server writes under a generated UUID in the B8 private directory, with exclusive publication, a 0600 file and SHA-256 verification on read. The download filename uses the internal reference and revision number. PDFs are attachment-only. The server never exposes a raw file path or the user's filename. New files append a revision number and preserve old documents. A failed transaction removes a known orphan when the database can confirm that it has no matching row.

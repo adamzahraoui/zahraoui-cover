@@ -1,8 +1,8 @@
 # 03 — Frontend page specification
 
-Routes are based on the handoff. Each page has its own folder, such as `frontend/src/pages/public/AutoInsurance/` or `frontend/src/pages/admin/QuoteRequests/`. The original `P` and `A` identifiers link the documentation to the Stitch inventory. A20 was added in B11 using the existing administration design. Separate modes of the same page share a folder. [Export references](14-DESIGN-AUDIT.md) map the IDs to the HTML files. [API contracts](06-API-ENDPOINTS.md) define the payloads and validation rules for the connected release.
+Routes are based on the handoff. Each page has its own folder, such as `frontend/src/pages/public/AutoInsurance/` or `frontend/src/pages/admin/QuoteRequests/`. The original `P` and `A` identifiers link the documentation to the Stitch inventory. A20 and A21 were added in B11 and B12 using the existing administration design. Separate modes of the same page share a folder. [Export references](14-DESIGN-AUDIT.md) map the IDs to the HTML files. [API contracts](06-API-ENDPOINTS.md) define the payloads and validation rules for the connected release.
 
-The implementation notes under each page describe the React app. Staff authentication, the public catalog, quote intake, staff request management, customer CRM, contact, assistance, issued quotes, contracts, renewals, partners, the document inventory and the dashboard summary are connected. Other business endpoint descriptions remain the target for later phases. See [verification and differences](15-IMPLEMENTATION-STATUS.md).
+The implementation notes under each page describe the React app. Staff authentication, the public catalog, quote intake, staff request management, customer CRM, contact, assistance, issued quotes, contracts, renewals, partners, the document inventory, spreadsheet import and export, and the dashboard summary are connected. Other business endpoint descriptions remain the target for later phases. See [verification and differences](15-IMPLEMENTATION-STATUS.md).
 
 ## How to follow the code
 
@@ -796,3 +796,12 @@ Maintain confirmed agency details in V2.
 - **Data and states.** The API provides counts, stored bytes, categories, associated records, statuses and paginated results. The page shows network, empty, success and upload error states. Date and record filters are in the URL.
 - **Workflow.** Staff preview generated proposals, download ready files and attach local test PDFs to eligible contracts. Only administrators can archive approved supporting documents. The client profile, quote revisions and policy renewal history link to the relevant filtered view.
 - **Files.** [Documents.tsx](../frontend/src/pages/admin/Documents/Documents.tsx), [UploadDocument.tsx](../frontend/src/pages/admin/Documents/UploadDocument.tsx) and the [document management guide](27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md).
+
+### A21 · Import / Export
+
+**Route** `/admin/import-export`
+
+- **Access and layout.** Only administrators see the navigation entry and can open the page. It uses the existing headings, filters, tables, badges and button styles.
+- **Import.** Choose a dataset and template, upload a local test spreadsheet, select a worksheet, map columns, review per-row data validation, then confirm. The original file stays in the browser while the wizard is open. Stale validations and invalid rows require a new review before committing.
+- **Export and history.** Filter approved datasets, download XLSX or CSV, and open previously committed reports. History includes the administrator, counts, date and links to created records.
+- **Files.** [ImportExport.tsx](../frontend/src/pages/admin/ImportExport/ImportExport.tsx), [ImportWizard.tsx](../frontend/src/pages/admin/ImportExport/ImportWizard.tsx) and [ExportForm.tsx](../frontend/src/pages/admin/ImportExport/ExportForm.tsx). [Implementation](28-EXCEL-IMPORT-EXPORT-IMPLEMENTATION.md)

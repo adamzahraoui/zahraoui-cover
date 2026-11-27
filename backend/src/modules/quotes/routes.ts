@@ -19,7 +19,7 @@ const edit = quoteInput.partial().extend({ version: versionField }).refine(body 
 const decision = mutation.extend({
   status: z.enum(['ACCEPTED', 'DECLINED']), method: decisionMethod, evidence: z.string().trim().min(3).max(1000),
 })
-const listInput = z.strictObject({
+export const issuedQuoteList = z.strictObject({
   ...pagination, status: quoteStatus.optional(), productSlug: productSlug.optional(),
   clientId: z.uuid().optional(), requestId: z.uuid().optional(), from: z.iso.date().optional(), to: z.iso.date().optional(),
 }).refine(({ from, to }) => !from || !to || from <= to)
@@ -129,28 +129,33 @@ async function jobBusy(db: Prisma.TransactionClient, id: string) {
   } }))
 }
 
+export async function issuedQuoteWhere(db: Prisma.TransactionClient, input: z.infer<typeof issuedQuoteList>) {
+  const search = input.q && searchPrefix(input.q)
+  const today = new Date(casablancaDate() + 'T00:00:00Z')
+  const statusFilter: Prisma.QuoteWhereInput = input.status === 'EXPIRED'
+    ? { OR: [{ status: 'EXPIRED' }, { status: { in: ['ISSUED', 'SENT'] }, validUntil: { lt: today } }] }
+    : input.status === 'ISSUED' || input.status === 'SENT'
+      ? { status: input.status, OR: [{ validUntil: null }, { validUntil: { gte: today } }] }
+      : { status: input.status }
+  const where: Prisma.QuoteWhereInput = {
+    clientId: input.clientId, requestId: input.requestId,
+    product: input.productSlug ? { slug: toProductSlug(input.productSlug) } : undefined,
+    createdAt: await dateRange(db, input.from, input.to),
+    AND: [statusFilter, ...(search ? [{ OR: [
+      { reference: { startsWith: search, mode: 'insensitive' as const } },
+      { client: { displayName: { startsWith: search, mode: 'insensitive' as const } } },
+    ] }] : [])],
+  }
+  return where
+}
+
 export function issuedQuoteRoutes(db: PrismaClient, config: Config) {
   const routes = Router()
   const admin = requireRole('ADMIN')
   routes.get('/', async (request, response) => {
-    const input = parseQuery(listInput, request.query)
+    const input = parseQuery(issuedQuoteList, request.query)
     const { page, limit, skip } = pageBounds(input)
-    const search = input.q && searchPrefix(input.q)
-    const today = new Date(casablancaDate() + 'T00:00:00Z')
-    const statusFilter: Prisma.QuoteWhereInput = input.status === 'EXPIRED'
-      ? { OR: [{ status: 'EXPIRED' }, { status: { in: ['ISSUED', 'SENT'] }, validUntil: { lt: today } }] }
-      : input.status === 'ISSUED' || input.status === 'SENT'
-        ? { status: input.status, OR: [{ validUntil: null }, { validUntil: { gte: today } }] }
-        : { status: input.status }
-    const where: Prisma.QuoteWhereInput = {
-      clientId: input.clientId, requestId: input.requestId,
-      product: input.productSlug ? { slug: toProductSlug(input.productSlug) } : undefined,
-      createdAt: await dateRange(db, input.from, input.to),
-      AND: [statusFilter, ...(search ? [{ OR: [
-        { reference: { startsWith: search, mode: 'insensitive' as const } },
-        { client: { displayName: { startsWith: search, mode: 'insensitive' as const } } },
-      ] }] : [])],
-    }
+    const where = await issuedQuoteWhere(db, input)
     const [rows, total] = await db.$transaction([
       db.quote.findMany({ where, skip, take: limit, select: quoteRowSelect, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] }),
       db.quote.count({ where }),

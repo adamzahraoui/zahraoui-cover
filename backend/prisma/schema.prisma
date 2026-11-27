@@ -158,6 +158,7 @@ enum JobStatus {
 }
 
 model StaffUser {
+  importJobs        ImportJob[]
   id                String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -244,6 +245,7 @@ model InsuranceProduct {
 }
 
 model Client {
+  legacyReference   String?          @unique @map("legacy_reference") @db.VarChar(80)
   id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -437,6 +439,7 @@ model AuditEvent {
 }
 
 model Partner {
+  legacyReference       String?       @unique @map("legacy_reference") @db.VarChar(80)
   id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -522,6 +525,7 @@ model Quote {
 }
 
 model Contract {
+  legacyReference       String?          @unique @map("legacy_reference") @db.VarChar(80)
   id                    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -657,4 +661,44 @@ model OutboxJob {
   @@index([documentId])
   @@index([contractId])
   @@map("outbox_jobs")
+}
+
+enum ImportKind {
+  CLIENTS
+  PARTNERS
+  CONTRACTS
+
+  @@map("import_kind")
+}
+
+enum ImportStatus {
+  UPLOADED
+  VALIDATED
+  COMPLETED
+  EXPIRED
+
+  @@map("import_status")
+}
+
+model ImportJob {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind            ImportKind
+  status          ImportStatus @default(UPLOADED)
+  format          String       @db.VarChar(4)
+  digest          String       @db.Char(64)
+  administratorId String       @map("administrator_id") @db.Uuid
+  administrator   StaffUser    @relation(fields: [administratorId], references: [id], onDelete: Restrict)
+  version         Int          @default(1)
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt       DateTime     @map("expires_at") @db.Timestamptz(6)
+  completedAt     DateTime?    @map("completed_at") @db.Timestamptz(6)
+  selection       Json?
+  counts          Json?
+  diagnostics     Json?
+  createdRecords  Json?        @map("created_records")
+
+  @@index([kind, digest])
+  @@index([administratorId, createdAt, id])
+  @@index([expiresAt])
+  @@map("import_jobs")
 }

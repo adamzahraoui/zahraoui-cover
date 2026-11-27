@@ -157,6 +157,21 @@ The catalog returns an unpaginated bounded array. Health responses use bare prob
 
 The shared uploader also serves the existing contract endpoint. It returns 409 for stale or duplicate writes, 413 for oversized uploads, 415 for unsupported MIME, 422 for invalid file contents or customer mismatch, 429 for throttling and 503 for unavailable storage or a disabled upload environment. [Document management](27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md)
 
+## Administrator spreadsheets · B12
+
+| Method and URL | Purpose | Request / result |
+| --- | --- | --- |
+| GET /api/admin/imports/templates/:type | Download a blank template | CLIENTS, PARTNERS or CONTRACTS, format=csv/xlsx |
+| POST /api/admin/imports | Register a local import | kind and format query, raw file and filename header. Returns 201 job, worksheets and proposed mappings. |
+| POST /api/admin/imports/:id/validate | Preview local import | Current version in query, original bytes and selection header. Returns row diagnostics and next version. |
+| POST /api/admin/imports/:id/confirm | Commit local import | Current version, confirmed=true and original bytes. Returns committed or replayed receipt. |
+| GET /api/admin/imports | List own history | kind?, page?, limit?, returns overview and importEnabled |
+| GET /api/admin/imports/:id | Read own job | UUID and administrator ownership |
+| GET /api/admin/imports/:id/errors | Export errors | CSV row numbers and codes until expiry |
+| GET /api/admin/exports/:type | Download filtered data | Five allowlisted datasets, CSV or XLSX, existing list filters excluding pagination |
+
+These routes require ADMIN. POST routes require CSRF. See [headers, limits and errors](28-EXCEL-IMPORT-EXPORT-IMPLEMENTATION.md).
+
 ## Proposed settings administration
 
 | Method and URL | Purpose / permission | Request and validation | Success body | Other errors | Pages |

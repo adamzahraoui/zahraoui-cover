@@ -168,3 +168,21 @@ export type DocumentDetail = DocumentRow & {
   uploader: { displayName: string } | null; mimeType: string | null; activity: ActivityEntry[]
 }
 export type DocumentPage = Page<DocumentRow> & { storage: { count: number; sizeBytes: string }; uploadEnabled: boolean }
+
+export type ImportKind = 'CLIENTS' | 'PARTNERS' | 'CONTRACTS'
+export type ExportKind = ImportKind | 'QUOTE_REQUESTS' | 'ISSUED_QUOTES'
+export type SpreadsheetFormat = 'csv' | 'xlsx'
+export type ImportDiagnostic = { line: number; state: 'VALID' | 'INVALID' | 'DUPLICATE'; code?: string; field?: string }
+export type ImportJob = {
+  id: string; kind: ImportKind; format: SpreadsheetFormat; administrator: string; version: number
+  status: 'UPLOADED' | 'VALIDATED' | 'COMPLETED' | 'EXPIRED'
+  createdAt: string; expiresAt: string; completedAt: string | null
+  counts: { total: number; valid: number; rejected: number; skipped: number; created: number } | null
+  diagnostics: ImportDiagnostic[] | null
+  createdRecords: { line: number; id: string }[] | null
+}
+export type ImportUpload = ImportJob & {
+  previouslyImported: boolean
+  fields: { key: string; label: string; required?: boolean }[]
+  sheets: { name: string; headers: string[]; suggested: (string | null)[] }[]
+}

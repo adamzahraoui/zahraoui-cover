@@ -34,9 +34,9 @@ The server checks current verification, activation and matching category when cr
 
 Issued quote snapshots preserve the original legal name. B10 contract confirmations freeze it in the activation snapshot. Older contracts use the original source quote's carrier name where available and can fall back to the linked partner's current name when no original name was recorded. Deactivation and partner edits preserve stored snapshots, links and private PDF files. Existing confirmed policies and quote decisions remain readable.
 
-## Future import compatibility
+## Import compatibility
 
-A partner UUID is the stable identifier for quotes and contracts and should be retained when the source provides a trusted mapping. For an initial match where a UUID is unavailable, use the trimmed case-insensitive legal name and send uncertain matches to manual review. Display names and contact fields can change. A future authorized import can reuse `partnerFields`, `resolveCategories` and `createPartner` from the [partner model](../backend/src/modules/partners/model.ts) to apply the same validation and create inactive drafts. No import endpoints or import-specific tables were added.
+A partner UUID is the stable identifier for quotes and contracts and should be retained when the source provides a trusted mapping. For an initial match where a UUID is unavailable, use the trimmed case-insensitive legal name and send uncertain matches to manual review. Display names and contact fields can change. A future authorized import can reuse `partnerFields`, `resolveCategories` and `createPartner` from the [partner model](../backend/src/modules/partners/model.ts) to apply the same validation and create inactive drafts. B10 did not add importer endpoints or tables. B12 now uses the shared validation and records optional unique legacy references. [Migration guide](29-LEGACY-DATA-MIGRATION-GUIDE.md)
 
 ## Verification and limitations
 

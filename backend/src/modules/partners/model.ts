@@ -31,9 +31,9 @@ export async function resolveCategories(db: Prisma.TransactionClient, categories
   return slugs
 }
 
-export async function createPartner(db: Prisma.TransactionClient, input: PartnerFields) {
+export async function createPartner(db: Prisma.TransactionClient, input: PartnerFields, legacyReference?: string) {
   const { categories = [], ...fields } = input
-  return db.partner.create({ data: { ...fields, categories: await resolveCategories(db, categories), isActive: false, isPublished: false } })
+  return db.partner.create({ data: { ...fields, legacyReference, categories: await resolveCategories(db, categories), isActive: false, isPublished: false } })
 }
 
 export const eligiblePartner = { isActive: true, verifiedAt: { not: null } } satisfies Prisma.PartnerWhereInput

@@ -1,5 +1,6 @@
-import { Building2, ClipboardList, FileCheck2, Files, FileText, Handshake, Headset, LayoutDashboard, Mail, Settings, Users } from 'lucide-react'
+import { Building2, ClipboardList, FileSpreadsheet, FileCheck2, Files, FileText, Handshake, Headset, LayoutDashboard, Mail, Settings, Users } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
+import { useAdminSession } from './auth/AdminSession'
 import { Brand } from '../public/Brand'
 
 const items = [
@@ -13,13 +14,16 @@ const items = [
   { to: '/admin/assurances', label: 'Assurances', Icon: Building2 },
   { to: '/admin/partenaires', label: 'Partenaires', Icon: Handshake },
   { to: '/admin/messages', label: 'Messages', Icon: Mail },
+  { to: '/admin/import-export', label: 'Import / Export', Icon: FileSpreadsheet, adminOnly: true },
   { to: '/admin/parametres', label: 'Paramètres', Icon: Settings },
 ]
 
 export function AdminNavigation({ onNavigate }: { onNavigate?: () => void }) {
+  const { state } = useAdminSession()
+  const admin = state.status === 'authenticated' && state.user.role === 'ADMIN'
   return (
     <nav aria-label="Administration" className="grid gap-1">
-      {items.map(({ to, label, Icon }) => (
+      {items.filter(item => !item.adminOnly || admin).map(({ to, label, Icon }) => (
         <NavLink to={to} key={to} onClick={onNavigate} className="flex min-h-11 min-w-0 items-center gap-3 rounded p-3 text-sm font-medium hover:bg-white/12 aria-[current=page]:bg-white/20">
           <Icon size={17} className="shrink-0" aria-hidden />{label}
         </NavLink>

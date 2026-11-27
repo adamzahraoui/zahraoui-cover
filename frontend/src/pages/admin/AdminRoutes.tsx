@@ -16,6 +16,7 @@ import Quotes from './Quotes/Quotes'
 import QuoteCreate from './QuoteCreate/QuoteCreate'
 import QuoteDetail from './QuoteDetail/QuoteDetail'
 import Contracts from './Contracts/Contracts'
+import ImportExport from './ImportExport/ImportExport'
 import Documents from './Documents/Documents'
 import ContractForm from './ContractForm/ContractForm'
 import AssistanceInbox from './AssistanceInbox/AssistanceInbox'
@@ -53,6 +54,7 @@ export default function AdminRoutes() {
             <Route path="partenaires" element={<Partners />} />
             <Route path="messages" element={<Messages />} />
             <Route element={<RequireAdminRole />}>
+              <Route path="import-export" element={<ImportExport />} />
               <Route path="parametres" element={<Settings />} />
             </Route>
             <Route path="*" element={<NoRecord title="Page d’administration introuvable" back="/admin/dashboard" />} />

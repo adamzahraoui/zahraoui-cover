@@ -3,6 +3,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { ApiError } from '../../middleware/errors.js'
 import { jsonBody } from '../../middleware/request.js'
+import { clientFields, createClient, duplicates } from './model.js'
 import { emailField } from '../auth/contracts.js'
 import { requireCsrf, requireRole } from '../auth/session.js'
 import { casablancaDate, normalizePhone, pageBounds, pagination, parseQuery, phoneField, profile, searchPrefix, versionField } from '../business-inputs.js'
@@ -11,60 +12,44 @@ import { quoteRow, quoteRowSelect } from '../quotes/model.js'
 import { requestRow, requestRowSelect } from '../quote-requests/admin.js'
 import { recordHistory, staffAudit, staleRecord } from '../staff-records.js'
 
-const write = z.strictObject({
-  profile, displayName: z.string().trim().min(2).max(120), phone: phoneField,
-  email: emailField.nullable().optional(), city: z.string().trim().min(2).max(100).nullable().optional(),
-  notes: z.string().trim().max(1000).nullable().optional(),
-})
-const create = write.extend({ confirmDuplicate: z.literal(true).optional() })
-const edit = write.partial().extend({
+const create = clientFields.extend({ confirmDuplicate: z.literal(true).optional() })
+const edit = clientFields.partial().extend({
   version: versionField, verify: z.literal(true).optional(), confirmDuplicate: z.literal(true).optional(),
 }).refine(body => Object.keys(body).some(key => key !== 'version' && key !== 'confirmDuplicate'))
-const list = z.strictObject({
+export const clientList = z.strictObject({
   ...pagination, profile: profile.optional(), archived: z.enum(['true', 'false']).optional(),
   provisional: z.enum(['true', 'false']).optional(),
 })
 const rowSelect = { id: true, profile: true, displayName: true, phone: true, city: true, archivedAt: true, version: true, intakeProvisional: true } as const
 const openRequest = { status: { in: ['NEW', 'IN_REVIEW', 'QUOTE_SENT'] } } satisfies Prisma.QuoteRequestWhereInput
 
-async function duplicates(database: Prisma.TransactionClient, phone?: string, email?: string | null, id?: string, locked = false) {
-  const fields: Prisma.ClientWhereInput[] = []
-  if (phone) fields.push({ phone })
-  if (email) fields.push({ email: { equals: email, mode: 'insensitive' } })
-  if (!fields.length) return []
-  if (locked) {
-    const keys = [phone && 'phone:' + phone, email && 'email:' + email].filter(Boolean).sort()
-    for (const key of keys) await database.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${'client:' + key}, 0))`
-  }
-  return database.client.findMany({
-    where: { id: id ? { not: id } : undefined, OR: fields }, take: 10,
-    select: { id: true, displayName: true, intakeProvisional: true, archivedAt: true },
-    orderBy: [{ archivedAt: 'asc' }, { displayName: 'asc' }, { id: 'asc' }],
-  })
-}
-
 function notFound() {
   return new ApiError(404, 'NOT_FOUND', 'Client introuvable.')
+}
+
+export function clientWhere(input: z.infer<typeof clientList>) {
+  const prefix = input.q && searchPrefix(input.q)
+  const where: Prisma.ClientWhereInput = {
+    archivedAt: input.archived === 'true' ? { not: null } : null, profile: input.profile,
+    intakeProvisional: input.provisional === undefined ? undefined : input.provisional === 'true',
+    OR: prefix ? [
+      { displayName: { startsWith: prefix, mode: 'insensitive' } },
+      { city: { startsWith: prefix, mode: 'insensitive' } },
+      { email: { startsWith: prefix, mode: 'insensitive' } },
+      { phone: { startsWith: normalizePhone(input.q ?? '') ?? prefix } },
+      { requests: { some: { reference: { startsWith: prefix, mode: 'insensitive' } } } },
+      { assistance: { some: { reference: { startsWith: prefix, mode: 'insensitive' } } } },
+    ] : undefined,
+  }
+  return where
 }
 
 export function clientRoutes(database: PrismaClient) {
   const routes = Router()
   routes.get('/', async (request, response) => {
-    const input = parseQuery(list, request.query)
+    const input = parseQuery(clientList, request.query)
     const { page, limit, skip } = pageBounds(input)
-    const prefix = input.q && searchPrefix(input.q)
-    const where: Prisma.ClientWhereInput = {
-      archivedAt: input.archived === 'true' ? { not: null } : null, profile: input.profile,
-      intakeProvisional: input.provisional === undefined ? undefined : input.provisional === 'true',
-      OR: prefix ? [
-        { displayName: { startsWith: prefix, mode: 'insensitive' } },
-        { city: { startsWith: prefix, mode: 'insensitive' } },
-        { email: { startsWith: prefix, mode: 'insensitive' } },
-        { phone: { startsWith: normalizePhone(input.q ?? '') ?? prefix } },
-        { requests: { some: { reference: { startsWith: prefix, mode: 'insensitive' } } } },
-        { assistance: { some: { reference: { startsWith: prefix, mode: 'insensitive' } } } },
-      ] : undefined,
-    }
+    const where = clientWhere(input)
     const [data, total] = await database.$transaction([
       database.client.findMany({ where, skip, take: limit, select: rowSelect, orderBy: [{ intakeProvisional: 'asc' }, { createdAt: 'desc' }, { id: 'desc' }] }),
       database.client.count({ where }),
@@ -80,9 +65,7 @@ export function clientRoutes(database: PrismaClient) {
   routes.post('/', requireCsrf, async (request, response) => {
     const { confirmDuplicate, ...input } = jsonBody(request, create)
     const data = await database.$transaction(async transaction => {
-      const candidates = await duplicates(transaction, input.phone, input.email, undefined, true)
-      if (candidates.length && !confirmDuplicate) throw new ApiError(409, 'CLIENT_DUPLICATES', 'Des fiches utilisent ces coordonnées. Vérifiez les correspondances.')
-      const client = await transaction.client.create({ data: input })
+      const client = await createClient(transaction, input, Boolean(confirmDuplicate))
       await staffAudit(transaction, response, 'client', client.id, 'CLIENT_CREATED', { duplicateConfirmed: Boolean(confirmDuplicate) })
       return client
     })

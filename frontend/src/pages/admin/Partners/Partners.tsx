@@ -1,5 +1,5 @@
 import { Handshake, Plus } from 'lucide-react'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AdminHeading, LocalFeedback } from '../../../components/admin/AdminContent'
 import { useAdminSession } from '../../../components/admin/auth/AdminSession'
@@ -23,10 +23,17 @@ export default function Partners() {
   const { state } = useAdminSession()
   const admin = state.status === 'authenticated' && state.user.role === 'ADMIN'
   const dialog = useRef<HTMLDialogElement>(null)
-  const [selected, setSelected] = useState('')
+  const [params, setParams] = useSearchParams()
+  const directRecord = params.get('fiche')
+  const [selected, setSelected] = useState(directRecord ?? '')
   const [feedback, setFeedback] = useState('')
   const [query, setQuery] = useState('')
-  const [params, setParams] = useSearchParams()
+  useEffect(() => {
+    if (directRecord) {
+      setSelected(directRecord)
+      dialog.current?.showModal()
+    }
+  }, [directRecord])
   const filters = new URLSearchParams({ limit: '9' })
   for (const key of ['status', 'page', 'productSlug']) if (params.get(key)) filters.set(key, params.get(key)!)
   if (query.trim().length >= 2) filters.set('q', query.trim())

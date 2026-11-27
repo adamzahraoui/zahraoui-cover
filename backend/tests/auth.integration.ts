@@ -261,7 +261,7 @@ test('migration enforces auth keys, delete rules and PostgreSQL-only constraints
       EXISTS (SELECT 1 FROM pg_constraint
         WHERE conname = 'admin_sessions_staff_id_fkey' AND confdeltype = 'c') AS "hasCascade"
   `
-  assert.deepEqual(schema, { tables: 18, checks: 4, indexes: 3, hasCascade: true })
+  assert.deepEqual(schema, { tables: 19, checks: 4, indexes: 3, hasCascade: true })
   await assert.rejects(database.staffUser.create({ data: { email: staff.email, displayName: 'Duplicata de test', role: 'ADMIN' } }))
   await assert.rejects(database.adminSession.create({ data: {
     staffId: staff.id, tokenHash: Buffer.alloc(31), lastSeenAt: new Date(), expiresAt: new Date(Date.now() + 60_000),

@@ -46,6 +46,8 @@ Use Node.js 22.12 or later, npm and Docker Compose.
 
 The **Documents** menu lists private files and allows local PDF uploads when the configured private directory is available. The worker and API use the same directory. [Document management](../docs/27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md)
 
+For B12, open **Import / Export** as an administrator in local development. Use the bundled templates and synthetic data. The API receives spreadsheet bytes in memory and records preview or import history in PostgreSQL. [Spreadsheet implementation](../docs/28-EXCEL-IMPORT-EXPORT-IMPLEMENTATION.md)
+
 The public probe is `GET /api/health`. From the API machine, check database readiness using `GET /api/health/ready`. The first-admin command operates once per database. For a missing or expired setup link, request a new one from the password recovery page.
 
 ## Checks and production build
