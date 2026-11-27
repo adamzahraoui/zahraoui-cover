@@ -1,0 +1,563 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum StaffRole {
+  ADVISOR
+  ADMIN
+
+  @@map("staff_role")
+}
+
+enum ClientProfile {
+  INDIVIDUAL
+  BUSINESS
+
+  @@map("client_profile")
+}
+
+enum Audience {
+  INDIVIDUAL
+  BUSINESS
+
+  @@map("audience")
+}
+
+enum ProductSlug {
+  automobile
+  habitation
+  sante
+  voyage
+  professionnelle
+  responsabilite_civile @map("responsabilite-civile")
+
+  @@map("product_slug")
+}
+
+enum ContactMethod {
+  PHONE
+  EMAIL
+
+  @@map("contact_method")
+}
+
+enum QuoteSituation {
+  NEW_POLICY
+  RENEWAL
+  SWITCH_PROVIDER
+
+  @@map("quote_situation")
+}
+
+enum RequestStatus {
+  NEW
+  IN_REVIEW
+  QUOTE_SENT
+  ACCEPTED
+  DECLINED
+  CLOSED
+
+  @@map("request_status")
+}
+
+enum AssistanceStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+
+  @@map("assistance_status")
+}
+
+enum AssistancePriority {
+  NORMAL
+  URGENT
+
+  @@map("assistance_priority")
+}
+
+enum MessageStatus {
+  UNREAD
+  READ
+  PROCESSED
+
+  @@map("message_status")
+}
+
+enum IntakeAction {
+  QUOTE_REQUEST
+  ASSISTANCE
+  CONTACT
+
+  @@map("intake_action")
+}
+
+enum QuoteStatus {
+  DRAFT
+  ISSUED
+  ACCEPTED
+  DECLINED
+
+  @@map("quote_status")
+}
+
+enum ContractStatus {
+  DRAFT
+  ACTIVE
+  CANCELLED
+  EXPIRED
+
+  @@map("contract_status")
+}
+
+enum DocumentKind {
+  QUOTE_PDF
+  CONTRACT_PDF
+
+  @@map("document_kind")
+}
+
+enum DocumentStatus {
+  QUEUED
+  READY
+  FAILED
+
+  @@map("document_status")
+}
+
+enum JobKind {
+  REQUEST_ALERT
+  REQUEST_ACK
+  ASSISTANCE_ALERT
+  CONTACT_ALERT
+  CONTACT_ACK
+  RESET_EMAIL
+  GENERATE_PDF
+  RENEWAL_ALERT
+
+  @@map("job_kind")
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+
+  @@map("job_status")
+}
+
+model StaffUser {
+  id           String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version      Int                  @default(1)
+  email        String               @unique @db.VarChar(254)
+  displayName  String               @map("display_name") @db.VarChar(120)
+  role         StaffRole
+  passwordHash String?              @map("password_hash")
+  isActive     Boolean              @default(true) @map("is_active")
+  sessions     AdminSession[]
+  resetTokens  PasswordResetToken[]
+  requests     QuoteRequest[]
+  notes        RequestNote[]
+  auditEvents  AuditEvent[]
+  quotes       Quote[]
+  contracts    Contract[]
+
+  @@index([isActive, displayName, id])
+  @@map("staff_users")
+}
+
+model AdminSession {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  staffId    String    @map("staff_id") @db.Uuid
+  tokenHash  Bytes     @unique @map("token_hash")
+  lastSeenAt DateTime  @map("last_seen_at") @db.Timestamptz(6)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  staff      StaffUser @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, revokedAt])
+  @@index([expiresAt])
+  @@map("admin_sessions")
+}
+
+model PasswordResetToken {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  staffId       String      @map("staff_id") @db.Uuid
+  tokenHash     Bytes       @unique @map("token_hash")
+  expiresAt     DateTime    @map("expires_at") @db.Timestamptz(6)
+  usedAt        DateTime?   @map("used_at") @db.Timestamptz(6)
+  invalidatedAt DateTime?   @map("invalidated_at") @db.Timestamptz(6)
+  staff         StaffUser   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  outboxJobs    OutboxJob[]
+
+  @@index([staffId, expiresAt])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model InsuranceProduct {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version            Int              @default(1)
+  slug               ProductSlug      @unique
+  title              String           @db.VarChar(120)
+  summary            String           @db.VarChar(300)
+  audiences          Audience[]
+  imageKey           String?          @map("image_key")
+  potentialCoverages Json             @map("potential_coverages")
+  eligibilityText    String           @map("eligibility_text")
+  documentHints      Json             @map("document_hints")
+  faqs               Json
+  relatedSlugs       ProductSlug[]    @map("related_slugs")
+  isPublished        Boolean          @default(false) @map("is_published")
+  displayOrder       Int              @default(0) @map("display_order") @db.SmallInt
+  requests           QuoteRequest[]
+  assistanceCases    AssistanceCase[]
+  quotes             Quote[]
+  contracts          Contract[]
+
+  @@index([isPublished, displayOrder, id])
+  @@map("insurance_products")
+}
+
+model Client {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version     Int            @default(1)
+  profile     ClientProfile
+  displayName String         @map("display_name") @db.VarChar(120)
+  phone       String         @db.VarChar(16)
+  email       String?        @db.VarChar(254)
+  city        String?        @db.VarChar(100)
+  notes       String?        @db.VarChar(1000)
+  archivedAt  DateTime?      @map("archived_at") @db.Timestamptz(6)
+  requests    QuoteRequest[]
+  quotes      Quote[]
+  contracts   Contract[]
+
+  @@index([archivedAt, createdAt, id])
+  @@index([phone])
+  @@index([email])
+  @@map("clients")
+}
+
+model QuoteRequest {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version          Int              @default(1)
+  noticeVersion    String           @map("notice_version") @db.VarChar(32)
+  acknowledgedAt   DateTime         @map("acknowledged_at") @db.Timestamptz(6)
+  reference        String           @unique @db.VarChar(32)
+  productId        String           @map("product_id") @db.Uuid
+  clientId         String?          @map("client_id") @db.Uuid
+  assignedTo       String?          @map("assigned_to") @db.Uuid
+  profile          ClientProfile
+  firstName        String           @map("first_name") @db.VarChar(120)
+  lastName         String           @map("last_name") @db.VarChar(120)
+  phone            String           @db.VarChar(16)
+  email            String           @db.VarChar(254)
+  city             String           @db.VarChar(100)
+  preferredContact ContactMethod    @default(PHONE) @map("preferred_contact")
+  desiredStartOn   DateTime?        @map("desired_start_on") @db.Date
+  situation        QuoteSituation   @default(NEW_POLICY)
+  needs            String           @db.VarChar(1000)
+  status           RequestStatus    @default(NEW)
+  closedAt         DateTime?        @map("closed_at") @db.Timestamptz(6)
+  product          InsuranceProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
+  client           Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  assignee         StaffUser?       @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  notes            RequestNote[]
+  submissionKeys   SubmissionKey[]
+  quotes           Quote[]
+  outboxJobs       OutboxJob[]
+
+  @@index([createdAt, id])
+  @@index([status, createdAt, id])
+  @@index([productId, createdAt])
+  @@index([clientId, createdAt])
+  @@index([assignedTo, createdAt])
+  @@index([phone])
+  @@index([closedAt])
+  @@map("quote_requests")
+}
+
+model RequestNote {
+  id        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  requestId String       @map("request_id") @db.Uuid
+  authorId  String?      @map("author_id") @db.Uuid
+  body      String       @db.VarChar(1000)
+  request   QuoteRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  author    StaffUser?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([requestId, createdAt, id])
+  @@index([authorId])
+  @@map("request_notes")
+}
+
+model AssistanceCase {
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version           Int                @default(1)
+  noticeVersion     String             @map("notice_version") @db.VarChar(32)
+  acknowledgedAt    DateTime           @map("acknowledged_at") @db.Timestamptz(6)
+  reference         String             @unique @db.VarChar(32)
+  productId         String             @map("product_id") @db.Uuid
+  fullName          String             @map("full_name") @db.VarChar(120)
+  phone             String             @db.VarChar(16)
+  contractReference String?            @map("contract_reference") @db.VarChar(64)
+  description       String             @db.VarChar(1000)
+  status            AssistanceStatus   @default(NEW)
+  priority          AssistancePriority @default(NORMAL)
+  closedAt          DateTime?          @map("closed_at") @db.Timestamptz(6)
+  product           InsuranceProduct   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  submissionKeys    SubmissionKey[]
+  outboxJobs        OutboxJob[]
+
+  @@index([status, createdAt, id])
+  @@index([priority, createdAt, id])
+  @@index([productId])
+  @@index([closedAt])
+  @@map("assistance_cases")
+}
+
+model ContactMessage {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version        Int             @default(1)
+  noticeVersion  String          @map("notice_version") @db.VarChar(32)
+  acknowledgedAt DateTime        @map("acknowledged_at") @db.Timestamptz(6)
+  reference      String          @unique @db.VarChar(32)
+  fullName       String          @map("full_name") @db.VarChar(120)
+  phone          String          @db.VarChar(16)
+  email          String          @db.VarChar(254)
+  subject        String          @db.VarChar(120)
+  message        String          @db.VarChar(1000)
+  status         MessageStatus   @default(UNREAD)
+  processedAt    DateTime?       @map("processed_at") @db.Timestamptz(6)
+  submissionKeys SubmissionKey[]
+  outboxJobs     OutboxJob[]
+
+  @@index([status, createdAt, id])
+  @@index([processedAt])
+  @@map("contact_messages")
+}
+
+model SubmissionKey {
+  action          IntakeAction
+  key             String          @db.Uuid
+  bodyFingerprint Bytes           @map("body_fingerprint")
+  requestId       String?         @map("request_id") @db.Uuid
+  caseId          String?         @map("case_id") @db.Uuid
+  messageId       String?         @map("message_id") @db.Uuid
+  expiresAt       DateTime        @map("expires_at") @db.Timestamptz(6)
+  request         QuoteRequest?   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  case            AssistanceCase? @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  message         ContactMessage? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@id([action, key])
+  @@index([expiresAt])
+  @@index([requestId])
+  @@index([caseId])
+  @@index([messageId])
+  @@map("submission_keys")
+}
+
+model RateLimit {
+  scope       String   @db.VarChar(32)
+  keyHash     Bytes    @map("key_hash")
+  windowStart DateTime @map("window_start") @db.Timestamptz(6)
+  hits        Int
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz(6)
+
+  @@id([scope, keyHash, windowStart])
+  @@index([expiresAt])
+  @@map("rate_limits")
+}
+
+model AuditEvent {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  actorId    String?    @map("actor_id") @db.Uuid
+  action     String     @db.VarChar(64)
+  targetType String?    @map("target_type") @db.VarChar(32)
+  targetId   String?    @map("target_id") @db.Uuid
+  requestId  String?    @map("request_id") @db.Uuid
+  metadata   Json       @default("{}")
+  actor      StaffUser? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+  @@index([targetType, targetId, createdAt])
+  @@map("audit_events")
+}
+
+model Partner {
+  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version   Int        @default(1)
+  name      String     @db.VarChar(120)
+  website   String?    @db.VarChar(300)
+  logoKey   String?    @map("logo_key")
+  isActive  Boolean    @default(true) @map("is_active")
+  quotes    Quote[]
+  contracts Contract[]
+
+  @@index([isActive, name, id])
+  @@map("partners")
+}
+
+model Quote {
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version          Int              @default(1)
+  reference        String           @unique @db.VarChar(32)
+  clientId         String           @map("client_id") @db.Uuid
+  requestId        String?          @map("request_id") @db.Uuid
+  productId        String           @map("product_id") @db.Uuid
+  partnerId        String           @map("partner_id") @db.Uuid
+  createdBy        String?          @map("created_by") @db.Uuid
+  annualPremiumMad Decimal          @map("annual_premium_mad") @db.Decimal(12, 2)
+  currency         String           @default("MAD") @db.Char(3)
+  conditions       String?          @db.VarChar(2000)
+  status           QuoteStatus      @default(DRAFT)
+  issuedAt         DateTime?        @map("issued_at") @db.Timestamptz(6)
+  decidedAt        DateTime?        @map("decided_at") @db.Timestamptz(6)
+  issuedSnapshot   Json?            @map("issued_snapshot")
+  client           Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  request          QuoteRequest?    @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  product          InsuranceProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
+  partner          Partner          @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  author           StaffUser?       @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  contract         Contract?
+  documents        Document[]
+
+  @@index([status, createdAt, id])
+  @@index([clientId, createdAt])
+  @@index([requestId])
+  @@index([productId])
+  @@index([partnerId])
+  @@index([createdBy])
+  @@map("quotes")
+}
+
+model Contract {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version            Int              @default(1)
+  reference          String           @unique @db.VarChar(32)
+  clientId           String           @map("client_id") @db.Uuid
+  quoteId            String?          @unique @map("quote_id") @db.Uuid
+  productId          String           @map("product_id") @db.Uuid
+  partnerId          String           @map("partner_id") @db.Uuid
+  createdBy          String?          @map("created_by") @db.Uuid
+  policyNumber       String           @map("policy_number") @db.VarChar(64)
+  effectiveOn        DateTime         @map("effective_on") @db.Date
+  expiresOn          DateTime         @map("expires_on") @db.Date
+  status             ContractStatus   @default(DRAFT)
+  activatedAt        DateTime?        @map("activated_at") @db.Timestamptz(6)
+  activationSnapshot Json?            @map("activation_snapshot")
+  client             Client           @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  quote              Quote?           @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  product            InsuranceProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
+  partner            Partner          @relation(fields: [partnerId], references: [id], onDelete: Restrict)
+  author             StaffUser?       @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  documents          Document[]
+  outboxJobs         OutboxJob[]
+
+  @@unique([partnerId, policyNumber])
+  @@index([status, expiresOn, id])
+  @@index([clientId, expiresOn])
+  @@index([productId])
+  @@index([createdBy])
+  @@map("contracts")
+}
+
+model Document {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  quoteId    String?        @map("quote_id") @db.Uuid
+  contractId String?        @map("contract_id") @db.Uuid
+  kind       DocumentKind
+  revision   Int
+  status     DocumentStatus @default(QUEUED)
+  storageKey String?        @unique @map("storage_key")
+  sha256     Bytes?
+  sizeBytes  BigInt?        @map("size_bytes")
+  readyAt    DateTime?      @map("ready_at") @db.Timestamptz(6)
+  quote      Quote?         @relation(fields: [quoteId], references: [id], onDelete: Restrict)
+  contract   Contract?      @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  outboxJobs OutboxJob[]
+
+  @@index([status, createdAt])
+  @@map("documents")
+}
+
+model AgencySettings {
+  id              Int      @id @default(1) @db.SmallInt
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version         Int      @default(1)
+  agencyName      String   @map("agency_name") @db.VarChar(120)
+  officePhone     String   @map("office_phone") @db.VarChar(16)
+  assistancePhone String   @map("assistance_phone") @db.VarChar(16)
+  email           String?  @db.VarChar(254)
+  address         String?  @db.VarChar(300)
+  hours           String?  @db.VarChar(300)
+
+  @@map("agency_settings")
+}
+
+model OutboxJob {
+  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  kind            JobKind
+  dedupeKey       String              @unique @map("dedupe_key") @db.VarChar(128)
+  requestId       String?             @map("request_id") @db.Uuid
+  caseId          String?             @map("case_id") @db.Uuid
+  messageId       String?             @map("message_id") @db.Uuid
+  resetId         String?             @map("reset_id") @db.Uuid
+  documentId      String?             @map("document_id") @db.Uuid
+  contractId      String?             @map("contract_id") @db.Uuid
+  encryptedSecret Bytes?              @map("encrypted_secret")
+  state           JobStatus           @default(PENDING)
+  attemptCount    Int                 @default(0) @map("attempt_count") @db.SmallInt
+  nextAttemptAt   DateTime            @map("next_attempt_at") @db.Timestamptz(6)
+  leaseUntil      DateTime?           @map("lease_until") @db.Timestamptz(6)
+  leaseToken      String?             @map("lease_token") @db.Uuid
+  finishedAt      DateTime?           @map("finished_at") @db.Timestamptz(6)
+  lastErrorCode   String?             @map("last_error_code") @db.VarChar(64)
+  request         QuoteRequest?       @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  case            AssistanceCase?     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  message         ContactMessage?     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  reset           PasswordResetToken? @relation(fields: [resetId], references: [id], onDelete: Cascade)
+  document        Document?           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  contract        Contract?           @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([state, nextAttemptAt, id])
+  @@index([state, leaseUntil])
+  @@index([finishedAt])
+  @@index([requestId])
+  @@index([caseId])
+  @@index([messageId])
+  @@index([resetId])
+  @@index([documentId])
+  @@index([contractId])
+  @@map("outbox_jobs")
+}

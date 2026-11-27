@@ -1,0 +1,28 @@
+# 07 — Authentication and authorization
+
+Provision named staff accounts through an operator-controlled backend command with short-lived password setup links. Disable departed users and revoke their sessions immediately.
+
+| Permission | ANONYMOUS | ADVISOR | ADMIN |
+| --- | --- | --- | --- |
+| Public catalog, intake, login and recovery | Yes | Yes | Yes |
+| Staff dashboard, request read/update/assign/link/notes, client read/create/update, support read/update | — | Yes | Yes |
+| Client archive, catalog or partner writes, agency settings | — | — | Yes |
+| V2 quote/contract read, draft create/update, document access | — | Yes | Yes |
+| V2 quote issue and decision, contract lifecycle transitions | — | — | Yes |
+
+ADVISOR and ADMIN are individually authorized back-office staff. The proposal assumes one brokerage team with shared caseload and assignment for routing. Review this before granting access. Resolve active account and permission on each request. A missing or expired session yields 401 and an authenticated user lacking permission receives 403. Check the target record and its scope on reads and downloads.
+
+## Session
+
+Generate a random 32-byte opaque token, store its hash in PostgreSQL and set `__Host-zc_session` with `Secure; HttpOnly; SameSite=Lax; Path=/` and no Domain. Rotate after login and privilege changes. Start with 30 minutes idle and 12 hours absolute expiry. Throttle last-seen writes while enforcing both limits. Logout revokes the session and clears the cookie. Account disablement, role and password changes revoke existing sessions. Use no-store on auth and personal-data responses. [OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)
+
+Use Argon2id with automatic per-password salts and a baseline of 19 MiB, two iterations and parallelism one, calibrated under load. Accept 15–128 characters including spaces. Allow paste and password managers. Limit login by source and normalized account identifier. Use generic credential failures and comparable password work for unknown accounts. [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
+
+For unsafe browser requests validate the exact Origin with exact-origin Referer fallback. Reject requests with neither signal. Require JSON for JSON endpoints and disable cross-origin credentials. Authenticated mutations also require a session-bound token in X-CSRF-Token. Return it on login and session inspection and keep it in memory.
+
+## Recovery
+
+1. Receive normalized email, apply abuse limits, and return the same 202 independent of account existence.
+2. For an active account, generate a random 32-byte single-use token, store its hash and queue a reset email. Invalidate previous tokens. Start with 30 minutes validity.
+3. Build the link from the configured HTTPS origin and put the token in the URL fragment. Read it into page memory and remove the fragment. Use no-referrer and keep third-party scripts off auth screens.
+4. Submit token and password by POST. In one transaction consume the token, update the hash and revoke sessions. On failure show a generic invalid/expired message and offer a fresh link. Require login after reset.

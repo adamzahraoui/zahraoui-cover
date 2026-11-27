@@ -1,0 +1,56 @@
+@import '@fontsource-variable/inter';
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter Variable', Inter, system-ui, sans-serif;
+  --color-primary: #1b378a;
+  --color-primary-dark: #0f2463;
+  --color-primary-tint: #eff0ff;
+  --color-secondary: #3d5f93;
+  --color-soft-blue: #6485bc;
+  --color-background: #f5f7fb;
+  --color-surface: #fff;
+  --color-surface-tint: #eef2f8;
+  --color-ink: #1e293b;
+  --color-muted: #475569;
+  --color-line: #e2e8f0;
+  --color-line-strong: #cbd5e1;
+  --color-danger: #b91c1c;
+  --color-success: #15803d;
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-md: 8px;
+  --shadow-panel: 0 1px 3px rgb(15 36 99 / 6%);
+}
+
+@layer base {
+  body { @apply bg-background text-ink antialiased; }
+  h1, h2, h3, p { overflow-wrap: anywhere; }
+  :focus-visible { outline: 3px solid #3d5f93; outline-offset: 3px; }
+  summary { cursor: pointer; }
+  button:not(:disabled) { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  [tabindex="-1"]:focus { outline: none; }
+  dialog::backdrop { background: rgb(15 36 99 / 55%); }
+}
+
+@layer components {
+  .site-container { @apply mx-auto w-full max-w-[1440px] px-4 md:px-6 lg:px-8; }
+  .section-space { @apply py-10 lg:py-16; }
+  .display-title { @apply text-[30px]/[38px] font-bold tracking-[-0.025em] text-primary lg:text-[44px]/[52px]; }
+  .section-title { @apply text-2xl/8 font-bold tracking-[-0.015em] lg:text-[32px]/10; }
+  .panel { @apply min-w-0 rounded-md border border-line bg-surface shadow-panel; }
+  .action { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded px-4 py-2.5 text-sm font-semibold transition-colors duration-150 disabled:opacity-50; }
+  .action-primary { @apply bg-primary text-white hover:bg-primary-dark; }
+  .action-secondary { @apply border border-primary bg-white text-primary hover:bg-primary-tint; }
+  .action-light { @apply bg-white text-primary hover:bg-primary-tint; }
+  .control { @apply min-h-11 w-full min-w-0 rounded border border-line-strong bg-white px-3 py-2.5 text-base text-ink placeholder:text-muted focus:border-secondary disabled:bg-background; }
+  .control[aria-invalid="true"] { @apply border-danger; }
+  .text-link { @apply font-semibold text-primary hover:underline; }
+  .prose-copy { @apply space-y-3 leading-7 text-muted; }
+  .prose-copy h2 { @apply mt-6 text-lg font-semibold text-ink; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0s !important; animation-duration: 0s !important; }
+}
