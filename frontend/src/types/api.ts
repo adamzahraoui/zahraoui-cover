@@ -30,6 +30,7 @@ export type QuoteRequestIn = Notice & {
   desiredStartOn?: string
   situation?: Situation
   needs: string
+  context?: string
   firstName: string
   lastName: string
   phone: string
@@ -49,10 +50,27 @@ export type RequestRow = {
 }
 export type RequestDetail = RequestRow & Omit<QuoteRequestIn, 'acknowledged' | 'preferredContact' | 'situation'> & {
   preferredContact: ContactMethod; situation: Situation; clientId?: string
+  productTitle: string; client: LinkedClient | null; assignee: StaffOption | null; allowedStatuses: RequestStatus[]
   acknowledgedAt: string; updatedAt: string; notes: { id: string; authorName: string; body: string; createdAt: string }[]
 }
 export type Dashboard = {
-  counts: { newRequests: number; openRequests: number; activeClients: number; openAssistance: number; unreadMessages: number }
+  counts: { totalRequests: number; inReviewRequests: number; newRequests: number; openRequests: number; activeClients: number; openAssistance: number; unreadMessages: number }
   recentRequests: RequestRow[]
+  byProduct: { slug: ProductSlug; title: string; count: number }[]
+  months: { month: string; count: number }[]
+  activity: { id: string; action: string; targetId: string | null; createdAt: string }[]
 }
+export type StaffOption = { id: string; displayName: string }
+export type ClientOption = {
+  id: string; displayName: string; profile: Profile; phone: string; city: string | null
+  intakeProvisional: boolean; archivedAt: string | null; version: number
+}
+export type LinkedClient = ClientOption & { email: string | null }
+export type PageMeta = { page: number; limit: number; total: number }
+export type Page<T> = { data: T[]; meta: PageMeta }
+export type QuoteNotice = { noticeVersion: string | null; text: string | null }
+export type CatalogWrite = Omit<Product, 'id' | 'slug' | 'imageKey'> & { isPublished: boolean; isActive: boolean; displayOrder: number; imageKey?: null }
+export type CatalogItem = Product & { isPublished: boolean; isActive: boolean; displayOrder: number; version: number }
+export type QuoteRequestPatch = { version: number; status?: RequestStatus; clientId?: string; assignedTo?: string | null }
+
 export type ApiErrorBody = { code: string; message: string; fields?: Record<string, string>; requestId?: string }

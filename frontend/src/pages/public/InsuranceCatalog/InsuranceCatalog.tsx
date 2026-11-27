@@ -1,9 +1,7 @@
 import { useState } from 'react'
-import { InsuranceCard } from '../../../components/public/InsuranceCard'
+import { CatalogCards, usePublicCatalog } from '../../../components/public/PublicCatalog'
 import { ActionBand } from '../../../components/public/PublicSections'
 import { Breadcrumb } from '../../../components/ui/Breadcrumb'
-import { EmptyState } from '../../../components/ui/States'
-import { insurance } from '../../../data/insurance'
 import type { Profile } from '../../../types/api'
 
 const filters = [
@@ -14,7 +12,7 @@ const filters = [
 
 export default function InsuranceCatalog() {
   const [audience, setAudience] = useState<Profile | 'ALL'>('ALL')
-  const products = insurance.filter(product => audience === 'ALL' || product.audiences.includes(audience))
+  const products = (usePublicCatalog().data ?? []).filter(product => audience === 'ALL' || product.audiences.includes(audience))
   return (
     <>
       <section className="border-b border-line bg-white">
@@ -37,9 +35,7 @@ export default function InsuranceCatalog() {
       </section>
       <section className="site-container py-6 lg:py-12">
         <p className="sr-only" role="status">{products.length} catégories affichées.</p>
-        {products.length > 0
-          ? <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{products.map(product => <InsuranceCard key={product.slug} product={product} illustrated />)}</div>
-          : <EmptyState>Aucune catégorie pour ce profil.</EmptyState>}
+        <CatalogCards products={products} illustrated className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" />
       </section>
       <ActionBand assistance title="Besoin d’une assistance ou d’un conseil ?">Retrouvez le service d’assistance et les coordonnées de l’agence.</ActionBand>
     </>

@@ -1,6 +1,6 @@
 # Zahraoui Cover backend
 
-Express 5 and TypeScript serve the API. Prisma 6 manages PostgreSQL, Zod validates requests and Argon2id hashes staff passwords. Authentication is connected to the existing React interface. The administrative business screens still use fictional data.
+Express 5 and TypeScript serve the API. Prisma 6 manages PostgreSQL, Zod validates requests and Argon2id hashes staff passwords. Authentication is connected to the existing React interface. The public catalog, quote request flow, staff request management, catalog administration and dashboard summary are live.
 
 ## Start locally
 
@@ -30,11 +30,13 @@ Use Node.js 22.12 or later, npm and Docker Compose.
    npm run db:seed
    ```
 
-   The seed adds six unpublished demo insurance categories. The migration stores all 18 table definitions. The seed is optional and has no effect on authentication.
+   The seed adds six unpublished insurance categories. The two migrations apply the 18-table foundation and add product active state and provisional customer state. The seed is optional and has no effect on authentication.
 
 4. Run `npm run dev` and `npm run worker:dev` in separate terminals in `backend/`. Run `npm ci` and `npm run dev` in `frontend/`. Use **http://localhost:5173/admin/login** to match the saved `PUBLIC_ORIGIN`. Vite forwards `/api` to port 3000. For a custom API port, set `API_PROXY_TARGET` in the frontend environment. For any change to the browser host, port or scheme, update `PUBLIC_ORIGIN` in the backend environment.
 
 5. Run `npm run admin:create` in another backend terminal. Enter the professional email and display name at the prompts. Open the setup message in **http://127.0.0.1:8025**, follow the short-lived link and choose a password. Local Mailpit captures mail inside the development environment. Use synthetic addresses for development. The application sends email externally only with a configured TLS SMTP provider and running worker.
+
+6. To test quote intake locally, set `PRIVACY_NOTICE_VERSION`, `QUOTE_NOTICE_TEXT` and a fourth distinct 32-byte hex secret in `IDEMPOTENCY_KEY_SECRET`, then restart the API. In **Catalogue des assurances**, add synthetic text to a reserved category and explicitly publish it. To capture acknowledgements, set `QUOTE_ACK_EMAIL=true`. To capture an agency notification, set `INTAKE_NOTIFY_EMAIL` to a synthetic `example.invalid` recipient. Restart the worker after mail configuration changes.
 
 The public probe is `GET /api/health`. From the API machine, check database readiness using `GET /api/health/ready`. The first-admin command operates once per database. For a missing or expired setup link, request a new one from the password recovery page.
 
@@ -61,4 +63,4 @@ The tests use synthetic records and never truncate the database. Stop the Compos
 
 `npm start` and `npm run worker:start` run the compiled programs. Production deployment still needs a same-origin HTTPS reverse proxy, private PostgreSQL and least-privilege database roles, an approved SMTP sender and monitoring. `SMTP_MODE=tls` uses implicit TLS (commonly port 465). `SMTP_MODE=starttls` requires a verified STARTTLS upgrade. Configure trusted proxy hops only when the backend is reachable solely through that configured proxy topology.
 
-See the [implementation report](../docs/16-BACKEND-IMPLEMENTATION.md) and the [beginner guide](../docs/17-BACKEND-BEGINNER-GUIDE.md).
+See the [implementation report](../docs/16-BACKEND-IMPLEMENTATION.md) and the [beginner guide](../docs/17-BACKEND-BEGINNER-GUIDE.md). See also [Live catalog](../docs/18-INSURANCE-CATALOG-IMPLEMENTATION.md) and [Quote requests](../docs/19-QUOTE-REQUEST-IMPLEMENTATION.md).

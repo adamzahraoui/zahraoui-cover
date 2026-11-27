@@ -1,55 +1,58 @@
-import { useState } from 'react'
+import { useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AdminHeading } from '../../../components/admin/AdminContent'
-import { useDemoData } from '../../../components/admin/DemoData'
 import { RequestList } from '../../../components/admin/RequestList'
+import { Button } from '../../../components/ui/Button'
 import { Input, Select } from '../../../components/ui/Fields'
-import { ErrorState } from '../../../components/ui/States'
-import { demoAdvisors } from '../../../data/demo'
+import { ErrorState, LoadingState } from '../../../components/ui/States'
 import { productOptions } from '../../../data/insurance'
+import { useApiData } from '../../../hooks/useApiData'
+import { api, businessError } from '../../../services/api'
 import { statusOptions } from '../../../utils/admin'
-import { searchable } from '../../../utils/forms'
 
 const statuses = statusOptions(['NEW', 'IN_REVIEW', 'QUOTE_SENT', 'ACCEPTED', 'DECLINED', 'CLOSED'])
+const loadAdvisors = (signal: AbortSignal) => api.staffOptions('limit=100', signal)
 
 export default function QuoteRequests() {
-  const { data } = useDemoData()
   const [params, setParams] = useSearchParams()
-  const status = params.get('status') ?? ''
-  const [query, setQuery] = useState(params.get('q') ?? '')
-  const [product, setProduct] = useState('')
-  const [advisor, setAdvisor] = useState('')
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  const query = params.get('q') ?? ''
+  const from = params.get('from') ?? ''
+  const to = params.get('to') ?? ''
   const dateError = Boolean(from && to && from > to)
-  const rows = data.requests.filter(row => (
-    (!status || row.status === status)
-    && (!product || row.product === product)
-    && (!advisor || row.assignee === advisor)
-    && (!from || row.date >= from)
-    && (!to || row.date <= to)
-    && searchable(`${row.name} ${row.reference} ${row.phone}`).includes(searchable(query))
-  ))
+  const filters = new URLSearchParams({ limit: '10' })
+  for (const key of ['status', 'productSlug', 'assignedTo', 'from', 'to', 'page']) {
+    const value = params.get(key)
+    if (value) filters.set(key, value)
+  }
+  if (query.trim().length >= 2) filters.set('q', query.trim())
+  const search = filters.toString()
+  const load = useCallback((signal: AbortSignal) => dateError ? Promise.resolve(undefined) : api.quoteRequests(search, signal), [search, dateError])
+  const { data, error, loading, reload } = useApiData(load)
+  const advisors = useApiData(loadAdvisors)
+
+  function setFilter(key: string, value: string) {
+    const next = new URLSearchParams(params)
+    if (key !== 'page') next.delete('page')
+    if (value) next.set(key, value)
+    else next.delete(key)
+    setParams(next, { replace: key !== 'page' })
+  }
 
   return (
     <>
       <AdminHeading title="Demandes de devis" />
       <div className="panel grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
-        <Input label="Rechercher une demande" type="search" placeholder="Nom, référence ou téléphone" maxLength={100} value={query} onChange={event => setQuery(event.target.value)} />
-        <Select label="Statut" placeholder="Tous les statuts" options={statuses} value={status} onChange={event => {
-          const next = new URLSearchParams(params)
-          if (event.target.value) next.set('status', event.target.value)
-          else next.delete('status')
-          setParams(next, { replace: true })
-        }} />
-        <Select label="Assurance" placeholder="Toutes les assurances" options={productOptions} value={product} onChange={event => setProduct(event.target.value)} />
-        <Select label="Conseiller" placeholder="Tous les conseillers" options={demoAdvisors} value={advisor} onChange={event => setAdvisor(event.target.value)} />
-        <Input label="Du" type="date" value={from} onChange={event => setFrom(event.target.value)} />
-        <Input label="Au" type="date" value={to} onChange={event => setTo(event.target.value)} />
+        <Input label="Rechercher une demande" type="search" placeholder="Nom, référence ou téléphone" maxLength={100} value={query} onChange={event => setFilter('q', event.target.value)} />
+        <Select label="Statut" placeholder="Tous les statuts" options={statuses} value={params.get('status') ?? ''} onChange={event => setFilter('status', event.target.value)} />
+        <Select label="Assurance" placeholder="Toutes les assurances" options={productOptions} value={params.get('productSlug') ?? ''} onChange={event => setFilter('productSlug', event.target.value)} />
+        <Select label="Conseiller" placeholder="Tous les conseillers" options={(advisors.data?.data ?? []).map(item => ({ value: item.id, label: item.displayName }))} value={params.get('assignedTo') ?? ''} onChange={event => setFilter('assignedTo', event.target.value)} />
+        <Input label="Du" type="date" value={from} onChange={event => setFilter('from', event.target.value)} />
+        <Input label="Au" type="date" value={to} onChange={event => setFilter('to', event.target.value)} />
       </div>
-      {dateError ? <ErrorState>La date de fin doit être postérieure ou égale à la date de début.</ErrorState> : (
-        <RequestList key={JSON.stringify([query, status, product, advisor, from, to])} rows={rows} label="Demandes de devis" />
-      )}
+      {dateError ? <ErrorState>La date de fin doit être postérieure ou égale à la date de début.</ErrorState>
+        : loading ? <LoadingState />
+          : error ? <ErrorState>{businessError(error)} <Button variant="secondary" onClick={reload}>Réessayer</Button></ErrorState>
+            : data && <RequestList rows={data.data} label="Demandes de devis" pagination={{ ...data.meta, onPageChange: page => setFilter('page', String(page)) }} />}
     </>
   )
 }

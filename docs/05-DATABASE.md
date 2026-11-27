@@ -95,10 +95,11 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 | document_hints | jsonb |
 | faqs | jsonb |
 | related_slugs | product_slug[] |
+| is_active | boolean default true |
 | is_published | boolean default false |
 | display_order | smallint default 0 |
 
-**Rules.** Audience count 1–2 with distinct values. JSON fields are arrays with shapes in API. Related slugs are validated as unique existing published products when edited and filtered for visibility on read. Display order 0–999.
+**Rules.** Published rows must be active. [Migration 20261127010000](../backend/prisma/migrations/20261127010000_catalog_quote_intake/migration.sql) adds the active column and publication check. Audience count 1–2 with distinct values. JSON fields are arrays with shapes in API. Related slugs are validated as unique existing published products when edited and filtered for visibility on read. Display order 0–999.
 
 **Additional indexes.** (is_published, display_order, id).
 
@@ -117,8 +118,9 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 | city | varchar(100) nullable |
 | notes | varchar(1000) nullable |
 | archived_at | timestamptz nullable |
+| intake_provisional | boolean default false |
 
-**Rules.** Phone/email can repeat. Enforce active relation rules under lock when linking, changing status or archiving.
+**Rules.** Phone/email can repeat. A committed public quote request creates and links a provisional client. Staff can relink the request to an eligible client while preserving the submitted snapshot. Existing rows may still have no link. Enforce active relation rules under lock when linking, changing status or archiving.
 
 **Additional indexes.** (archived_at, created_at, id), (phone), (email) and expression indexes on lower(display_name) and lower(city) for prefix search.
 
@@ -476,6 +478,7 @@ erDiagram
         jsonb document_hints
         jsonb faqs
         product_slug_array related_slugs
+        boolean is_active
         boolean is_published
         smallint display_order
     }
@@ -491,6 +494,7 @@ erDiagram
         varchar_100 city
         varchar_1000 notes
         timestamptz archived_at
+        boolean intake_provisional
     }
     quote_requests {
         uuid id PK

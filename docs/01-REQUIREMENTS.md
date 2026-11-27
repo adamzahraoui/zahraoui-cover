@@ -12,7 +12,7 @@
 | A04 | MVP | Show dashboard counts and recent requests from authorized operational data. |
 | O01 | MVP | Persist submissions and email jobs together. Route contact and assistance alerts to an approved recipient. Provide minimal authorized record review and completion for these forms. |
 | A05 | V2 | Manage issued quotes, partners, contracts, lifecycle transitions, private PDF download and renewal reminders. |
-| A06 | V2 | Manage the catalog and approved agency settings, add advanced dashboard statistics and deliver the dedicated assistance/contact inbox layouts. |
+| A06 | B4 / V2 | Manage the live catalog in B4. Deliver approved agency settings, advanced dashboard statistics and dedicated assistance/contact inboxes in later phases. |
 | S01 | Both | Enforce validation, least privilege, secure cookies, CSRF, rate limits, authorized document lookup, audit trails and recovery drills. |
 | S02 | Both | Limit intake to operational contact and case information. Exclude CIN/ICE, medical details, document uploads and public client accounts. |
 | D01 | Both | Preserve the original Stitch ZIP and visual identity. Publish verified company information and approved imagery and content. |
@@ -23,7 +23,7 @@
 | --- | --- |
 | Catalog governance | Start with approved French product copy and six seeded slugs. Keep slugs stable in V2. Coverage language stays conditional and needs approval. |
 | Mobile parity | Bring required fields and actions into existing mobile component styles. Review missing quote form/detail layouts and the merged inbox. |
-| Client identity | Staff check candidate duplicates using contact search and explicitly choose the correct record. Shared household/business contact details are supported. |
+| Client identity | Each new anonymous quote request creates a provisional client. Staff check candidate duplicates using contact search and explicitly relink to the verified record. Shared household/business contact details are supported. |
 | Intake routing | Confirm an internal operator and SMTP destination before launch. Authorized staff can open the alert link by reference lookup on the support view and mark the case handled. |
 | Privacy | Approve notice language, controller contact, lawful basis, hosting/processor arrangement, record retention and rights handling before launch. |
 | Company content | Confirm official email, address, hours, map, hosting, registration/authorization identifiers, legal/privacy texts, actual partners and approved images. Omit unverified content from release. |

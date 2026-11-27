@@ -56,6 +56,15 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
     }
   }, [state, refresh])
 
+  useEffect(() => {
+    const expired = () => {
+      currentRequest.current?.abort()
+      setState({ status: 'anonymous' })
+    }
+    window.addEventListener('zc:session-expired', expired)
+    return () => window.removeEventListener('zc:session-expired', expired)
+  }, [])
+
   function signedIn(user: Auth) {
     currentRequest.current?.abort()
     setState({ status: 'authenticated', user })

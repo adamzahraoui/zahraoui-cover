@@ -1,0 +1,32 @@
+# 19 — Quote request intake and staff processing
+
+## From the form to the receipt
+
+1. [QuoteRequest.tsx](../frontend/src/pages/public/QuoteRequest/QuoteRequest.tsx) holds the draft in memory. [QuoteFields.tsx](../frontend/src/pages/public/QuoteRequest/QuoteFields.tsx) renders category and profile, needs, contact details, then review and privacy acknowledgement. A detail-page link preselects a live product. The optional context field varies by category and users are asked to omit sensitive details.
+2. [The typed API service](../frontend/src/services/api.ts) loads the current notice from `GET /api/quotes/notice` and sends `POST /api/quotes` with a random UUID in `Idempotency-Key`. For example, an automobile request sends `productSlug: "automobile"`, `profile: "INDIVIDUAL"`, contact details, general needs, the displayed notice version and `acknowledged: true`. The review step shows the actual values. If the outcome is uncertain, the send button retries the same payload and key. If the server reports a changed notice, the form refreshes it and asks for a new acknowledgement.
+3. [The intake router](../backend/src/modules/quote-requests/intake.ts) validates strict JSON, field lengths, contact details, product-specific context, allowed audience and a Casablanca-local effective date. It normalizes phone numbers to E.164. The existing PostgreSQL rate limiter allows ten attempts per source in 15 minutes, including replays. Same-origin rules and the JSON size cap apply.
+4. Inside a Prisma transaction, a per-key advisory lock serializes identical concurrent submissions. A repeat within 24 hours with the same canonical HMAC fingerprint returns the existing reference. A changed payload with that key returns 409. New submissions validate the current privacy notice and lock the product row while checking publication and active state.
+5. The same transaction creates a provisional `clients` row, the linked `quote_requests` row and immutable submission snapshot, a `submission_keys` record, a redacted audit event and any enabled `outbox_jobs`. PostgreSQL rolls all of them back if a required write fails. The public response after commit is HTTP 201 with `{data: {reference, receivedAt}}`. The React confirmation displays the saved reference, the selected category, next steps and **+212 523 281 585**.
+6. Independently of the HTTP response, [the worker](../backend/src/worker.ts) leases committed outbox jobs and [mail-jobs.ts](../backend/src/modules/notifications/mail-jobs.ts) delivers them through SMTP. The customer acknowledgement carries the reference. The internal alert carries the reference and an authenticated staff link. Retries reuse the job's stable message ID. The unique outbox key prevents a submission replay from creating another job. SMTP delivery is at least once and a mail failure leaves the request and reference intact.
+
+The provisional record is the change from the original staff-only linking rule. An anonymous request cannot demonstrate ownership of a matching phone or email, so matching details are never enough to overwrite or merge an existing client. Staff can explicitly relink the request after verifying the intended client. Submitted contact details remain in the snapshot and existing legacy rows can still have a null link. A new request cannot be detached through this API. Client profile management, duplicate review and merging are outside the current workflow. Migration `20261127010000_catalog_quote_intake` adds `clients.intake_provisional` with a default of false for existing clients.
+
+## Endpoints and screens
+
+| Endpoint | Access | Consumer and result |
+| --- | --- | --- |
+| `GET /api/quotes/notice` | Public | Quote wizard. The configured version and plain-text notice, or two null fields when intake is disabled. |
+| `POST /api/quotes` | Public | Quote wizard. A 201 receipt after persistence or an idempotent replay. No public receipt lookup or customer data. |
+| `GET /api/admin/quote-requests` | Staff | [List](../frontend/src/pages/admin/QuoteRequests/QuoteRequests.tsx). Server-side prefix search, filters for status, category, assignee and Casablanca submission date, plus stable pagination. |
+| `GET /api/admin/quote-requests/:id` | Staff | [Detail](../frontend/src/pages/admin/QuoteRequestDetail/QuoteRequestDetail.tsx). Original snapshot, linked customer, assignee, notes and allowed statuses. |
+| `PATCH /api/admin/quote-requests/:id` | Staff + CSRF | Detail. Change an allowed status, assign an active staff member or relink to an eligible customer. |
+| `POST /api/admin/quote-requests/:id/notes` | Staff + CSRF | Detail. Append a private plain-text note of 1–1000 characters. |
+| `GET /api/admin/staff-options` | Staff | Detail assignee selector. Paged active staff display names and IDs. |
+| `GET /api/admin/clients` | Staff | Detail client selector. Paged minimum display fields, with no email in the list. |
+| `GET /api/admin/dashboard` | Staff | [Dashboard](../frontend/src/pages/admin/Dashboard/Dashboard.tsx). Live totals, new and in-review counts, per-category breakdown, up to ten recent requests, recent request audit activity and six months of request activity. |
+
+[The staff router](../backend/src/modules/quote-requests/admin.ts) checks the version on every mutation and records an audit event in the same transaction. A stale edit returns 409 so the interface can reload the current record. A new request can move to `IN_REVIEW` or `CLOSED`. An in-review request can be closed. The send transition requires a completed delivery workflow and is unavailable in this phase. Historical `QUOTE_SENT` rows can still move to `ACCEPTED`, `DECLINED` or `CLOSED`. React renders submitted and administrative content as text, including HTML-looking input.
+
+## Local test settings
+
+Use the instructions in [Backend setup](../backend/README.md). Provide a development-only `PRIVACY_NOTICE_VERSION`, `QUOTE_NOTICE_TEXT` and a distinct `IDEMPOTENCY_KEY_SECRET`. Enable `QUOTE_ACK_EMAIL` to test acknowledgements. Set `INTAKE_NOTIFY_EMAIL` to an explicit synthetic address to test internal mail. Start the existing worker and open loopback Mailpit. Production requires approved privacy wording, a vetted SMTP relay and approved recipient addresses. The browser’s confirmation reports the committed request even if either email is disabled or delayed.

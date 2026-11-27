@@ -1,10 +1,12 @@
 import { ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { ActionLink } from '../ui/Button'
-import type { Insurance } from '../../data/insurance'
+import { getInsurance } from '../../data/insurance'
+import type { ProductCard } from '../../types/api'
 
-export function InsuranceCard({ product, illustrated = false }: { product: Insurance; illustrated?: boolean }) {
-  const { slug, label, summary, icon: Icon } = product
+export function InsuranceCard({ product, illustrated = false }: { product: ProductCard; illustrated?: boolean }) {
+  const { slug, title: label, summary } = product
+  const Icon = getInsurance(slug).icon
   return (
     <article className="panel flex flex-col overflow-hidden">
       {illustrated && (

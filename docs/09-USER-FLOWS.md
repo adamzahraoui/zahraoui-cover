@@ -10,7 +10,7 @@
 ## Staff journeys
 
 1. **Session.** Visit protected page → sign in → load role-filtered navigation and permitted target → log out. On expiry return to sign-in and recover an allowlisted same-origin admin route. For recovery, submit email → receive generic ack → open single-use link → choose/confirm password → sign in again.
-2. **Process intake.** Dashboard → request list → apply filters → detail → assign active advisor → link to matched client or create and link explicitly → progress and add operational notes. Linking never overwrites the submitted snapshot. Version conflict prompts reload and review before resubmission.
+2. **Process intake.** Dashboard → request list → apply filters → detail → assign active advisor → verify the provisional customer and relink to the correct existing client when needed → progress and add operational notes. Linking never overwrites the submitted snapshot. Version conflict prompts reload and review before resubmission.
 3. **Maintain clients.** Search before create → create or edit → view profile and recent associated records → archive through an Admin after confirmation and checking open work. Archived clients stay visible in authorized history and are unavailable for new assignments/links.
 4. **Support.** Open an alert or inbox → find by reference → review → contact the requester through approved channels → mark progress or completion. Separate contact and assistance states use the same components. Preserve a route back to each list at mobile widths.
 5. **Issue a quote in V2.** Use an eligible client/product/carrier → save draft → Admin issues and PDF is queued → wait for ready PDF → download privately and communicate through the approved workflow → Admin records an actual decision. The issue action creates a document and does not imply external delivery. Staff mark a linked intake QUOTE_SENT only after actual communication.
@@ -20,7 +20,7 @@
 
 | Record | Allowed production transitions and rules |
 | --- | --- |
-| Quote request | NEW → IN_REVIEW or CLOSED; IN_REVIEW → QUOTE_SENT or CLOSED; QUOTE_SENT → ACCEPTED, DECLINED or CLOSED. MVP supports externally prepared quotes/decisions entered by staff. V2 quote outcomes remain separate and can inform the staff update. Terminal states set closedAt. |
+| Quote request | NEW → IN_REVIEW or CLOSED; IN_REVIEW → CLOSED. Historical QUOTE_SENT → ACCEPTED, DECLINED or CLOSED. Recording a newly sent quote requires a completed delivery operation, which belongs to a later phase. Terminal states set closedAt. |
 | Assistance | NEW → IN_PROGRESS or RESOLVED; IN_PROGRESS → RESOLVED. Priority NORMAL by default, staff can set URGENT. |
 | Contact message | UNREAD → READ or PROCESSED; READ → PROCESSED. Mark read with an explicit PATCH after authorized review. |
 | Issued quote | DRAFT → ISSUED → ACCEPTED or DECLINED. Only DRAFT is editable. ISSUED freezes business terms and queues the PDF. |

@@ -1,13 +1,12 @@
 import { House } from 'lucide-react'
 import { MediaPlaceholder, ActionBand } from '../../../components/public/PublicSections'
-import { InsuranceCard } from '../../../components/public/InsuranceCard'
+import { CatalogCards, usePublicCatalog } from '../../../components/public/PublicCatalog'
 import { ActionLink } from '../../../components/ui/Button'
 import { Breadcrumb } from '../../../components/ui/Breadcrumb'
-import { insurance } from '../../../data/insurance'
 
-const featured = insurance.filter(item => ['automobile', 'habitation', 'sante', 'voyage'].includes(item.slug))
 
 export default function Individuals() {
+  const featured = (usePublicCatalog().data ?? []).filter(item => item.audiences.includes('INDIVIDUAL'))
   return (
     <>
       <section className="border-b border-line bg-white">
@@ -25,7 +24,7 @@ export default function Individuals() {
       </section>
       <section className="site-container section-space">
         <h2 className="section-title mb-6">Nos solutions pour les particuliers</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">{featured.map(product => <InsuranceCard key={product.slug} product={product} />)}</div>
+        <CatalogCards products={featured} className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" />
       </section>
       <ActionBand title="Un accompagnement personnalisé">Présentez votre situation à un conseiller pour préciser les options à examiner.</ActionBand>
     </>

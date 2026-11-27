@@ -37,6 +37,6 @@ export default function AutoInsurance() {
 }
 ```
 
-`src/components/admin/auth/AdminSession.tsx` restores the authenticated session through `/api/auth/session` and gates console routes. `src/services/api.ts` calls authentication over the same origin, with the session in an HttpOnly cookie and the CSRF value in React memory. The catalog and intake methods are prepared for the next phase. Quote confirmation, PDFs and administrative business edits remain demonstrations. Use fictional business data.
+`src/components/admin/auth/AdminSession.tsx` restores the authenticated session through `/api/auth/session` and gates console routes. `src/services/api.ts` calls authentication over the same origin, with the session in an HttpOnly cookie and the CSRF value in React memory. The public catalog and four-step quote flow use the backend, as do the staff dashboard, request list, request details and catalog editor. Issued quotes, PDFs, contracts and the other unfinished administrative screens remain demonstrations. For local setup, privacy and email configuration see [Backend setup](../backend/README.md).
 
 See the [page specifications](../docs/03-FRONTEND.md) and [implementation status](../docs/15-IMPLEMENTATION-STATUS.md) for file paths, behaviors, test coverage and outstanding integration work.

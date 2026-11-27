@@ -1,11 +1,10 @@
 import { BriefcaseBusiness, ClipboardList, Handshake, Headset, House, MessageCircle, Search, ShieldCheck, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { InsuranceCard } from '../../../components/public/InsuranceCard'
+import { CatalogCards, usePublicCatalog } from '../../../components/public/PublicCatalog'
 import { Accordion, ActionBand, ContentCard, MediaPlaceholder } from '../../../components/public/PublicSections'
 import { ActionLink } from '../../../components/ui/Button'
 import { company } from '../../../config/company'
 import { faqs } from '../../../data/faq'
-import { insurance } from '../../../data/insurance'
 
 const audiences = [
   { title: 'Solutions pour les particuliers', description: 'Découvrez les assurances pour votre véhicule, votre logement, votre santé et vos déplacements.', to: '/particuliers', icon: House, action: 'Espace particuliers' },
@@ -27,6 +26,7 @@ const steps = [
 ]
 
 export default function Home() {
+  const { data: products = [] } = usePublicCatalog()
   return (
     <>
       <section className="border-b border-line bg-white">
@@ -49,7 +49,7 @@ export default function Home() {
           <div><h2 className="section-title">Nos solutions d’assurance</h2><p className="mt-2 text-muted">Choisissez une catégorie pour découvrir les possibilités de couverture.</p></div>
           <Link className="text-link text-sm" to="/assurances">Voir toutes les assurances</Link>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{insurance.map(product => <InsuranceCard key={product.slug} product={product} />)}</div>
+        <CatalogCards products={products} className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" />
       </section>
 
       {audiences.map(({ title, description, to, icon, action }, index) => (

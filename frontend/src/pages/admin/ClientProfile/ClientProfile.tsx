@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { AdminHeading, DemoNote, Facts, LocalFeedback, NoRecord, RecordStatus } from '../../../components/admin/AdminContent'
 import { useDemoData } from '../../../components/admin/DemoData'
-import { RequestList } from '../../../components/admin/RequestList'
+import { DemoRequestList } from '../../../components/admin/RequestList'
 import { ActionLink, Button } from '../../../components/ui/Button'
 import { Dialog } from '../../../components/ui/Dialog'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
@@ -34,7 +34,7 @@ export default function ClientProfile() {
         {!client.archived && <div className="flex flex-wrap gap-2"><ActionLink to={`/admin/clients/${client.id}/modifier`}>Modifier</ActionLink><Button disabled={!mayArchive} variant="secondary" onClick={() => archiveDialog.current?.showModal()}>Archiver</Button></div>}
         {client.archived ? <LocalFeedback>Fiche archivée dans cette démonstration.</LocalFeedback> : !mayArchive && <DemoNote>Une demande ouverte ou un contrat actif empêche l’archivage.</DemoNote>}
       </section>
-      <section className="grid gap-3"><h2 className="text-lg font-semibold">Demandes liées</h2><RequestList rows={requests} label="Demandes liées au client" /></section>
+      <section className="grid gap-3"><h2 className="text-lg font-semibold">Demandes liées</h2><DemoRequestList rows={requests} /></section>
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="panel p-4 sm:p-5">
           <h2 className="mb-3 text-lg font-semibold">Historique des devis</h2>

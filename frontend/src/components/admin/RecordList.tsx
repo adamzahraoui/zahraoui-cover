@@ -10,15 +10,18 @@ type Props<Row> = {
   columns: Column<Row>[]
   label: string
   pageSize?: number
+  pagination?: { page: number; limit: number; total: number; onPageChange: (page: number) => void }
 }
 
-export function RecordList<Row extends { id: string }>({ rows, columns, label, pageSize = 5 }: Props<Row>) {
+export function RecordList<Row extends { id: string }>({ rows, columns, label, pageSize = 5, pagination }: Props<Row>) {
   const [page, setPage] = useState(1)
-  const pages = Math.max(1, Math.ceil(rows.length / pageSize))
-  const current = Math.min(page, pages)
-  const visible = rows.slice((current - 1) * pageSize, current * pageSize)
+  const total = pagination?.total ?? rows.length
+  const pages = Math.max(1, Math.ceil(total / (pagination?.limit ?? pageSize)))
+  const current = pagination?.page ?? Math.min(page, pages)
+  const visible = pagination ? rows : rows.slice((current - 1) * pageSize, current * pageSize)
+  const goTo = pagination?.onPageChange ?? setPage
 
-  if (rows.length === 0) return <EmptyState>Aucun résultat.</EmptyState>
+  if (rows.length === 0 && current === 1) return <EmptyState>Aucun résultat.</EmptyState>
 
   return (
     <section className="grid gap-3" aria-label={label}>
@@ -43,11 +46,11 @@ export function RecordList<Row extends { id: string }>({ rows, columns, label, p
         ))}
       </ul>
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
-        <p role="status">{rows.length} résultat{rows.length !== 1 ? 's' : ''} · Page {current} sur {pages}</p>
-        {pages > 1 && (
+        <p role="status">{total} résultat{total !== 1 ? 's' : ''} · Page {current} sur {pages}</p>
+        {(pages > 1 || current > 1) && (
           <div className="flex gap-2">
-            <Button variant="secondary" disabled={current === 1} onClick={() => setPage(current - 1)}>Précédent</Button>
-            <Button variant="secondary" disabled={current === pages} onClick={() => setPage(current + 1)}>Suivant</Button>
+            <Button variant="secondary" disabled={current === 1} onClick={() => goTo(current - 1)}>Précédent</Button>
+            <Button variant="secondary" disabled={current >= pages} onClick={() => goTo(current + 1)}>Suivant</Button>
           </div>
         )}
       </div>

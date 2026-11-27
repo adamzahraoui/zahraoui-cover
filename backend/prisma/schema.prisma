@@ -220,6 +220,7 @@ model InsuranceProduct {
   faqs               Json
   relatedSlugs       ProductSlug[]    @map("related_slugs")
   isPublished        Boolean          @default(false) @map("is_published")
+  isActive           Boolean          @default(true) @map("is_active")
   displayOrder       Int              @default(0) @map("display_order") @db.SmallInt
   requests           QuoteRequest[]
   assistanceCases    AssistanceCase[]
@@ -231,20 +232,21 @@ model InsuranceProduct {
 }
 
 model Client {
-  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  version     Int            @default(1)
-  profile     ClientProfile
-  displayName String         @map("display_name") @db.VarChar(120)
-  phone       String         @db.VarChar(16)
-  email       String?        @db.VarChar(254)
-  city        String?        @db.VarChar(100)
-  notes       String?        @db.VarChar(1000)
-  archivedAt  DateTime?      @map("archived_at") @db.Timestamptz(6)
-  requests    QuoteRequest[]
-  quotes      Quote[]
-  contracts   Contract[]
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version           Int            @default(1)
+  profile           ClientProfile
+  displayName       String         @map("display_name") @db.VarChar(120)
+  phone             String         @db.VarChar(16)
+  email             String?        @db.VarChar(254)
+  city              String?        @db.VarChar(100)
+  notes             String?        @db.VarChar(1000)
+  archivedAt        DateTime?      @map("archived_at") @db.Timestamptz(6)
+  intakeProvisional Boolean        @default(false) @map("intake_provisional")
+  requests          QuoteRequest[]
+  quotes            Quote[]
+  contracts         Contract[]
 
   @@index([archivedAt, createdAt, id])
   @@index([phone])

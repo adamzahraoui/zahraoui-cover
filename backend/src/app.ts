@@ -7,6 +7,10 @@ import { ApiError, handleError } from './middleware/errors.js'
 import { sameOrigin, trackRequest } from './middleware/request.js'
 import { authRoutes } from './modules/auth/routes.js'
 import { currentSession, requireRole, requireSession } from './modules/auth/session.js'
+import { adminCatalogRoutes, publicCatalogRoutes } from './modules/catalog/routes.js'
+import { quoteIntakeRoutes } from './modules/quote-requests/intake.js'
+import { quoteAdminRoutes, quoteSelectors } from './modules/quote-requests/admin.js'
+import { dashboardRoutes } from './modules/dashboard/routes.js'
 import { hashPassword, randomToken } from './utils/crypto.js'
 
 export async function createApp(database: PrismaClient, config: Config) {
@@ -37,7 +41,7 @@ export async function createApp(database: PrismaClient, config: Config) {
       const [migration] = await database.$queryRaw<{ ready: boolean }[]>`
         SELECT EXISTS (
           SELECT 1 FROM "_prisma_migrations"
-          WHERE migration_name = '20261127000000_foundation' AND finished_at IS NOT NULL AND rolled_back_at IS NULL
+          WHERE migration_name = '20261127010000_catalog_quote_intake' AND finished_at IS NOT NULL AND rolled_back_at IS NULL
         ) AS ready
       `
       if (!migration?.ready) { response.status(503).json({ status: 'unavailable' }); return }
@@ -48,7 +52,13 @@ export async function createApp(database: PrismaClient, config: Config) {
   })
 
   app.use('/api/auth', authRoutes(database, config, dummyHash))
+  app.use('/api/catalog', publicCatalogRoutes(database))
+  app.use('/api/quotes', quoteIntakeRoutes(database, config))
   app.use('/api/admin', requireSession(database, config))
+  app.use('/api/admin/catalog', adminCatalogRoutes(database))
+  app.use('/api/admin/quote-requests', quoteAdminRoutes(database))
+  app.use('/api/admin/dashboard', dashboardRoutes(database))
+  app.use('/api/admin', quoteSelectors(database))
   app.get('/api/admin/access', requireRole('ADMIN'), (_request, response) => {
     response.json({ data: { role: currentSession(response).user.role } })
   })

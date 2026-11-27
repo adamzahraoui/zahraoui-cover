@@ -2,11 +2,12 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AdminHeading } from '../../../components/admin/AdminContent'
-import { useDemoData } from '../../../components/admin/DemoData'
 import { RequestList } from '../../../components/admin/RequestList'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Fields'
-import { insuranceNavigation } from '../../../config/navigation'
+import { useApiData } from '../../../hooks/useApiData'
+import { api, businessError } from '../../../services/api'
+import { ErrorState, LoadingState } from '../../../components/ui/States'
 
 const quickLinks = [
   { label: 'Demandes', to: '/admin/demandes' },
@@ -16,21 +17,22 @@ const quickLinks = [
 ]
 
 export default function Dashboard() {
-  const { data } = useDemoData()
+  const { data, loading, error, reload } = useApiData(api.dashboard)
   const [query, setQuery] = useState('')
   const navigate = useNavigate()
-  const indicators = [
-    { label: 'Demandes de devis', count: data.requests.length, to: '/admin/demandes', color: 'text-primary' },
-    { label: 'Nouvelles demandes', count: data.requests.filter(row => row.status === 'NEW').length, to: '/admin/demandes?status=NEW', color: 'text-secondary' },
-    { label: 'En cours d’étude', count: data.requests.filter(row => row.status === 'IN_REVIEW').length, to: '/admin/demandes?status=IN_REVIEW', color: 'text-ink' },
-    { label: 'Devis acceptés', count: data.quotes.filter(row => row.status === 'ACCEPTED').length, to: '/admin/devis?status=ACCEPTED', color: 'text-success' },
-  ]
-  const months = Array.from(new Set(data.requests.map(row => row.date.slice(0, 7)))).sort().map(month => ({
-    label: new Intl.DateTimeFormat('fr-MA', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${month}-01T00:00:00Z`)),
-    count: data.requests.filter(row => row.date.startsWith(month)).length,
+  const indicators = data ? [
+    { label: 'Demandes de devis', count: data.counts.totalRequests, to: '/admin/demandes', color: 'text-primary' },
+    { label: 'Nouvelles demandes', count: data.counts.newRequests, to: '/admin/demandes?status=NEW', color: 'text-secondary' },
+    { label: 'En cours d’étude', count: data.counts.inReviewRequests, to: '/admin/demandes?status=IN_REVIEW', color: 'text-ink' },
+  ] : []
+  const months = (data?.months ?? []).map(month => ({
+    label: new Intl.DateTimeFormat('fr-MA', { month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${month.month}-01T00:00:00Z`)),
+    count: month.count,
   }))
   const topMonth = Math.max(1, ...months.map(month => month.count))
-  const recent = data.requests.slice(0, 4)
+  const activityNames: Record<string, string> = {
+    QUOTE_REQUEST_RECEIVED: 'Demande reçue', QUOTE_REQUEST_UPDATED: 'Traitement modifié', QUOTE_REQUEST_NOTE_ADDED: 'Note interne ajoutée',
+  }
 
   function search(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -45,6 +47,9 @@ export default function Dashboard() {
           <Button type="submit" variant="secondary">Rechercher</Button>
         </form>
       )} />
+      {loading && <LoadingState />}
+      {error && <ErrorState>{businessError(error)} <Button variant="secondary" onClick={reload}>Réessayer</Button></ErrorState>}
+      {data && <>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {indicators.map(({ label, count, to, color }) => (
           <Link to={to} key={to} className="panel grid gap-1 p-3 hover:border-soft-blue sm:p-4">
@@ -52,6 +57,10 @@ export default function Dashboard() {
             <span className={`text-2xl font-bold tabular-nums lg:text-[32px] ${color}`}>{count}</span>
           </Link>
         ))}
+        <div className="panel grid gap-1 p-3 sm:p-4">
+          <span className="text-sm text-muted">Devis acceptés</span>
+          <span className="text-sm font-semibold text-muted">Indisponible pour cette phase</span>
+        </div>
       </div>
       <section className="panel grid gap-3 p-4 lg:hidden">
         <h2 className="font-semibold">Accès rapide</h2>
@@ -60,6 +69,7 @@ export default function Dashboard() {
       <div className="hidden gap-4 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <section className="panel p-5">
           <h2 className="mb-4 font-semibold">Activité mensuelle des demandes</h2>
+          {!months.length && <p className="text-sm text-muted">Aucune activité enregistrée.</p>}
           <ul className="flex min-h-45 items-end justify-around gap-2 border-b border-line pt-4">
             {months.map(({ label, count }) => (
               <li key={label} className="grid min-w-0 justify-items-center gap-2">
@@ -73,24 +83,31 @@ export default function Dashboard() {
         <section className="panel p-5">
           <h2 className="mb-4 font-semibold">Répartition par catégorie</h2>
           <dl className="grid gap-3 text-sm">
-            {insuranceNavigation.map(({ slug, label }) => {
-              const count = data.requests.filter(row => row.product === slug).length
-              return (
+            {data.byProduct.map(({ slug, title, count }) => (
                 <div key={slug} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1">
-                  <dt className="text-muted">{label}</dt><dd className="font-semibold">{count}</dd>
+                  <dt className="text-muted">{title}</dt><dd className="font-semibold">{count}</dd>
                   <span className="col-span-2 h-1.5 overflow-hidden rounded-full bg-surface-tint" aria-hidden>
-                    <span className="block h-full rounded-full bg-secondary" style={{ width: `${count * 100 / Math.max(1, data.requests.length)}%` }} />
+                    <span className="block h-full rounded-full bg-secondary" style={{ width: `${count * 100 / Math.max(1, data.counts.totalRequests)}%` }} />
                   </span>
                 </div>
-              )
-            })}
+            ))}
           </dl>
         </section>
       </div>
       <section className="grid gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold">Demandes récentes</h2><Link to="/admin/demandes" className="text-link text-sm">Voir les demandes</Link></div>
-        <RequestList rows={recent} label="Demandes récentes de démonstration" />
+        <RequestList rows={data.recentRequests} label="Demandes récentes" />
       </section>
+      <section className="panel grid gap-3 p-4 sm:p-5">
+        <h2 className="font-semibold">Activité récente</h2>
+        {data.activity.length ? <ul className="grid gap-2">
+          {data.activity.map(event => <li key={event.id} className="flex flex-wrap justify-between gap-2 text-sm">
+            {event.targetId ? <Link to={`/admin/demandes/${event.targetId}`} className="text-link">{activityNames[event.action]}</Link> : <span>{activityNames[event.action]}</span>}
+            <time dateTime={event.createdAt} className="text-muted">{new Date(event.createdAt).toLocaleString('fr-MA', { timeZone: 'Africa/Casablanca', dateStyle: 'medium', timeStyle: 'short' })}</time>
+          </li>)}
+        </ul> : <p className="text-sm text-muted">Aucune activité récente.</p>}
+      </section>
+      </>}
     </>
   )
 }

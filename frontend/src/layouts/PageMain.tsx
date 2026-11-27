@@ -8,13 +8,20 @@ export function PageMain({ children, className }: { children: ReactNode; classNa
   const { pathname } = useLocation()
 
   useEffect(() => {
-    // The heading can appear after a lazy route or its session guard has finished.
     const element = main.current
-    const heading = element?.querySelector('h1')?.innerText.trim()
-    if (!heading) return
-    document.title = `${heading} | ${company.name}`
-    window.scrollTo(0, 0)
-    element?.focus({ preventScroll: true })
+    if (!element) return
+    const updateTitle = () => {
+      const heading = element.querySelector('h1')?.innerText.trim()
+      if (heading) document.title = `${heading} | ${company.name}`
+    }
+    updateTitle()
+    const headingObserver = new MutationObserver(updateTitle)
+    headingObserver.observe(element, { childList: true, subtree: true, characterData: true })
+    if (element.querySelector('h1')) {
+      window.scrollTo(0, 0)
+      element.focus({ preventScroll: true })
+    }
+    return () => headingObserver.disconnect()
   }, [pathname])
 
   return <main ref={main} id="contenu" tabIndex={-1} className={className}>{children}</main>

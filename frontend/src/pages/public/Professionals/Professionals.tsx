@@ -1,4 +1,5 @@
 import { BriefcaseBusiness, Building2, CarFront, ClipboardCheck, Scale } from 'lucide-react'
+import { usePublicCatalog } from '../../../components/public/PublicCatalog'
 import { Link } from 'react-router-dom'
 import { ActionBand, ContentCard, MediaPlaceholder } from '../../../components/public/PublicSections'
 import { ActionLink } from '../../../components/ui/Button'
@@ -12,6 +13,7 @@ const offerings = [
 ]
 
 export default function Professionals() {
+  const { data: products = [] } = usePublicCatalog()
   return (
     <>
       <section className="border-b border-line bg-white">
@@ -29,7 +31,7 @@ export default function Professionals() {
       </section>
       <section className="site-container section-space">
         <h2 className="section-title mb-6">Solutions pour les professionnels</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">{offerings.map(({ title, to, icon, copy }) => <ContentCard key={title} title={title} icon={icon}><p>{copy}</p><Link to={to} className="text-link mt-3 inline-block" aria-label={`Découvrir : ${title}`}>Découvrir</Link></ContentCard>)}</div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">{offerings.map(({ title, to, icon, copy }) => <ContentCard key={title} title={title} icon={icon}><p>{copy}</p>{(to.startsWith('/devis') || products.some(product => product.audiences.includes('BUSINESS') && to === '/assurances/' + product.slug)) && <Link to={to} className="text-link mt-3 inline-block" aria-label={`Découvrir : ${title}`}>Découvrir</Link>}</ContentCard>)}</div>
       </section>
       <ActionBand title="Parlons de vos besoins professionnels">Échangez avec l’agence sur la protection de votre activité.</ActionBand>
     </>

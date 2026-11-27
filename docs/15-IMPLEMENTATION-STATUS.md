@@ -1,4 +1,4 @@
-# 15 — Frontend implementation status
+# 15 — Frontend and backend implementation status
 
 The local React frontend covers 19 public and 19 administration page types. Two admin pages have separate create and detail/edit routes, for 40 concrete page views in the browser test matrix, including a public unknown-path example. Quote confirmation is the final UI state of /devis. The admin root sends signed-in staff to the dashboard and visitors to login. Unknown admin paths show an authenticated fallback. The original Stitch archive and design files are preserved.
 
@@ -6,7 +6,7 @@ The local React frontend covers 19 public and 19 administration page types. Two 
 
 The routes, public forms, admin demo, reusable components and API preparation were already in place. The resumed work repeated browser verification, reviewed the reference layouts and finished the handoff documentation. Two issues were confirmed and fixed. The catalog now uses the compact Stitch mobile heading and puts the audience selector above the cards in the introduction. Browser-tab titles now follow each route’s heading, with the navigation focus effect running inside the route loading boundary.
 
-The frontend demo is complete. Production work still depends on approved imagery and the standalone brand asset, approved French company and legal content, and live business submissions and persistence.
+The frontend baseline is complete. Staff authentication, the catalog and the quote workflow now use the backend. Production release depends on approved imagery and the standalone brand asset, approved French company and legal content, and production settings.
 
 ## Development milestones
 
@@ -25,21 +25,21 @@ The frontend demo is complete. Production work still depends on approved imagery
 - The extended browser run also covered public form validation, FAQ, cookie preferences, login and recovery previews, staff record edits, quote and contract simulations, and local settings. The demo flows produced zero uncaught browser errors and zero API requests.
 - Compared the matching Stitch HTML sources and rendered ten representative references in Chrome, covering home, catalog, quote wizard, dashboard and the two desktop quote admin screens. With remote photos blocked, reviewed hierarchy, responsive structure and spacing and refined the quote panel, utility bar and dashboard. Final photo cropping and logo parity remain pending approved assets.
 
-**How to read the table.** Every row is implemented. **4 widths** means direct route rendering and no page-level horizontal overflow at the four requested widths. A named interaction means it was also exercised in a browser. Source paths, props, state, styling and endpoint handoffs are documented in [03 Frontend](03-FRONTEND.md).
+**How to read the table.** Every row is implemented. **4 widths** in the baseline table means direct route rendering and no page-level horizontal overflow at the four requested widths. A named interaction means it was also exercised in a browser. Source paths, props, state, styling and endpoint handoffs are documented in [03 Frontend](03-FRONTEND.md).
 
 | ID | Page / route | Implementation | Responsive | Browser checks | API / data | Known issue or release dependency |
 | --- | --- | --- | --- | --- | --- | --- |
-| P01 | Accueil · `/` | Implemented | 4 widths | Mobile menu and catalog navigation | Local catalog; public service prepared | Approved photos, logo, partner content |
-| P02 | Nos assurances · `/assurances` | Implemented | 4 widths | Audience filter and product navigation; mobile header compared with Stitch | Local catalog; public service prepared | Approved category imagery |
-| P03 | Assurance automobile · `/assurances/automobile` | Implemented | 4 widths | Product → preselected quote | Local catalog; public service prepared | Approved visual and product copy |
-| P04 | Assurance habitation · `/assurances/habitation` | Implemented | 4 widths | Route smoke | Local catalog; public service prepared | Approved visual and product copy |
-| P05 | Assurance santé · `/assurances/sante` | Implemented | 4 widths | Route smoke | Local catalog; public service prepared | Approved visual and product copy |
-| P06 | Assurance voyage · `/assurances/voyage` | Implemented | 4 widths | Route smoke | Local catalog; public service prepared | Approved visual and product copy |
-| P07 | Assurance professionnelle · `/assurances/professionnelle` | Implemented | 4 widths | Route smoke | Local catalog; public service prepared | Approved visual and product copy |
-| P08 | Responsabilité civile · `/assurances/responsabilite-civile` | Implemented | 4 widths | Legacy rc preselection | Local catalog; public service prepared | Approved visual and product copy |
-| P09 | Demande de devis · `/devis` | Implemented | 4 widths | Steps, back, phone, consent, review and reset | Local catalog; public service prepared | No receipt until backend |
-| P10 | Particuliers · `/particuliers` | Implemented | 4 widths | Route smoke | Local catalog; public service prepared | Approved imagery and content |
-| P11 | Professionnels · `/professionnels` | Implemented | 4 widths | Route smoke | Local catalog; public service prepared | Approved imagery and business copy |
+| P01 | Accueil · `/` | Implemented | 4 widths | Mobile menu and catalog navigation | Live published catalog | Approved photos, logo, partner content |
+| P02 | Nos assurances · `/assurances` | Implemented | 4 widths | Audience filter and product navigation; mobile header compared with Stitch | Live published catalog | Approved category imagery |
+| P03 | Assurance automobile · `/assurances/automobile` | Implemented | 4 widths | Product → preselected quote | Live published detail | Approved visual and product copy |
+| P04 | Assurance habitation · `/assurances/habitation` | Implemented | 4 widths | Route smoke | Live published detail | Approved visual and product copy |
+| P05 | Assurance santé · `/assurances/sante` | Implemented | 4 widths | Route smoke | Live published detail | Approved visual and product copy |
+| P06 | Assurance voyage · `/assurances/voyage` | Implemented | 4 widths | Route smoke | Live published detail | Approved visual and product copy |
+| P07 | Assurance professionnelle · `/assurances/professionnelle` | Implemented | 4 widths | Route smoke | Live published detail | Approved visual and product copy |
+| P08 | Responsabilité civile · `/assurances/responsabilite-civile` | Implemented | 4 widths | Legacy rc preselection | Live published detail | Approved visual and product copy |
+| P09 | Demande de devis · `/devis` | Implemented | 4 widths | Steps, back, phone, consent, review and reset | Live catalog, notice and quote receipt | Approved privacy wording and deployment configuration |
+| P10 | Particuliers · `/particuliers` | Implemented | 4 widths | Route smoke | Live published individual categories | Approved imagery and content |
+| P11 | Professionnels · `/professionnels` | Implemented | 4 widths | Route smoke | Editorial content with live availability for links | Approved imagery and business copy |
 | P12 | À propos · `/a-propos` | Implemented | 4 widths | Route smoke | Bundled content; no request | Approved imagery and agency copy |
 | P13 | Contact · `/contact` | Implemented | 4 widths | Invalid phone and local verification | Local validation; public service prepared | Official email, address, hours and map pending |
 | P14 | Assistance · `/assistance` | Implemented | 4 widths | Invalid phone and local verification | Local validation; public service prepared | Staff routing and notices pending |
@@ -51,9 +51,9 @@ The frontend demo is complete. Production work still depends on approved imagery
 | A01 | Connexion · `/admin/login` | Implemented | 4 widths | Valid and invalid login, guarded return path and refresh | Connected auth session | Approved production deployment settings |
 | A02 | Mot de passe oublié · `/admin/mot-de-passe-oublie` | Implemented | 4 widths | Generic acknowledgement and Mailpit capture | Connected recovery endpoint | Approved SMTP provider pending |
 | A03 | Réinitialisation du mot de passe · `/admin/reinitialiser-mot-de-passe` | Implemented | 4 widths | Fragment cleanup, password validation and reset | Connected reset endpoint | Approved SMTP provider pending |
-| A04 | Tableau de bord · `/admin/dashboard` | Implemented | 4 widths | Search deep link, mobile navigation and desktop sidebar | Fictional data; endpoint pending | Fixture metrics only |
-| A05 | Demandes de devis · `/admin/demandes` | Implemented | 4 widths | Search and pagination | Fictional data; endpoint pending | Versioned/staff API and server pagination pending |
-| A06 | Détails d’une demande · `/admin/demandes/:id` | Implemented | 4 widths | Update status, assign and add note | Fictional data; endpoint pending | Updates in memory |
+| A04 | Tableau de bord · `/admin/dashboard` | Implemented | 4 widths | Search deep link, mobile navigation and desktop sidebar | Live requests, breakdown, recent records and activity | Issued quote and policy metrics unavailable |
+| A05 | Demandes de devis · `/admin/demandes` | Implemented | 4 widths | Search and pagination | Live staff requests and server pagination | Date, status, product and assignee filters |
+| A06 | Détails d’une demande · `/admin/demandes/:id` | Implemented | 4 widths | Update status, assign and add note | Live request, associated client, assignments, status and notes | Sending a quote requires a later delivery workflow |
 | A07 | Clients · `/admin/clients` | Implemented | 4 widths | Route smoke | Fictional data; endpoint pending | Fictitious records |
 | A08 | Profil client · `/admin/clients/:id` | Implemented | 4 widths | Edit path, archive dialog and refresh reset | Fictional data; endpoint pending | Server authorization pending |
 | A09 | Ajouter / modifier un client · `/admin/clients/nouveau` · `/admin/clients/:id/modifier` | Implemented | 4 widths | Create and edit | Fictional data; endpoint pending | Duplicate warning is local |
@@ -63,7 +63,7 @@ The frontend demo is complete. Production work still depends on approved imagery
 | A13 | Contrats · `/admin/contrats` | Implemented | 4 widths | Route smoke | Fictional data; endpoint pending | V2 policies are illustrative |
 | A14 | Création / détails d’un contrat · `/admin/contrats/nouveau` · `/admin/contrats/:id` | Implemented | 4 widths | Date validation, draft and simulated activation | Fictional data; endpoint pending | No actual policies, PDFs or reminders |
 | A15 | Demandes d’assistance · `/admin/assistance` | Implemented | 4 widths | Local status update and switch to messages | Fictional data; endpoint pending | Shared mobile inbox pattern |
-| A16 | Catalogue des assurances · `/admin/assurances` | Implemented | 4 widths | Edit summary and visibility modal | Fictional data; endpoint pending | Local subset of V2 fields |
+| A16 | Catalogue des assurances · `/admin/assurances` | Implemented | 4 widths | Edit summary and visibility modal | Live staff catalog and Admin writes | Admin publishing requires approved product content |
 | A17 | Partenaires · `/admin/partenaires` | Implemented | 4 widths | Add example in modal | Fictional data; endpoint pending | No registered insurer, logos or publishing |
 | A18 | Messages reçus · `/admin/messages` | Implemented | 4 widths | Local processed action | Fictional data; endpoint pending | Shared mobile inbox pattern |
 | A19 | Paramètres · `/admin/parametres` | Implemented | 4 widths | Local update, locked main phone | Fictional data; endpoint pending | Official details require confirmation |
@@ -73,7 +73,17 @@ The frontend demo is complete. Production work still depends on approved imagery
 - **Completed.** Local Compose PostgreSQL, all 18 table definitions, versioned migration and non-publishing category seed. Express has liveness/readiness and server-side authentication, recovery, password change and role checks. The bootstrap command queues a one-time admin setup link.
 - **Frontend.** Real forms, HttpOnly cookie session restoration, admin route guards, session expiry handling, logout and ADMIN-only settings access are connected. The demo entry shortcut is removed. Business fixtures remain separate from authentication data.
 - **Verified.** The production build worked through the Vite proxy in headless Chrome. Twenty protected entries redirected before sign-in. Secure provisioning with local SMTP capture, invalid and valid login, route restoration after refresh, expiry, recovery, password change, role checks and logout passed in an isolated database.
-- **Remaining.** Live catalog and quote intake, all business endpoints, approved SMTP settings and production deployment controls. See [16 Backend implementation](16-BACKEND-IMPLEMENTATION.md) and [17 Backend beginner guide](17-BACKEND-BEGINNER-GUIDE.md).
+- **B1–B3 handoff.** Business endpoints and production settings were pending at this checkpoint. See [16 Backend implementation](16-BACKEND-IMPLEMENTATION.md) and [17 Backend beginner guide](17-BACKEND-BEGINNER-GUIDE.md).
+
+## Business phases B4–B5
+
+- **Catalog.** Public lists and all six details use published, active rows from PostgreSQL. The staff catalog supports read-only advisor access and versioned Admin edits. Seeded categories remain unpublished. See [18 Live insurance catalog](18-INSURANCE-CATALOG-IMPLEMENTATION.md).
+- **Quote workflow.** The anonymous four-step wizard validates and sends the current privacy acknowledgement, then shows the persisted reference. Each fresh submission creates a linked provisional customer. Staff can review, assign, relink, add notes and update permitted statuses. The dashboard shows live request metrics. See [19 Quote request implementation](19-QUOTE-REQUEST-IMPLEMENTATION.md).
+- **Migration.** `20261127010000_catalog_quote_intake` adds `insurance_products.is_active` and `clients.intake_provisional`. A database constraint requires published products to be active. The original foundation migration and seed are intact.
+- **Automated verification.** Frontend and backend TypeScript, ESLint and production builds passed. Prisma validation, migration deployment, migration status and schema comparison passed. All four unit tests and all 19 PostgreSQL integration tests passed, including 10 previous tests and nine new business tests. The suites cover permissions, CSRF, input checks, rate limiting, visibility, idempotency, rollback, customer association, filtering, status changes, audit records and SMTP retry.
+- **Browser verification.** The production build and compiled API completed the full real submission and staff workflow at **390, 768, 1024 and 1440 px**. Staff published a test category at each width, visitors submitted the four steps, and staff opened the saved request from the dashboard and changed its status. Refresh preserved the change. Anonymous request and customer access returned 401. All six published detail routes passed the browser checks at each width, and the tested views had no page-level horizontal overflow. A follow-up browser check exercised request list search, private note persistence and product deactivation. At 390 px the original response was dropped after commit and retry recovered the same reference.
+- **Local email.** Mailpit captured four test customer acknowledgements and four internal notifications, exactly two jobs per accepted request. Production delivery is pending approved SMTP settings and recipients.
+- **Remaining demonstrations.** Contact and assistance forms and corresponding inboxes, full client CRM, issued quotes, contracts, documents, partners and settings. The dashboard marks issued quote counts as unavailable. Production requires approved product descriptions, visual assets, the privacy notice and deployment settings.
 
 ## Differences from the Stitch prototypes
 
@@ -81,7 +91,7 @@ The frontend demo is complete. Production work still depends on approved imagery
 - **Intake.** The export’s mobile quote page only contains the start of a wizard. All four steps and the input review use the same controlled form at every width. Optional category selectors collect general context and fit within the documented needs text when integrated. Desktop/mobile contact and assistance use common required fields. The preview creates no submission, confirmation reference, session or email.
 - **Admin design.** A11 and A12 adapt the desktop design to stacked mobile form/detail sections. The merged assistance/messages mobile reference uses a shared layout, two distinct routes and a switch link. Dashboard metrics derive from fixtures. Submit, archive, issue, activate and resolve actions change React memory. The banner distinguishes local business fixtures from the authenticated access layer.
 - **Supporting behavior.** Staff lists and legal content are local. The preferences dialog explains the essential-only posture. Admin catalog and settings changes affect only the demo. Client forms exclude CIN/ICE and medical information. Official phones are read-only.
-- **Release.** Replace the fixture provider with authorized business APIs before entering live customer data. Configure the approved SMTP relay and complete business persistence, server permissions, PDF generation and renewals. Obtain approved assets, French policy copy and company details before publication.
+- **Release.** Configure the approved SMTP relay and production controls before accepting real requests. Complete the proposed integrations for remaining demonstration modules before using them with live data. Obtain approved assets, French policy copy and company details before publication.
 
 ## Files and local commands
 

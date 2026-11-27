@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { company } from '../../config/company'
-import { insuranceNavigation, policyNavigation } from '../../config/navigation'
+import { policyNavigation } from '../../config/navigation'
+import { usePublicCatalog } from './PublicCatalog'
 import { Brand } from './Brand'
 
 const links = [
@@ -12,6 +13,7 @@ const links = [
 ]
 
 export function Footer() {
+  const { data: products = [] } = usePublicCatalog()
   return (
     <footer className="bg-primary-dark text-white">
       <div className="site-container grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-4 lg:py-12">
@@ -22,7 +24,7 @@ export function Footer() {
         </div>
         <div>
           <h2 className="mb-3 font-semibold">Nos assurances</h2>
-          <ul className="space-y-2 text-sm text-blue-100">{insuranceNavigation.map(item => <li key={item.slug}><Link className="hover:underline" to={`/assurances/${item.slug}`}>{item.label}</Link></li>)}</ul>
+          <ul className="space-y-2 text-sm text-blue-100">{products.map(item => <li key={item.slug}><Link className="hover:underline" to={`/assurances/${item.slug}`}>{item.title}</Link></li>)}</ul>
         </div>
         <div>
           <h2 className="mb-3 font-semibold">Contact</h2>

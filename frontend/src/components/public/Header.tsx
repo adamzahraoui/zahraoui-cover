@@ -2,14 +2,16 @@ import { ChevronDown, Headset, Menu, Phone } from 'lucide-react'
 import { useRef } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { company } from '../../config/company'
-import { insuranceNavigation, publicNavigation } from '../../config/navigation'
+import { publicNavigation } from '../../config/navigation'
 import { ActionLink } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
+import { usePublicCatalog } from './PublicCatalog'
 import { Brand } from './Brand'
 
 export function Header({ compact = false }: { compact?: boolean }) {
+  const { data: products = [] } = usePublicCatalog()
   const mobileNav = useRef<HTMLDialogElement>(null)
-  const products = useRef<HTMLDetailsElement>(null)
+  const categories = useRef<HTMLDetailsElement>(null)
   return (
     <header className="border-b border-line bg-white">
       <div className="bg-primary text-white">
@@ -32,14 +34,14 @@ export function Header({ compact = false }: { compact?: boolean }) {
                 to === '/assurances' ? (
                   <div key={to} className="flex items-center gap-0.5">
                     <NavLink to={to} className="rounded py-3 hover:text-primary aria-[current=page]:text-primary">{label}</NavLink>
-                    <details ref={products} className="relative" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus() } }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false }}>
+                    {products.length > 0 && <details ref={categories} className="relative" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus() } }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false }}>
                       <summary aria-label="Afficher les catégories d’assurance" className="list-none rounded p-2 hover:bg-background"><ChevronDown size={15} /></summary>
                       <ul className="panel absolute top-full left-0 z-10 w-64 p-2">
-                        {insuranceNavigation.map(({ slug, label: title }) => (
-                          <li key={slug}><Link to={`/assurances/${slug}`} className="block rounded p-2 hover:bg-background" onClick={() => { if (products.current) products.current.open = false }}>{title}</Link></li>
+                        {products.map(({ slug, title }) => (
+                          <li key={slug}><Link to={`/assurances/${slug}`} className="block rounded p-2 hover:bg-background" onClick={() => { if (categories.current) categories.current.open = false }}>{title}</Link></li>
                         ))}
                       </ul>
-                    </details>
+                    </details>}
                   </div>
                 ) : <NavLink to={to} key={to} end={to === '/'} className="rounded py-3 hover:text-primary aria-[current=page]:text-primary">{label}</NavLink>
               ))}

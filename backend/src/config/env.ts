@@ -16,6 +16,11 @@ const schema = z.object({
   RATE_KEY_SECRET: secret,
   CSRF_SECRET: secret,
   RESET_JOB_KEY: secret,
+  IDEMPOTENCY_KEY_SECRET: z.preprocess(optional, secret.optional()),
+  PRIVACY_NOTICE_VERSION: z.preprocess(optional, z.string().regex(/^[a-zA-Z0-9._-]{1,32}$/).optional()),
+  QUOTE_NOTICE_TEXT: z.preprocess(optional, z.string().trim().min(20).max(4000).optional()),
+  QUOTE_ACK_EMAIL: z.enum(['true', 'false']).default('false').transform(value => value === 'true'),
+  INTAKE_NOTIFY_EMAIL: z.preprocess(optional, z.string().email().optional()),
   SMTP_MODE: z.enum(['disabled', 'local', 'tls', 'starttls']).default('disabled'),
   SMTP_HOST: z.preprocess(optional, z.string().min(1).optional()),
   SMTP_PORT: z.preprocess(optional, z.coerce.number().int().min(1).max(65535).optional()),
@@ -35,6 +40,13 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Config
   const config = result.data
   if (new Set([config.RATE_KEY_SECRET.toString('hex'), config.CSRF_SECRET.toString('hex'), config.RESET_JOB_KEY.toString('hex')]).size !== 3) {
     throw new Error('RATE_KEY_SECRET, CSRF_SECRET and RESET_JOB_KEY must be different')
+  }
+  if (Boolean(config.PRIVACY_NOTICE_VERSION) !== Boolean(config.QUOTE_NOTICE_TEXT) ||
+      (config.PRIVACY_NOTICE_VERSION && !config.IDEMPOTENCY_KEY_SECRET)) {
+    throw new Error('Quote intake requires PRIVACY_NOTICE_VERSION, QUOTE_NOTICE_TEXT and IDEMPOTENCY_KEY_SECRET together')
+  }
+  if ([config.RATE_KEY_SECRET, config.CSRF_SECRET, config.RESET_JOB_KEY].some(key => config.IDEMPOTENCY_KEY_SECRET?.equals(key))) {
+    throw new Error('IDEMPOTENCY_KEY_SECRET must be distinct')
   }
   if (config.NODE_ENV === 'production' && !config.PUBLIC_ORIGIN.startsWith('https://')) {
     throw new Error('PUBLIC_ORIGIN requires HTTPS in production')

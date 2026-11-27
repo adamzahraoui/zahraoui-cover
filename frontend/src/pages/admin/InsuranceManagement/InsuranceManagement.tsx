@@ -1,72 +1,80 @@
-import { useRef, useState } from 'react'
-import type { FormEvent } from 'react'
-import { AdminHeading, DemoNote, LocalFeedback } from '../../../components/admin/AdminContent'
-import { useDemoData } from '../../../components/admin/DemoData'
+import { useCallback, useRef, useState } from 'react'
+import { AdminHeading, LocalFeedback } from '../../../components/admin/AdminContent'
+import { useAdminSession } from '../../../components/admin/auth/AdminSession'
 import { Button } from '../../../components/ui/Button'
 import { Dialog } from '../../../components/ui/Dialog'
-import { Textarea } from '../../../components/ui/Fields'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
-import type { CatalogItem } from '../../../data/demo'
+import { EmptyState, ErrorState, LoadingState } from '../../../components/ui/States'
+import { insuranceNavigation } from '../../../config/navigation'
+import type { ProductSlug } from '../../../config/navigation'
 import { getInsurance } from '../../../data/insurance'
+import { useApiData } from '../../../hooks/useApiData'
+import { api, businessError } from '../../../services/api'
+import type { CatalogWrite } from '../../../types/api'
+import { CatalogEditor } from './CatalogEditor'
 
 export default function InsuranceManagement() {
-  const { data, setData } = useDemoData()
+  const { state } = useAdminSession()
+  const catalog = useApiData(api.adminCatalog)
   const dialog = useRef<HTMLDialogElement>(null)
-  const [editing, setEditing] = useState<CatalogItem>()
-  const [error, setError] = useState('')
+  const [selected, setSelected] = useState<string>()
+  const [sessionKey, setSessionKey] = useState(0)
   const [saved, setSaved] = useState(false)
+  const loadDetail = useCallback((signal: AbortSignal) =>
+    selected && selected !== 'new' ? api.adminProduct(selected, signal) : Promise.resolve(undefined), [selected])
+  const detail = useApiData(loadDetail, String(sessionKey))
+  const items = catalog.data ?? []
+  const item = detail.data?.id === selected ? detail.data : undefined
+  const canEdit = state.status === 'authenticated' && state.user.role === 'ADMIN'
+  const allowed = insuranceNavigation.filter(entry => !items.some(row => row.slug === entry.slug)).map(entry => ({ value: entry.slug, label: entry.label }))
 
-  function open(item: CatalogItem) {
-    setEditing(item)
-    setError('')
+  function open(id: string) {
+    setSelected(id)
     setSaved(false)
+    setSessionKey(value => value + 1)
     dialog.current?.showModal()
   }
 
-  function update(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (!editing) return
-    const values = new FormData(event.currentTarget)
-    const summary = String(values.get('summary') ?? '').trim()
-    if (summary.length < 10) {
-      setError('Rédigez au moins dix caractères utiles.')
-      return
-    }
-    setData(previous => ({
-      ...previous,
-      catalog: previous.catalog.map(row => row.slug === editing.slug ? { ...row, summary, published: values.has('published') } : row),
-    }))
+  async function save(values: CatalogWrite, slug: ProductSlug) {
+    if (state.status !== 'authenticated') return
+    const csrf = state.user.csrfToken
+    if (item) {
+      const { relatedSlugs, ...fields } = values
+      const sameLinks = item.relatedSlugs.length === relatedSlugs.length && item.relatedSlugs.every(value => relatedSlugs.includes(value))
+      await api.updateProduct(item.id, { ...fields, version: item.version, ...(sameLinks ? {} : { relatedSlugs }) }, csrf)
+    } else await api.createProduct({ ...values, slug }, csrf)
     setSaved(true)
+    catalog.reload()
     dialog.current?.close()
   }
 
   return (
     <>
-      <AdminHeading title="Catalogue des assurances" />
-      <DemoNote>Les six catégories du catalogue sont réservées. Les modifications de cette démonstration ne changent pas le site public.</DemoNote>
-      {saved && <LocalFeedback>Produit modifié dans la démonstration.</LocalFeedback>}
+      <AdminHeading title="Catalogue des assurances" action={canEdit && catalog.data && allowed.length ? <Button onClick={() => open('new')}>Ajouter une catégorie</Button> : undefined} />
+      <p className="text-sm text-muted">Les six catégories sont réservées. Seuls les produits actifs et publiés sont visibles sur le site public.</p>
+      {saved && <LocalFeedback>Produit enregistré.</LocalFeedback>}
+      {catalog.loading && <LoadingState />}
+      {catalog.error && <ErrorState>{businessError(catalog.error)} <Button variant="secondary" onClick={catalog.reload}>Réessayer</Button></ErrorState>}
+      {catalog.data && !items.length && <EmptyState>Aucun produit dans le catalogue.</EmptyState>}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {data.catalog.map(item => {
-          const product = getInsurance(item.slug)
-          const Icon = product.icon
+        {items.map(product => {
+          const Icon = getInsurance(product.slug).icon
           return (
-            <article className="panel flex flex-col items-start gap-3 p-4 sm:p-5" key={item.slug}>
-              <div className="flex w-full items-start justify-between gap-2"><Icon size={24} className="shrink-0 text-primary" aria-hidden /><StatusBadge label={item.published ? 'Visible (démo)' : 'Masqué (démo)'} tone={item.published ? 'success' : 'neutral'} /></div>
-              <h2 className="font-semibold">{product.label}</h2>
-              <p className="mb-2 flex-1 text-sm leading-6 text-muted">{item.summary}</p>
-              <Button variant="secondary" aria-label={`Modifier : ${product.label}`} onClick={() => open(item)}>Modifier</Button>
+            <article className="panel flex flex-col items-start gap-3 p-4 sm:p-5" key={product.id}>
+              <div className="flex w-full items-start justify-between gap-2"><Icon size={24} className="shrink-0 text-primary" aria-hidden /><StatusBadge label={!product.isActive ? 'Inactif' : product.isPublished ? 'Publié' : 'Non publié'} tone={product.isPublished ? 'success' : 'neutral'} /></div>
+              <h2 className="font-semibold">{product.title}</h2>
+              <p className="mb-2 flex-1 text-sm leading-6 text-muted">{product.summary}</p>
+              <Button variant="secondary" aria-label={`${canEdit ? 'Modifier' : 'Consulter'} : ${product.title}`} onClick={() => open(product.id)}>{canEdit ? 'Modifier' : 'Consulter'}</Button>
             </article>
           )
         })}
       </div>
-      <Dialog title={editing ? getInsurance(editing.slug).label : 'Modifier le produit'} dialogRef={dialog}>
-        {editing && (
-          <form key={`${editing.slug}:${editing.summary}:${editing.published}`} className="grid gap-4" onSubmit={update}>
-            <Textarea label="Résumé du produit" name="summary" required minLength={10} maxLength={300} defaultValue={editing.summary} error={error} onChange={() => setError('')} />
-            <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" name="published" className="size-4 accent-primary" defaultChecked={editing.published} /> Visible dans le catalogue démo</label>
-            <Button type="submit">Appliquer à la démonstration</Button>
-          </form>
-        )}
+      <Dialog title={selected === 'new' ? 'Ajouter une catégorie' : item?.title ?? 'Détail de la catégorie'} dialogRef={dialog}>
+        {selected && selected !== 'new' && detail.error
+          ? <ErrorState>{businessError(detail.error)} <Button variant="secondary" onClick={detail.reload}>Recharger la fiche</Button></ErrorState>
+          : selected === 'new' || item
+            ? <CatalogEditor key={sessionKey} item={item} options={allowed} catalog={items} canEdit={canEdit} onSave={save} />
+            : selected && <LoadingState />}
       </Dialog>
     </>
   )

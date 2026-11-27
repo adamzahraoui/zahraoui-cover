@@ -2,6 +2,11 @@ import { ClipboardCheck, Headset, ShieldCheck } from 'lucide-react'
 import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { usePublicCatalog } from '../../../components/public/PublicCatalog'
+import { ErrorState, LoadingState } from '../../../components/ui/States'
+import { useApiData } from '../../../hooks/useApiData'
+import { ApiError, api, businessError } from '../../../services/api'
+import type { QuoteRequestIn, Receipt } from '../../../types/api'
 import { ContentCard } from '../../../components/public/PublicSections'
 import { ActionLink, Button } from '../../../components/ui/Button'
 import { company } from '../../../config/company'
@@ -13,7 +18,14 @@ function QuoteWizard({ query }: { query: URLSearchParams }) {
   const [draft, setDraft] = useState(() => initialDraft(query))
   const [step, setStep] = useState(0)
   const [errors, setErrors] = useState<QuoteErrors>({})
-  const [preview, setPreview] = useState(false)
+  const [receipt, setReceipt] = useState<(Receipt & { title: string })>()
+  const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState('')
+  const [uncertain, setUncertain] = useState(false)
+  const { data: products = [], loading, error, reload } = usePublicCatalog()
+  const notice = useApiData(api.quoteNotice)
+  const submission = useRef<{ body: QuoteRequestIn; key: string } | null>(null)
+  const inFlight = useRef(false)
   const heading = useRef<HTMLHeadingElement>(null)
 
   function focusHeading() {
@@ -21,6 +33,7 @@ function QuoteWizard({ query }: { query: URLSearchParams }) {
   }
 
   function update(changes: Partial<QuoteDraft>) {
+    setFailure('')
     setDraft(previous => ({ ...previous, ...changes }))
     setErrors(previous => {
       const next = { ...previous }
@@ -35,31 +48,82 @@ function QuoteWizard({ query }: { query: URLSearchParams }) {
     focusHeading()
   }
 
-  function advance(event: FormEvent<HTMLFormElement>) {
+  async function advance(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (inFlight.current) return
+    const selected = products.find(item => item.slug === draft.product)
     const validation = validateStep(step, draft)
+    if (step === 0 && draft.product && (!selected || (draft.profile && !selected.audiences.includes(draft.profile)))) {
+      validation.product = 'Sélectionnez une assurance disponible pour votre profil.'
+    }
     setErrors(validation)
     const field = Object.keys(validation)[0]
-    if (field) {
+    if (field && !uncertain) {
       event.currentTarget.querySelector<HTMLElement>(`[name="${field}"]`)?.focus()
       return
     }
-    if (step < steps.length - 1) changeStep(step + 1)
-    else {
-      setPreview(true)
+    if (step < steps.length - 1) {
+      changeStep(step + 1)
+      return
+    }
+    if (!submission.current) {
+      if (!draft.profile || !draft.product || !notice.data?.noticeVersion || !notice.data.text) return
+      const body: QuoteRequestIn = {
+        profile: draft.profile, productSlug: draft.product, needs: draft.needs,
+        context: draft.context || undefined, desiredStartOn: draft.desiredDate || undefined,
+        situation: draft.situation, firstName: draft.firstName, lastName: draft.lastName,
+        phone: draft.phone, email: draft.email, city: draft.city, preferredContact: draft.contactMethod,
+        noticeVersion: notice.data.noticeVersion, acknowledged: true,
+      }
+      submission.current = { body, key: crypto.randomUUID() }
+    }
+    inFlight.current = true
+    setBusy(true)
+    setFailure('')
+    try {
+      const result = await api.submitQuote(submission.current.body, submission.current.key)
+      if (!result?.reference) throw new Error('Référence manquante.')
+      setReceipt({ ...result, title: selected?.title ?? '' })
+      setUncertain(false)
+      submission.current = null
       focusHeading()
+    } catch (error) {
+      // When the result is unknown, retry the same payload and key before editing it.
+      const retrySameRequest = !(error instanceof ApiError) || error.status >= 500 || error.status === 429
+      setUncertain(retrySameRequest)
+      if (!retrySameRequest) submission.current = null
+      setFailure(retrySameRequest ? 'La confirmation n’a pas pu être reçue. Réessayez cet envoi pour conserver la même référence.' : businessError(error))
+      if (error instanceof ApiError && error.code === 'NOTICE_CHANGED') {
+        setDraft(previous => ({ ...previous, acknowledged: false }))
+        notice.reload()
+      } else if (error instanceof ApiError && error.code === 'PRODUCT_UNAVAILABLE') {
+        setDraft(previous => ({ ...previous, product: '', context: '', acknowledged: false }))
+        reload()
+        changeStep(0)
+      } else if (error instanceof ApiError && Object.keys(error.fields ?? {}).length > 0) {
+        const fields = error.fields ?? {}
+        const destination = fields.needs || fields.desiredStartOn || fields.context ? 1 : 2
+        changeStep(destination)
+        setErrors({ ...fields, desiredDate: fields.desiredStartOn })
+      }
+    } finally {
+      inFlight.current = false
+      setBusy(false)
     }
   }
 
   function restart() {
     setDraft(initialDraft(query))
-    setPreview(false)
+    setReceipt(undefined)
+    setFailure('')
     changeStep(0)
+    reload()
+    notice.reload()
   }
 
   return (
     <div className="grid gap-4">
-      {!preview && (
+      {!receipt && (
         <ol aria-label="Étapes de la demande" className="grid grid-cols-4 gap-2">
           {steps.map((label, index) => (
             <li key={label} aria-current={step === index ? 'step' : undefined} className={`flex min-h-12 min-w-0 items-center justify-center gap-2 rounded border p-2 text-sm font-semibold lg:flex-col lg:items-start lg:gap-0.5 lg:p-3 ${index === step ? 'border-primary bg-primary-tint text-primary' : 'border-line bg-white text-muted'}`}>
@@ -70,11 +134,13 @@ function QuoteWizard({ query }: { query: URLSearchParams }) {
           ))}
         </ol>
       )}
-      {preview ? (
-        <div className="grid justify-items-center gap-4 py-4 text-center sm:p-6">
+      {receipt ? (
+        <div role="status" className="grid justify-items-center gap-4 py-4 text-center sm:p-6">
           <ClipboardCheck size={48} className="text-primary" strokeWidth={1.5} aria-hidden />
-          <h2 tabIndex={-1} ref={heading} className="text-2xl font-bold text-primary">Aperçu de confirmation</h2>
-          <p className="max-w-md leading-7 text-muted">Les étapes du formulaire sont complètes. Aucune demande n’a été envoyée et aucune référence n’a été créée.</p>
+          <h2 tabIndex={-1} ref={heading} className="text-2xl font-bold text-primary">Votre demande de devis a bien été envoyée.</h2>
+          <p className="text-primary">Référence de votre demande : <strong className="wrap-anywhere">{receipt.reference}</strong></p>
+          {receipt.title && <p>{receipt.title}</p>}
+          <p className="max-w-md leading-7 text-muted">Conservez votre référence. Un conseiller pourra vous recontacter pour étudier votre besoin. Pour joindre l’agence, appelez le <a className="text-link" href={company.office.href}>{company.office.number}</a>.</p>
           <div className="flex flex-wrap justify-center gap-2"><Button onClick={restart}>Nouvelle demande</Button><ActionLink to="/" variant="secondary">Retour à l’accueil</ActionLink></div>
         </div>
       ) : (
@@ -83,10 +149,21 @@ function QuoteWizard({ query }: { query: URLSearchParams }) {
             <p className="mb-1 text-sm font-semibold text-secondary">Étape {step + 1} sur {steps.length}</p>
             <h2 tabIndex={-1} ref={heading} className="text-xl font-bold">{step === 3 ? 'Récapitulatif de votre demande' : steps[step]}</h2>
           </div>
-          <QuoteFields step={step} draft={draft} errors={errors} update={update} />
+          {step === 0 && loading && !products.length && <LoadingState />}
+          {step === 0 && error && <ErrorState>Le catalogue ne peut pas être chargé. <Button variant="secondary" onClick={reload}>Réessayer</Button></ErrorState>}
+          {step === 0 && !loading && !error && !products.length && <p className="text-muted">Aucune assurance n’est disponible pour le moment.</p>}
+          {step === 3 && notice.loading && <LoadingState />}
+          {step === 3 && !notice.loading && (!notice.data?.noticeVersion || notice.error) && !uncertain && <ErrorState>
+            La notice de confidentialité est indisponible. <Button variant="secondary" onClick={notice.reload}>Réessayer</Button>
+          </ErrorState>}
+          <fieldset disabled={busy || uncertain} className="grid min-w-0 gap-4">
+            <QuoteFields step={step} draft={draft} errors={errors} update={update} products={products} notice={notice.data} />
+          </fieldset>
+          {failure && <ErrorState>{failure}</ErrorState>}
           <div className="flex flex-wrap gap-3 border-t border-line pt-4 sm:justify-between">
-            {step > 0 && <Button variant="secondary" onClick={() => changeStep(step - 1)}>Précédent</Button>}
-            <Button type="submit" className="sm:ml-auto">{step === 3 ? 'Prévisualiser la confirmation' : step === 2 ? 'Vérifier ma demande' : 'Continuer'}</Button>
+            {step > 0 && !uncertain && <Button variant="secondary" disabled={busy} onClick={() => { setFailure(''); changeStep(step - 1) }}>Précédent</Button>}
+            <Button type="submit" disabled={busy || (step === 0 && !products.length) || (step === 3 && !uncertain && (notice.loading || !notice.data?.noticeVersion))}
+              className="sm:ml-auto">{busy ? 'Envoi…' : uncertain ? 'Réessayer l’envoi' : step === 3 ? 'Envoyer ma demande' : step === 2 ? 'Vérifier ma demande' : 'Continuer'}</Button>
           </div>
         </form>
       )}
@@ -103,7 +180,6 @@ export default function QuoteRequest() {
           <h1 className="text-2xl/8 font-bold tracking-tight text-primary lg:text-[32px]/10">Demander un devis personnalisé</h1>
           <p className="text-sm leading-6 text-muted">Décrivez vos besoins et vérifiez votre demande en quatre étapes. Aucun compte n’est nécessaire.</p>
         </div>
-        <p className="rounded border border-blue-200 bg-primary-tint p-3 text-sm leading-6 text-primary">Démonstration. Utilisez des données fictives. Ce formulaire n’envoie aucune demande.</p>
         <QuoteWizard query={query} key={query.toString()} />
       </section>
       <aside aria-label="Aide à la demande" className="grid gap-4 lg:gap-6">

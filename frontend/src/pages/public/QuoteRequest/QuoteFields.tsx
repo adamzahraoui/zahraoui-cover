@@ -1,14 +1,16 @@
 import { BriefcaseBusiness, UserRound } from 'lucide-react'
 import { NoticeCheckbox } from '../../../components/public/NoticeCheckbox'
 import { Input, Select, Textarea } from '../../../components/ui/Fields'
-import { getInsurance, parseProduct, productOptions } from '../../../data/insurance'
-import type { ContactMethod, Situation } from '../../../types/api'
+import { getInsurance, parseProduct } from '../../../data/insurance'
+import type { ContactMethod, ProductCard, QuoteNotice, Situation } from '../../../types/api'
 import { casablancaToday } from '../../../utils/forms'
 import { contactMethods, situations } from './quoteForm'
 import type { QuoteDraft, QuoteErrors } from './quoteForm'
 
 type Props = {
   step: number
+  products: ProductCard[]
+  notice?: QuoteNotice
   draft: QuoteDraft
   errors: QuoteErrors
   update: (changes: Partial<QuoteDraft>) => void
@@ -19,10 +21,10 @@ const profiles = [
   { value: 'BUSINESS', label: 'Professionnel / Entreprise', icon: BriefcaseBusiness },
 ] as const
 
-function Review({ draft }: { draft: QuoteDraft }) {
+function Review({ draft, title }: { draft: QuoteDraft; title?: string }) {
   const fields = [
     ['Profil', profiles.find(item => item.value === draft.profile)?.label],
-    ['Assurance', draft.product ? getInsurance(draft.product).label : ''],
+    ['Assurance', title],
     ['Contexte', draft.context],
     ['Date d’effet souhaitée', draft.desiredDate],
     ['Situation', situations.find(item => item.value === draft.situation)?.label],
@@ -45,8 +47,9 @@ function Review({ draft }: { draft: QuoteDraft }) {
   )
 }
 
-export function QuoteFields({ step, draft, errors, update }: Props) {
-  const product = draft.product ? getInsurance(draft.product) : undefined
+export function QuoteFields({ step, draft, errors, update, products, notice }: Props) {
+  const selected = products.find(item => item.slug === draft.product)
+  const product = selected ? getInsurance(selected.slug) : undefined
   if (step === 0) {
     return (
       <>
@@ -55,14 +58,17 @@ export function QuoteFields({ step, draft, errors, update }: Props) {
           <div className="grid gap-3 sm:grid-cols-2">
             {profiles.map(({ value, label, icon: Icon }) => (
               <label key={value} className="flex min-h-14 items-center gap-2 rounded border border-line-strong bg-white p-3 has-checked:border-primary has-checked:bg-primary-tint">
-                <input type="radio" name="profile" value={value} checked={draft.profile === value} onChange={() => update({ profile: value })} required className="size-4 shrink-0 accent-primary" />
+                <input type="radio" name="profile" value={value} checked={draft.profile === value} onChange={() => {
+                  const compatible = !selected || selected.audiences.includes(value)
+                  update(compatible ? { profile: value } : { profile: value, product: '', context: '' })
+                }} required className="size-4 shrink-0 accent-primary" />
                 <Icon size={18} className="shrink-0 text-primary" aria-hidden /><span className="text-sm font-semibold">{label}</span>
               </label>
             ))}
           </div>
           {errors.profile && <p className="text-sm text-danger">{errors.profile}</p>}
         </fieldset>
-        <Select label="Catégorie d’assurance souhaitée" name="product" value={draft.product} required placeholder="Sélectionner une assurance" options={productOptions} error={errors.product} onChange={event => update({ product: parseProduct(event.target.value), context: '' })} />
+        <Select label="Catégorie d’assurance souhaitée" name="product" value={draft.product} required placeholder="Sélectionner une assurance" options={products.filter(item => !draft.profile || item.audiences.includes(draft.profile)).map(item => ({ value: item.slug, label: item.title }))} error={errors.product} onChange={event => update({ product: parseProduct(event.target.value), context: '' })} />
       </>
     )
   }
@@ -92,7 +98,8 @@ export function QuoteFields({ step, draft, errors, update }: Props) {
   }
   return (
     <>
-      <Review draft={draft} />
+      <Review draft={draft} title={selected?.title} />
+      {notice?.text && <p className="rounded border border-line bg-background p-3 text-sm leading-6 whitespace-pre-line">{notice.text}</p>}
       <NoticeCheckbox checked={draft.acknowledged} onChange={event => update({ acknowledged: event.target.checked })} />
       {errors.acknowledged && <p className="text-sm text-danger">{errors.acknowledged}</p>}
     </>

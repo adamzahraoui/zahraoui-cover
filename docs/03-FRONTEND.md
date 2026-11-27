@@ -2,7 +2,7 @@
 
 Routes are based on the handoff. Each page has its own folder, such as `frontend/src/pages/public/AutoInsurance/` or `frontend/src/pages/admin/QuoteRequests/`. The `P` and `A` identifiers link the documentation to the Stitch inventory. Separate modes of the same page share a folder. [Export references](14-DESIGN-AUDIT.md) map the IDs to the HTML files. [API contracts](06-API-ENDPOINTS.md) define the payloads and validation rules for the connected release.
 
-The implementation notes under each page describe the React app. Authentication is connected. The surrounding business endpoint descriptions remain the target for later phases. See [verification and differences](15-IMPLEMENTATION-STATUS.md).
+The implementation notes under each page describe the React app. Staff authentication, the public catalog, quote intake, staff request management and the dashboard summary are connected. Other business endpoint descriptions remain the target for later phases. See [verification and differences](15-IMPLEMENTATION-STATUS.md).
 
 ## How to follow the code
 
@@ -44,7 +44,7 @@ Orient visitors to product, audience and quote paths.
 - **File.** [Home.tsx](../frontend/src/pages/public/Home/Home.tsx).
 - **Component, props and state.** InsuranceCard, MediaPlaceholder, ContentCard, Accordion, ActionBand; no props or local state.
 - **Interactions and styling.** Open links and native FAQ disclosures; desktop editorial blocks collapse on mobile. Tailwind grid and white/neutral section bands.
-- **Data and API handoff.** Local insurance and FAQ content. Replace the categories with api.catalog and handle loading/failure.
+- **Data and API handoff.** Live category cards from the shared catalog provider, with loading and error states. FAQ content is bundled.
 
 ### P02 · Nos assurances
 
@@ -64,7 +64,7 @@ Browse the six categories by audience.
 - **File.** [InsuranceCatalog.tsx](../frontend/src/pages/public/InsuranceCatalog/InsuranceCatalog.tsx).
 - **Component, props and state.** Breadcrumb, InsuranceCard, EmptyState. The page owns the selected audience. InsuranceCard receives `product` and the `illustrated` display option.
 - **Interactions and styling.** The audience control sits in the introduction above the compact mobile cards and beside the desktop introduction. Filter locally or follow a detail or preselected quote link. Tablet and desktop cards reserve a photo region.
-- **Data and API handoff.** Local insurance. Call api.catalog with the selected audience, handling empty and error responses.
+- **Data and API handoff.** Loads published categories from the shared provider and filters the small result set by audience. Renders loading, empty and error states.
 
 ### P03 · Assurance automobile
 
@@ -84,7 +84,7 @@ Explain vehicle cover options for individuals and fleets.
 - **File.** [AutoInsurance.tsx](../frontend/src/pages/public/AutoInsurance/AutoInsurance.tsx).
 - **Component, props and state.** ProductDetail receives slug automobile. The page owns no state; native details controls the accordion.
 - **Interactions and styling.** Open cover FAQ and related products; pass type=automobile into the wizard. Tailwind split hero and facts sidebar collapse to a stack.
-- **Data and API handoff.** Local automobile reference data. Load api.product, handle 404 and restrict visible related records.
+- **Data and API handoff.** Shared ProductDetail loads the live automobile category, handles 404 and uses available related categories.
 
 ### P04 · Assurance habitation
 
@@ -104,7 +104,7 @@ Explain household insurance for owners and tenants.
 - **File.** [HomeInsurance.tsx](../frontend/src/pages/public/HomeInsurance/HomeInsurance.tsx).
 - **Component, props and state.** ProductDetail receives slug habitation; the page owns no state.
 - **Interactions and styling.** Open questions, eligibility and quote preselection. Uses the same responsive product template.
-- **Data and API handoff.** Local habitation reference data. Replace lookup with api.product and render loading/error.
+- **Data and API handoff.** Shared ProductDetail loads the live habitation category and handles loading, error and unavailability.
 
 ### P05 · Assurance santé
 
@@ -124,7 +124,7 @@ Explain private and group health categories and privacy.
 - **File.** [HealthInsurance.tsx](../frontend/src/pages/public/HealthInsurance/HealthInsurance.tsx).
 - **Component, props and state.** ProductDetail receives slug sante; the page owns no state.
 - **Interactions and styling.** Open the privacy guidance and quote preselection. The reusable facts rail stacks below coverage on mobile.
-- **Data and API handoff.** Local health category reference. Replace lookup with api.product; keep guidance against collecting medical information.
+- **Data and API handoff.** Shared ProductDetail loads the live health category. The quote form asks visitors to omit medical details.
 
 ### P06 · Assurance voyage
 
@@ -144,7 +144,7 @@ Explain possible travel protection.
 - **File.** [TravelInsurance.tsx](../frontend/src/pages/public/TravelInsurance/TravelInsurance.tsx).
 - **Component, props and state.** ProductDetail receives slug voyage; the page owns no state.
 - **Interactions and styling.** Open FAQ, review travel examples and preselect voyage. Uses the responsive hero and facts layout.
-- **Data and API handoff.** Local travel reference data. Render api.product result with visibility and request states.
+- **Data and API handoff.** Shared ProductDetail loads the live travel category, with visibility and request states.
 
 ### P07 · Assurance professionnelle
 
@@ -164,7 +164,7 @@ Orient business owners and independent professionals.
 - **File.** [BusinessInsurance.tsx](../frontend/src/pages/public/BusinessInsurance/BusinessInsurance.tsx).
 - **Component, props and state.** ProductDetail receives slug professionnelle; the page owns no state.
 - **Interactions and styling.** Open local accordion or a preselected quote. The template uses the same responsive coverage cards.
-- **Data and API handoff.** Local professional reference data. Use api.product and show appropriate related products.
+- **Data and API handoff.** Shared ProductDetail loads the live professional category and available related categories.
 
 ### P08 · Responsabilité civile
 
@@ -184,7 +184,7 @@ Distinguish personal and business liability categories.
 - **File.** [LiabilityInsurance.tsx](../frontend/src/pages/public/LiabilityInsurance/LiabilityInsurance.tsx).
 - **Component, props and state.** ProductDetail receives slug responsabilite-civile; the page owns no state.
 - **Interactions and styling.** Open related details or the preselected quote. Split desktop layout and stacked mobile layout share one component.
-- **Data and API handoff.** Local liability reference data. Use api.product and handle unavailable products.
+- **Data and API handoff.** Shared ProductDetail loads the live liability category and handles unavailability.
 
 ### P09 · Demande de devis
 
@@ -202,9 +202,9 @@ Submit a quote request without an account.
 **Frontend implementation**
 
 - **File.** [QuoteRequest.tsx](../frontend/src/pages/public/QuoteRequest/QuoteRequest.tsx).
-- **Component, props and state.** QuoteWizard receives URLSearchParams, owns QuoteDraft, step, errors and preview. QuoteFields receives controlled fields and an update callback.
-- **Interactions and styling.** Advance and go back, review entered data, acknowledge the notice, view a clearly labeled preview and reset. Desktop step labels and help rail; mobile numbered steps.
-- **Data and API handoff.** Local catalog and category context. Load api.catalog, compose the optional context and needs within the documented length, submit QuoteRequestIn with notice version/idempotency key, and display a persisted Receipt. No request is issued today.
+- **Component, props and state.** QuoteWizard receives URLSearchParams, owns QuoteDraft, the current step, validation errors and the saved receipt. QuoteFields receives controlled fields and an update callback.
+- **Interactions and styling.** Advance and go back, review entered data, acknowledge the notice, send the request, view the persisted reference and start a new request explicitly. Desktop step labels and help rail; mobile numbered steps.
+- **Data and API handoff.** Live categories and notice. The typed service sends the category context, needs, notice version and idempotency key. The receipt is shown only after the API succeeds. See [Quote request implementation](19-QUOTE-REQUEST-IMPLEMENTATION.md).
 
 ### P10 · Particuliers
 
@@ -224,7 +224,7 @@ Guide families to appropriate insurance categories.
 - **File.** [Individuals.tsx](../frontend/src/pages/public/Individuals/Individuals.tsx).
 - **Component, props and state.** InsuranceCard receives four featured products. Page has no props/state.
 - **Interactions and styling.** Follow product or quote links. Editorial hero and responsive card grid.
-- **Data and API handoff.** Local insurance profile subset. Fetch api.catalog for INDIVIDUAL and keep the four relevant references.
+- **Data and API handoff.** Reads the live catalog provider and keeps categories available to individuals.
 
 ### P11 · Professionnels
 
@@ -244,7 +244,7 @@ Orient businesses toward brokerage advice.
 - **File.** [Professionals.tsx](../frontend/src/pages/public/Professionals/Professionals.tsx).
 - **Component, props and state.** ContentCard takes a heading, icon and copy; MediaPlaceholder and ActionBand compose the page. No local state.
 - **Interactions and styling.** Open categories or preselect professionnel. Tailwind hero columns and a four-card desktop grid stack on phones.
-- **Data and API handoff.** Local editorial and product links. Check live BUSINESS catalog before showing category links.
+- **Data and API handoff.** Bundled editorial copy. Product links are enabled only for live categories available to professionals.
 
 ### P12 · À propos
 
@@ -485,9 +485,9 @@ See work volume and open recent work.
 **Frontend implementation**
 
 - **File.** [Dashboard.tsx](../frontend/src/pages/admin/Dashboard/Dashboard.tsx).
-- **Component, props and state.** AdminHeading and RequestList; reads demo provider and derives KPI/chart counts. Local search state feeds a request-list query.
+- **Component, props and state.** AdminHeading and RequestList; reads the operational dashboard endpoint and renders counts and charts from database aggregates. Local search state feeds a request-list query.
 - **Interactions and styling.** Open filtered actions and recent dossiers. KPI grid, simple bars and responsive table/cards.
-- **Data and API handoff.** Fictional records. Replace counts/recent list with dashboard API and trend data in V2.
+- **Data and API handoff.** Live request counts, categories, recent records and activity. Issued quote metrics display as unavailable.
 
 ### A05 · Demandes de devis
 
@@ -505,9 +505,9 @@ Find intake records.
 **Frontend implementation**
 
 - **File.** [QuoteRequests.tsx](../frontend/src/pages/admin/QuoteRequests/QuoteRequests.tsx).
-- **Component, props and state.** Inputs, Select, RequestList. Page owns search/product/advisor/date filters; status is in URL, RecordList owns page.
+- **Component, props and state.** Inputs, Select, RequestList. Search, filters and page are held in the URL. The service fetches the filtered page and its total.
 - **Interactions and styling.** Search, combine filters, validate date order, paginate and open details. Desktop table and smaller record cards.
-- **Data and API handoff.** Local requests. Convert filters to list API query and use server meta/empty states.
+- **Data and API handoff.** Live staff-only requests, with server pagination and loading, empty and error states.
 
 ### A06 · Détails d’une demande
 
@@ -525,9 +525,9 @@ Review and process a single intake record.
 **Frontend implementation**
 
 - **File.** [QuoteRequestDetail.tsx](../frontend/src/pages/admin/QuoteRequestDetail/QuoteRequestDetail.tsx).
-- **Component, props and state.** Reads :id, passes record to RequestEditor. Editor owns validation/feedback; provider holds changes.
+- **Component, props and state.** Reads :id, passes record to RequestEditor. The editor holds feedback and submits the current record version to the server. Successful responses supply the new record.
 - **Interactions and styling.** Update permitted state, assign advisor, link client and append note. Cards stack on mobile.
-- **Data and API handoff.** Fixture request/advisors/clients. Replace each write with version-aware PATCH/POST, retrieve staff options and preserve drafts on conflict.
+- **Data and API handoff.** Live request, staff and client selectors. Version-aware updates and notes persist in PostgreSQL. Conflicts offer a reload.
 
 ### A07 · Clients
 
@@ -719,15 +719,15 @@ Maintain the six fixed product pages in V2.
 - **Responsive.** Mobile stacked cards with matching control permissions.
 - **Interactions.** Edit French product copy, associated product links, order and visibility. Review public preview before publishing.
 - **Fields and validation.** CatalogWrite and version on update, approved image keys, unique reserved slug and valid related products.
-- **API data.** GET /api/admin/catalog → CatalogItem[]. POST /api/admin/catalog with CatalogWrite and slug → CatalogItem. PATCH /api/admin/catalog/:id → CatalogItem.
+- **API data.** GET /api/admin/catalog → CatalogItem[]. GET /api/admin/catalog/:id → CatalogItem. POST /api/admin/catalog with CatalogWrite and slug → CatalogItem. PATCH /api/admin/catalog/:id → CatalogItem.
 - **States.** Shared list/form states, empty fallback, publish confirmation and conflict recovery.
 
 **Frontend implementation**
 
 - **File.** [InsuranceManagement.tsx](../frontend/src/pages/admin/InsuranceManagement/InsuranceManagement.tsx).
 - **Component, props and state.** Card grid and edit Dialog; state holds selected product, error and feedback.
-- **Interactions and styling.** Edit summary and toggle demo visibility. Cards stack from three desktop columns to one on mobile.
-- **Data and API handoff.** Six reserved category fixtures. Wire V2 catalog admin GET/PATCH and future full catalog editing. Changes here do not alter public data.
+- **Interactions and styling.** Edit French descriptions and indicative coverages, publish, unpublish or deactivate. Advisors have read-only access. Cards stack from three desktop columns to one on mobile.
+- **Data and API handoff.** Live catalog list, detail and versioned writes. The six seeded rows are drafts until published by an admin. See [Catalog implementation](18-INSURANCE-CATALOG-IMPLEMENTATION.md).
 
 ### A17 · Partenaires
 
