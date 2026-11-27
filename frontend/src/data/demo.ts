@@ -1,5 +1,5 @@
 import type { ProductSlug } from '../config/navigation'
-import type { AssistanceStatus, ClientIn, MessageStatus, RequestStatus } from '../types/api'
+import type { ClientIn, RequestStatus } from '../types/api'
 
 export type DemoClient = ClientIn & { id: string; archived?: boolean }
 export type DemoRequest = {
@@ -18,12 +18,6 @@ export type DemoContract = {
   policy: string; startOn: string; endOn: string; status: ContractStatus; quoteId?: string
 }
 
-export type DemoSupportCase = {
-  id: string; reference: string; name: string; date: string; body: string
-} & (
-  | { kind: 'assistance'; status: AssistanceStatus; product: ProductSlug; priority: 'NORMAL' | 'URGENT'; contractReference?: string }
-  | { kind: 'message'; status: MessageStatus; subject: string }
-)
 export type DemoPartner = { id: string; name: string; active: boolean }
 export type CatalogItem = { slug: ProductSlug; summary: string; published: boolean }
 export type DemoSettings = { email: string; address: string; hours: string }
@@ -72,11 +66,4 @@ export const demoQuotes: DemoQuote[] = [
 export const demoContracts: DemoContract[] = [
   { id: '1', reference: 'CTR-DÉMO-001', clientId: '1', product: 'automobile', partnerId: '', policy: 'POL-DÉMO-001', startOn: '2026-02-01', endOn: '2027-02-01', status: 'ACTIVE' },
   { id: '2', reference: 'CTR-DÉMO-002', clientId: '2', product: 'professionnelle', partnerId: '', policy: 'POL-DÉMO-002', startOn: '2025-01-15', endOn: '2026-01-15', status: 'EXPIRED' },
-]
-
-export const demoCases: DemoSupportCase[] = [
-  { id: 'a1', kind: 'assistance', reference: 'AS-DÉMO-001', name: 'Demandeur démo 01', product: 'automobile', priority: 'URGENT', status: 'NEW', date: '2026-11-21', body: 'Exemple de demande d’orientation à la suite d’un incident fictif.', contractReference: 'CTR-DÉMO-001' },
-  { id: 'a2', kind: 'assistance', reference: 'AS-DÉMO-002', name: 'Demandeur démo 02', product: 'voyage', priority: 'NORMAL', status: 'IN_PROGRESS', date: '2026-11-19', body: 'Exemple de question sur les démarches d’assistance.' },
-  { id: 'm1', kind: 'message', reference: 'MSG-DÉMO-001', name: 'Contact démo 01', subject: 'Renseignement sur le courtage', status: 'UNREAD', date: '2026-11-21', body: 'Exemple de question sur les étapes d’un rendez-vous.' },
-  { id: 'm2', kind: 'message', reference: 'MSG-DÉMO-002', name: 'Contact démo 02', subject: 'Assurance habitation', status: 'READ', date: '2026-11-18', body: 'Exemple de message de suivi pour un logement fictif.' },
 ]

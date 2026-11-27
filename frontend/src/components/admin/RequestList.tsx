@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import type { PageMeta, RequestRow } from '../../types/api'
-import type { DemoRequest } from '../../data/demo'
 import { productName } from '../../utils/admin'
 import { RecordStatus } from './AdminContent'
 import { RecordList } from './RecordList'
@@ -19,12 +18,4 @@ export function RequestList({ rows, label, pagination }: {
   rows: RequestRow[]; label: string; pagination?: PageMeta & { onPageChange: (page: number) => void }
 }) {
   return <RecordList rows={rows} columns={columns} label={label} pagination={pagination} />
-}
-
-export function DemoRequestList({ rows }: { rows: DemoRequest[] }) {
-  return <RecordList rows={rows} label="Demandes de démonstration" columns={[
-    { title: 'Référence', render: row => row.reference },
-    { title: 'Assurance', render: row => productName(row.product) },
-    { title: 'Statut', render: row => <RecordStatus status={row.status} /> },
-  ]} />
 }

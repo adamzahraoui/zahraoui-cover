@@ -1,6 +1,6 @@
 # 06 — API endpoints
 
-Same-origin JSON API under /api. Health, authentication, catalog, quote intake, staff request management, request selectors and the dashboard summary are implemented. Other business routes below describe upcoming phases. Status codes in the endpoint tables are in addition to the common errors below. The page IDs refer to the [frontend specification](03-FRONTEND.md).
+Same-origin JSON API under /api. Health, authentication, catalog, quote intake and staff processing, customer CRM, contact, assistance and the dashboard summary are implemented. Other business routes below describe upcoming phases. Status codes in the endpoint tables are in addition to the common errors below. The page IDs refer to the [frontend specification](03-FRONTEND.md).
 
 ## Conventions and validation
 
@@ -32,12 +32,12 @@ Same-origin JSON API under /api. Health, authentication, catalog, quote intake, 
 | ClientIn | profile, displayName, phone, email?, city?, notes? (0–1000) |
 | ClientRow | id, profile, displayName, phone, city?, archivedAt?, version, intakeProvisional, activeContractCount? (V2) |
 | Client | ClientRow plus email?, notes?, createdAt, updatedAt |
-| ClientDetail | Client plus recentRequests (up to 10 RequestRow), recentQuotes? and recentContracts? (V2, up to 10 each) |
-| AssistanceRow | id, reference, fullName, productSlug, status, priority, createdAt, version |
-| AssistanceCase | AssistanceRow plus phone, contractReference?, description, noticeVersion, acknowledgedAt, updatedAt |
-| MessageRow | id, reference, fullName, subject, status, createdAt, version |
+| ClientDetail | Client plus recentRequests (up to 10 RequestRow), recentAssistance (up to 10 related cases), activity (up to 20 events), recentQuotes? and recentContracts? (V2, up to 10 each) |
+| AssistanceRow | id, reference, fullName, productSlug, status, priority, assignedTo?, createdAt, version |
+| AssistanceCase | AssistanceRow plus phone, contractReference?, description, noticeVersion, acknowledgedAt, updatedAt, client?, contract?, assignee?, allowedStatuses[], notes[], activity[] |
+| MessageRow | id, reference, fullName, subject, status, archivedAt?, createdAt, version |
 | Message | MessageRow plus phone, email, message, noticeVersion, acknowledgedAt, updatedAt |
-| Dashboard | counts {totalRequests, newRequests, inReviewRequests, openRequests, activeClients, openAssistance, unreadMessages}, recentRequests (up to 10 RequestRow), byProduct[{slug,title,count}], activity[{id,action,targetId,createdAt}], months[{month,count}] |
+| Dashboard | counts {totalRequests, newRequests, inReviewRequests, openRequests, activeClients, totalClients, provisionalClients, openAssistance, newAssistance, inReviewAssistance, unreadMessages}, recentRequests (up to 10 RequestRow), byProduct[{slug,title,count}], activity[{id,action,targetType,targetId,createdAt}], months[{month,count}] |
 | Trends | from, to, monthly[{month, requests}], byProduct[{productSlug, requests}], counts {draftQuotes, activeContracts, dueRenewals} |
 | PartnerIn / Partner | name, website? (HTTPS only, max 300), logoKey? (approved manifest), isActive; read adds id, version. No publishable partner defaults. |
 | QuoteIn | clientId, requestId?, productSlug, partnerId, annualPremiumMad, conditions? (0–2000) |
@@ -55,8 +55,10 @@ Same-origin JSON API under /api. Health, authentication, catalog, quote intake, 
 | GET /api/catalog/:slug | Get visible product / Public | recognized slug | 200 Product | 404 unknown or hidden | P03–P08 |
 | GET /api/quotes/notice | Read current quote notice / Public | no inputs | 200 QuoteNotice | — | P09 |
 | POST /api/quotes | Create quote request / Public | QuoteRequestIn, UUID v4 idempotency header, active and published product for the supplied profile, valid notice | 201 {reference,receivedAt} | 409 replay mismatch, unavailable product or changed notice, 503 if disabled | P09 |
+| GET /api/contact/notice | Read contact notice / Public | no inputs | 200 QuoteNotice | — | P13 |
 | POST /api/contact | Create message / Public | ContactIn, idempotency header and valid notice | 201 {reference,receivedAt} | 409 replay mismatch or notice | P13 |
-| POST /api/assistance | Create assistance request / Public | AssistanceIn, idempotency header, published product, valid notice | 201 {reference,receivedAt} | 409 replay mismatch or notice | P14 |
+| GET /api/assistance/notice | Read assistance notice / Public | no inputs | 200 QuoteNotice | — | P14 |
+| POST /api/assistance | Create assistance request / Public | AssistanceIn, idempotency header, active, published product, valid notice | 201 {reference,receivedAt} | 409 replay mismatch, unavailable product or notice | P14 |
 | POST /api/auth/login | Start a session / Public | {email,password}, validate syntax and password length cap | 200 Auth + Set-Cookie | 401 INVALID_CREDENTIALS, 429 RATE_LIMITED | A01 |
 | GET /api/auth/session | Restore current session / Staff | cookie, no body | 200 Auth | 401 expired or missing | A01, A04–A19 |
 | POST /api/auth/logout | End current session / Staff | cookie + CSRF, no body | 204 + clear cookie | — | A04–A19 |
@@ -81,21 +83,25 @@ The catalog returns an unpaginated bounded array. Health responses use bare prob
 | PATCH /api/admin/quote-requests/:id | Process intake / Staff | {version,status?,assignedTo?,clientId?}; nullable assignee, client required when relinking, active staff and eligible client, permitted transition | 200 RequestDetail | 404, 409 stale/state | A06 |
 | POST /api/admin/quote-requests/:id/notes | Append note / Staff | {version,body} 1–1000 chars | 201 RequestDetail with new note and version | 404, 409 stale | A06 |
 | GET /api/admin/staff-options | Assignee options / Staff | q?, page, limit | 200 StaffOption list of active accounts | — | A06 |
-| GET /api/admin/clients | Search for an existing link / Staff | page, limit, q?, profile?, archived? (default false) | 200 ClientRow list | — | A06 |
-| POST /api/admin/clients | Create / Staff | ClientIn | 201 Client | — | A09 |
+| GET /api/admin/clients | CRM search and link selector / Staff | page, limit, q?, profile?, provisional?, archived? (default false) | 200 ClientRow list | — | A06–A09, A15 |
+| POST /api/admin/clients/duplicates | Check candidate matches / Staff | phone, email?, excludeId? | 200 candidate IDs, display names and states | — | A09 |
+| POST /api/admin/clients | Create / Staff | ClientIn, confirmDuplicate? | 201 Client | 409 duplicates | A09 |
 | GET /api/admin/clients/:id | Profile / Staff | UUID | 200 ClientDetail | 404 | A08, A09 |
-| PATCH /api/admin/clients/:id | Edit / Staff | {version,...partial ClientIn}, active record | 200 Client | 404, 409 stale/archived | A09 |
-| POST /api/admin/clients/:id/archive | Archive / Admin | {version}, no open request or active contract | 200 Client | 404, 409 stale/linked open | A08 |
+| PATCH /api/admin/clients/:id | Edit / Staff | {version,...partial ClientIn,verify?,confirmDuplicate?}, active record | 200 Client | 404, 409 stale/archived/duplicates | A09 |
+| POST /api/admin/clients/:id/archive | Archive / Admin | {version}, no open quote request, open assistance case or active contract | 200 Client | 404, 409 stale/linked open | A08 |
 | GET /api/admin/catalog | List catalog records / Staff | no inputs, bounded array | 200 CatalogItem[] | — | A16 |
 | GET /api/admin/catalog/:id | Read a catalog record / Staff | UUID | 200 CatalogItem | 404 | A16 |
 | POST /api/admin/catalog | Add a reserved product / Admin | CatalogWrite plus slug, all six slots already seeded unless approved migration leaves one open | 201 CatalogItem | 409 reserved slot exists | A16 |
 | PATCH /api/admin/catalog/:id | Edit or change visibility / Admin | {version,...partial CatalogWrite}, validate references | 200 CatalogItem | 404, 409 stale/incompatible | A16 |
-| GET /api/admin/assistance | Browse cases / Staff | page, limit, status?, priority?, reference? (exact) | 200 AssistanceRow list | — | A15 |
+| GET /api/admin/assistance | Browse cases / Staff | page, limit, q?, status?, priority?, productSlug?, assignedTo?, reference? (exact), from?, to? | 200 AssistanceRow list | — | A15 |
 | GET /api/admin/assistance/:id | Read case / Staff | UUID | 200 AssistanceCase | 404 | A15 |
-| PATCH /api/admin/assistance/:id | Process case / Staff | {version,status?,priority?}, valid transition | 200 AssistanceCase | 404, 409 stale/state | A15 |
-| GET /api/admin/messages | Browse messages / Staff | page, limit, status?, reference? (exact) | 200 MessageRow list | — | A18 |
+| PATCH /api/admin/assistance/:id | Process case / Staff | {version,status?,priority?,assignedTo?,clientId?,contractId?}, valid state and verified links | 200 AssistanceCase | 404, 409 stale/state | A15 |
+| GET /api/admin/assistance/:id/contract-options | Find eligible existing contracts / Staff | clientId, q?, page?, limit? | 200 list of contract IDs and references | 404 case absent | A15 |
+| POST /api/admin/assistance/:id/notes | Append note / Staff | {version,body}, 1–1000 chars | 201 AssistanceCase | 404, 409 stale | A15 |
+| GET /api/admin/messages | Browse messages / Staff | page, limit, q?, status?, reference? (exact), from?, to?, archived? | 200 MessageRow list | — | A18 |
 | GET /api/admin/messages/:id | Read message / Staff | UUID | 200 Message | 404 | A18 |
-| PATCH /api/admin/messages/:id | Mark read/processed / Staff | {version,status}, valid transition | 200 Message | 404, 409 stale/state | A18 |
+| PATCH /api/admin/messages/:id | Mark read, unread or processed / Staff | {version,status}, valid transition | 200 Message | 404, 409 stale/state | A18 |
+| POST /api/admin/messages/:id/archive | Archive a processed message / Staff | {version} | 200 Message | 404, 409 stale/state | A18 |
 
 ## Version 2 administration
 

@@ -19,6 +19,9 @@ const schema = z.object({
   IDEMPOTENCY_KEY_SECRET: z.preprocess(optional, secret.optional()),
   PRIVACY_NOTICE_VERSION: z.preprocess(optional, z.string().regex(/^[a-zA-Z0-9._-]{1,32}$/).optional()),
   QUOTE_NOTICE_TEXT: z.preprocess(optional, z.string().trim().min(20).max(4000).optional()),
+  CONTACT_NOTICE_TEXT: z.preprocess(optional, z.string().trim().min(20).max(4000).optional()),
+  ASSISTANCE_NOTICE_TEXT: z.preprocess(optional, z.string().trim().min(20).max(4000).optional()),
+  CONTACT_ACK_EMAIL: z.enum(['true', 'false']).default('false').transform(value => value === 'true'),
   QUOTE_ACK_EMAIL: z.enum(['true', 'false']).default('false').transform(value => value === 'true'),
   INTAKE_NOTIFY_EMAIL: z.preprocess(optional, z.string().email().optional()),
   SMTP_MODE: z.enum(['disabled', 'local', 'tls', 'starttls']).default('disabled'),
@@ -41,9 +44,9 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Config
   if (new Set([config.RATE_KEY_SECRET.toString('hex'), config.CSRF_SECRET.toString('hex'), config.RESET_JOB_KEY.toString('hex')]).size !== 3) {
     throw new Error('RATE_KEY_SECRET, CSRF_SECRET and RESET_JOB_KEY must be different')
   }
-  if (Boolean(config.PRIVACY_NOTICE_VERSION) !== Boolean(config.QUOTE_NOTICE_TEXT) ||
-      (config.PRIVACY_NOTICE_VERSION && !config.IDEMPOTENCY_KEY_SECRET)) {
-    throw new Error('Quote intake requires PRIVACY_NOTICE_VERSION, QUOTE_NOTICE_TEXT and IDEMPOTENCY_KEY_SECRET together')
+  const hasNotice = Boolean(config.QUOTE_NOTICE_TEXT || config.CONTACT_NOTICE_TEXT || config.ASSISTANCE_NOTICE_TEXT)
+  if (Boolean(config.PRIVACY_NOTICE_VERSION) !== hasNotice || (hasNotice && !config.IDEMPOTENCY_KEY_SECRET)) {
+    throw new Error('Intake requires a notice text, PRIVACY_NOTICE_VERSION and IDEMPOTENCY_KEY_SECRET')
   }
   if ([config.RATE_KEY_SECRET, config.CSRF_SECRET, config.RESET_JOB_KEY].some(key => config.IDEMPOTENCY_KEY_SECRET?.equals(key))) {
     throw new Error('IDEMPOTENCY_KEY_SECRET must be distinct')

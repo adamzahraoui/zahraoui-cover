@@ -2,7 +2,7 @@
 
 Routes are based on the handoff. Each page has its own folder, such as `frontend/src/pages/public/AutoInsurance/` or `frontend/src/pages/admin/QuoteRequests/`. The `P` and `A` identifiers link the documentation to the Stitch inventory. Separate modes of the same page share a folder. [Export references](14-DESIGN-AUDIT.md) map the IDs to the HTML files. [API contracts](06-API-ENDPOINTS.md) define the payloads and validation rules for the connected release.
 
-The implementation notes under each page describe the React app. Staff authentication, the public catalog, quote intake, staff request management and the dashboard summary are connected. Other business endpoint descriptions remain the target for later phases. See [verification and differences](15-IMPLEMENTATION-STATUS.md).
+The implementation notes under each page describe the React app. Staff authentication, the public catalog, quote intake, staff request management, customer CRM, contact, assistance and the dashboard summary are connected. Other business endpoint descriptions remain the target for later phases. See [verification and differences](15-IMPLEMENTATION-STATUS.md).
 
 ## How to follow the code
 
@@ -282,9 +282,9 @@ Send a general enquiry.
 **Frontend implementation**
 
 - **File.** [Contact.tsx](../frontend/src/pages/public/Contact/Contact.tsx).
-- **Component, props and state.** IntakeForm mode contact owns phone/text errors and verification feedback. Page passes no field props.
-- **Interactions and styling.** Validate subject, message, contact and notice and verify locally. Information cards stack after the form on mobile.
-- **Data and API handoff.** No record is created. Map FormData to ContactIn, keep the idempotency key on retry, then render the real receipt using api.submitContact.
+- **Component, props and state.** IntakeForm in contact mode owns field errors, acknowledgement, send state and receipt.
+- **Interactions and styling.** Validate contact fields and acknowledgement, submit the form and show the saved reference. Information cards stack after the form on mobile.
+- **Data and API handoff.** Read the contact notice from the API and send ContactIn with the same idempotency key on retry.
 
 ### P14 · Assistance
 
@@ -303,8 +303,8 @@ Provide the official assistance line and permit a written follow-up request.
 
 - **File.** [Assistance.tsx](../frontend/src/pages/public/Assistance/Assistance.tsx).
 - **Component, props and state.** IntakeForm mode assistance uses the same validation state with product and contract-reference fields.
-- **Interactions and styling.** Call the official number or verify a form. The blue assistance banner remains visible regardless of form state.
-- **Data and API handoff.** Local category options and office data. Use api.catalog and api.submitAssistance with AssistanceIn when ready.
+- **Interactions and styling.** Call the official number or send a request. The blue assistance banner remains visible regardless of form state.
+- **Data and API handoff.** Uses the live catalog, approved assistance notice and api.submitAssistance. Displays the reference after persistence.
 
 ### P15 · FAQ
 
@@ -545,9 +545,9 @@ Find an existing client or start a profile.
 **Frontend implementation**
 
 - **File.** [Clients.tsx](../frontend/src/pages/admin/Clients/Clients.tsx).
-- **Component, props and state.** AdminHeading, filter inputs and RecordList; page owns search, profile and archive filters.
+- **Component, props and state.** AdminHeading, filter inputs and RecordList; page owns search and keeps profile, verification, archive and page filters in the URL.
 - **Interactions and styling.** Search/filter, switch archive visibility, open profile and add client. Table/card layout follows viewport.
-- **Data and API handoff.** Fictional clients. Read the paginated GET clients API and keep visibility permission checks on server.
+- **Data and API handoff.** Loads the paginated customer list by authorized API.
 
 ### A08 · Profil client
 
@@ -566,8 +566,8 @@ Review contact and case history.
 
 - **File.** [ClientProfile.tsx](../frontend/src/pages/admin/ClientProfile/ClientProfile.tsx).
 - **Component, props and state.** Reads :id, uses Facts, RequestList, related-record cards and archive Dialog; a ref manages modal.
-- **Interactions and styling.** View links/history and confirm allowed archive locally. Side-by-side histories stack.
-- **Data and API handoff.** Related fixtures. Fetch client detail and require Admin permission/current version for archive.
+- **Interactions and styling.** View linked quote requests and assistance cases, and confirm archive as an Admin. Side-by-side histories stack.
+- **Data and API handoff.** Loads the live client profile and recent history. The server checks open work, permissions and record version for archive.
 
 ### A09 · Ajouter / modifier un client
 
@@ -579,15 +579,15 @@ Maintain an authorized client record.
 - **Responsive.** Mobile form retains optional email and notes via existing field styles.
 - **Interactions.** Check possible duplicates, save, cancel, then return to profile.
 - **Fields and validation.** ClientIn: profile, display name and phone required; email, city and notes optional. Edit requires version.
-- **API data.** GET /api/admin/clients for duplicate hints; GET /api/admin/clients/:id → ClientDetail; POST /api/admin/clients or PATCH /api/admin/clients/:id → Client.
+- **API data.** POST /api/admin/clients/duplicates for duplicate hints; GET /api/admin/clients/:id → ClientDetail; POST /api/admin/clients or PATCH /api/admin/clients/:id → Client.
 - **States.** Empty create or edit skeleton, pending, field errors, saved profile or stale revision.
 
 **Frontend implementation**
 
 - **File.** [ClientForm.tsx](../frontend/src/pages/admin/ClientForm/ClientForm.tsx).
-- **Component, props and state.** Create/edit wrapper reads :id, Editor receives optional existing record. Native form fields plus controlled phone and error.
-- **Interactions and styling.** Validate phone, show duplicate hint, save to shared demo and open resulting profile. Two-column fields stack.
-- **Data and API handoff.** Fictional clients and in-memory drafts. Use ClientIn for create, PATCH with version for edit and real duplicate hint lookup.
+- **Component, props and state.** Create/edit wrapper reads :id, Editor receives optional existing record. Native form fields plus field errors, duplicate confirmation and verification state.
+- **Interactions and styling.** Validate phone, review possible duplicates, save and open the persisted profile. Two-column fields stack.
+- **Data and API handoff.** Uses ClientIn for create and a versioned PATCH for edit or verification. Looks up candidate duplicates through the staff API.
 
 ### A10 · Devis
 
@@ -705,9 +705,9 @@ Follow up support cases. Basic review in MVP, dedicated inbox styling in V2.
 **Frontend implementation**
 
 - **File.** [AssistanceInbox.tsx](../frontend/src/pages/admin/AssistanceInbox/AssistanceInbox.tsx).
-- **Component, props and state.** SupportInbox receives assistance kind and owns reference/status/priority filters; CaseDetails receives selected row.
-- **Interactions and styling.** Filter/open case and update priority or status in memory. Nav link switches to Messages on narrower screen.
-- **Data and API handoff.** Fictional cases. Wire case list/detail/PATCH with version checks and role authorization.
+- **Component, props and state.** SupportInbox manages search, filters and pagination. AssistanceDetails owns assignment, status, links and the note draft.
+- **Interactions and styling.** Filter or open a case, assign staff, change priority or status, link verified records and add notes. Nav link switches to Messages on narrower screen.
+- **Data and API handoff.** Loads real case list and detail. Saves versioned processing changes and private notes through the staff API.
 
 ### A16 · Catalogue des assurances
 
@@ -765,9 +765,9 @@ Review and close general enquiries. Basic access in MVP, dedicated inbox styling
 **Frontend implementation**
 
 - **File.** [Messages.tsx](../frontend/src/pages/admin/Messages/Messages.tsx).
-- **Component, props and state.** SupportInbox receives message kind; reference/status filters, URL selection and CaseDetails.
-- **Interactions and styling.** Open/read or mark processed, switch to assistance. Shares the mobile pattern from Stitch.
-- **Data and API handoff.** Fictional messages. Use message list/detail/PATCH with versions and access checks.
+- **Component, props and state.** SupportInbox owns filters and URL selection. MessageDetails loads and displays the selected message.
+- **Interactions and styling.** Open, mark read or unread, process or archive a message, and switch to assistance. Shares the mobile pattern from Stitch.
+- **Data and API handoff.** Live message list and detail, with versioned state changes and archival.
 
 ### A19 · Paramètres
 

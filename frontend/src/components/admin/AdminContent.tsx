@@ -14,7 +14,7 @@ export function AdminHeading({ title, parent, action }: {
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="grid min-w-0 gap-1.5">
         {parent && <Breadcrumb items={trail} />}
-        <h1 className="text-2xl/8 font-bold text-ink lg:text-[30px]/[38px]">{title}</h1>
+        <h1 className="text-2xl/8 font-bold wrap-anywhere text-ink lg:text-[30px]/[38px]">{title}</h1>
       </div>
       {action}
     </div>
@@ -39,7 +39,7 @@ export function Facts({ items }: { items: ReadonlyArray<[string, ReactNode]> }) 
 }
 
 export function NoRecord({ title, back }: { title: string; back: string }) {
-  return <><AdminHeading title={title} /><EmptyState><p>Ce dossier ne figure pas dans la démonstration.</p><ActionLink to={back} variant="secondary">Retour à la liste</ActionLink></EmptyState></>
+  return <><AdminHeading title={title} /><EmptyState><p>Ce dossier est introuvable ou indisponible.</p><ActionLink to={back} variant="secondary">Retour à la liste</ActionLink></EmptyState></>
 }
 
 export function LocalFeedback({ children }: { children: ReactNode }) {

@@ -1,94 +1,104 @@
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import type { DemoSupportCase } from '../../data/demo'
-import type { AssistanceStatus, MessageStatus } from '../../types/api'
-import { dateLabel, productName, statusOptions } from '../../utils/admin'
+import { productOptions } from '../../data/insurance'
+import { useApiData } from '../../hooks/useApiData'
+import { AssistanceDetails, priorities } from '../../pages/admin/AssistanceInbox/AssistanceDetails'
+import { MessageDetails } from '../../pages/admin/Messages/MessageDetails'
+import { api, businessError } from '../../services/api'
+import type { AssistanceCase, AssistanceRow, Message, MessageRow, Page } from '../../types/api'
+import { statusOptions } from '../../utils/admin'
 import { Button } from '../ui/Button'
 import { Input, Select } from '../ui/Fields'
-import { EmptyState } from '../ui/States'
+import { EmptyState, ErrorState, LoadingState } from '../ui/States'
 import { StatusBadge } from '../ui/StatusBadge'
-import { AdminHeading, Facts, LocalFeedback, RecordStatus } from './AdminContent'
-import { useDemoData } from './DemoData'
+import { AdminHeading, RecordStatus } from './AdminContent'
+import { activityDate } from './ActivityList'
 import { RecordList } from './RecordList'
 import type { Column } from './RecordList'
 
-function CaseDetails({ record, onSelect }: { record: DemoSupportCase; onSelect: (id: string) => void }) {
-  const { setData } = useDemoData()
-  const [saved, setSaved] = useState(false)
+type InboxRow = AssistanceRow | MessageRow
 
-  function update(updated: DemoSupportCase) {
-    setData(previous => ({ ...previous, support: previous.support.map(row => row.id === updated.id ? updated : row) }))
-    onSelect(updated.id)
-    setSaved(true)
-  }
-
-  const assistance = record.kind === 'assistance'
-  const nextStatus = assistance
-    ? record.status === 'NEW' ? ['IN_PROGRESS', 'RESOLVED'] as const : record.status === 'IN_PROGRESS' ? ['RESOLVED'] as const : []
-    : record.status === 'UNREAD' ? ['READ', 'PROCESSED'] as const : record.status === 'READ' ? ['PROCESSED'] as const : []
-
-  return (
-    <section className="panel grid min-w-0 content-start gap-4 p-4 sm:p-5" aria-label="Détail du dossier">
-      <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-semibold">{record.reference}</h2><RecordStatus status={record.status} /></div>
-      <Facts items={[
-        ['Demandeur', record.name], ['Date', dateLabel(record.date)],
-        ...(assistance ? [['Assurance', productName(record.product)], ['Référence contrat', record.contractReference ?? '—']] as [string, string][] : [['Objet', record.subject]] as [string, string][]),
-      ]} />
-      <p className="rounded bg-background p-3 leading-7 text-muted">{record.body}</p>
-      {assistance && <Select label="Priorité" options={[{ value: 'NORMAL', label: 'Normale' }, { value: 'URGENT', label: 'Urgente' }]} value={record.priority} onChange={event => update({ ...record, priority: event.target.value === 'URGENT' ? 'URGENT' : 'NORMAL' })} />}
-      {nextStatus.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {statusOptions(nextStatus).map(({ value, label }) => <Button variant="secondary" key={value} onClick={() => {
-            if (record.kind === 'assistance') update({ ...record, status: value as AssistanceStatus })
-            else update({ ...record, status: value as MessageStatus })
-          }}>{label} · démo</Button>)}
-        </div>
-      )}
-      {saved && <LocalFeedback>Dossier mis à jour localement.</LocalFeedback>}
-    </section>
-  )
-}
-
-export function SupportInbox({ kind }: { kind: DemoSupportCase['kind'] }) {
-  const { data } = useDemoData()
-  const [query, setQuery] = useSearchParams()
-  const [reference, setReference] = useState(query.get('reference') ?? '')
-  const [status, setStatus] = useState(query.get('status') ?? '')
-  const [priority, setPriority] = useState('')
+export function SupportInbox({ kind }: { kind: 'message' | 'assistance' }) {
+  const [params, setParams] = useSearchParams()
+  const [search, setSearch] = useState(params.get('reference') ?? '')
+  const detailPanel = useRef<HTMLDivElement>(null)
   const assistance = kind === 'assistance'
   const title = assistance ? 'Demandes d’assistance' : 'Messages reçus'
-  const rows = data.support.filter(row => row.kind === kind
-    && (!reference.trim() || row.reference.toLocaleLowerCase('fr') === reference.trim().toLocaleLowerCase('fr'))
-    && (!status || row.status === status)
-    && (!priority || (row.kind === 'assistance' && row.priority === priority)),
-  )
-  const id = query.get('dossier')
-  const record = rows.find(row => row.id === id) ?? data.support.find(row => row.kind === kind && row.id === id) ?? rows[0]
-  function selectRecord(id: string) {
-    if (query.get('dossier') === id) return
-    const next = new URLSearchParams(query)
-    next.set('dossier', id)
-    setQuery(next, { replace: true })
+  const from = params.get('from') ?? ''
+  const to = params.get('to') ?? ''
+  const invalidDates = Boolean(from && to && from > to)
+  const filters = new URLSearchParams({ limit: '10' })
+  for (const key of ['status', 'page', 'from', 'to', ...(assistance ? ['priority', 'productSlug'] : ['archived'])]) {
+    const value = params.get(key)
+    if (value) filters.set(key, value)
+  }
+  if (search.trim().length >= 2) filters.set('q', search.trim())
+  const query = filters.toString()
+  const loadList = useCallback((signal: AbortSignal) => invalidDates
+    ? Promise.resolve(undefined)
+    : assistance ? api.assistanceCases(query, signal) : api.messages(query, signal), [assistance, invalidDates, query])
+  const list = useApiData<Page<InboxRow> | undefined>(loadList)
+  const id = params.get('id') ?? params.get('dossier') ?? list.data?.data[0]?.id
+  const loadDetail = useCallback((signal: AbortSignal) => !id
+    ? Promise.resolve(undefined)
+    : assistance ? api.assistanceCase(id, signal) : api.message(id, signal), [assistance, id])
+  const detail = useApiData<Message | AssistanceCase | undefined>(loadDetail)
+  const record = detail.data?.id === id ? detail.data : undefined
+
+  function change(key: string, value: string) {
+    const next = new URLSearchParams(params)
+    if (key !== 'page' && key !== 'id') next.delete('page')
+    if (key === 'id') next.delete('dossier')
+    if (value) next.set(key, value)
+    else next.delete(key)
+    setParams(next, { replace: key !== 'id' && key !== 'page' })
   }
 
-  const columns: Column<DemoSupportCase>[] = [
-    { title: 'Référence', render: row => <button type="button" className="text-link text-left" aria-pressed={row.id === record?.id} onClick={() => selectRecord(row.id)}>{row.reference}</button> },
-    { title: 'Demandeur', render: row => row.name },
-    { title: assistance ? 'Priorité' : 'Objet', render: row => row.kind === 'assistance' ? <StatusBadge label={row.priority === 'URGENT' ? 'Urgente' : 'Normale'} tone={row.priority === 'URGENT' ? 'danger' : 'neutral'} /> : row.subject },
+  function selectRecord(id: string) {
+    change('id', id)
+    if (window.matchMedia('(max-width: 1023px)').matches) requestAnimationFrame(() => detailPanel.current?.focus())
+  }
+
+  const columns: Column<InboxRow>[] = [
+    { title: 'Référence', render: row => <button type="button" className="text-link text-left" aria-pressed={row.id === id} onClick={() => selectRecord(row.id)}>{row.reference}</button> },
+    { title: 'Demandeur', render: row => row.fullName },
+    { title: assistance ? 'Priorité' : 'Objet', render: row => 'priority' in row ? <StatusBadge label={row.priority === 'URGENT' ? 'Urgente' : 'Normale'} tone={row.priority === 'URGENT' ? 'danger' : 'neutral'} /> : row.subject },
     { title: 'Statut', render: row => <RecordStatus status={row.status} /> },
+    { title: 'Date', render: row => activityDate(row.createdAt) },
   ]
+
+  function reloadDetail() {
+    detail.setData(undefined)
+    detail.reload()
+  }
 
   return (
     <>
       <AdminHeading title={title} action={<Link className="text-link text-sm" to={assistance ? '/admin/messages' : '/admin/assistance'}>{assistance ? 'Voir les messages' : 'Voir les demandes d’assistance'}</Link>} />
       <div className="panel grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
-        <Input label="Référence exacte" type="search" value={reference} onChange={event => setReference(event.target.value)} maxLength={32} />
-        <Select label="Statut" placeholder="Tous les statuts" options={statusOptions(assistance ? ['NEW', 'IN_PROGRESS', 'RESOLVED'] : ['UNREAD', 'READ', 'PROCESSED'])} value={status} onChange={event => setStatus(event.target.value)} />
-        {assistance && <Select label="Priorité" placeholder="Toutes les priorités" options={[{ value: 'NORMAL', label: 'Normale' }, { value: 'URGENT', label: 'Urgente' }]} value={priority} onChange={event => setPriority(event.target.value)} />}
+        <Input label="Rechercher un dossier" type="search" placeholder={assistance ? 'Référence, nom ou téléphone' : 'Référence, nom ou objet'} value={search} onChange={event => { setSearch(event.target.value); if (params.has('page')) change('page', '') }} maxLength={100} />
+        <Select label="Statut" placeholder="Tous les statuts" options={statusOptions(assistance ? ['NEW', 'IN_PROGRESS', 'RESOLVED'] : ['UNREAD', 'READ', 'PROCESSED'])} value={params.get('status') ?? ''} onChange={event => change('status', event.target.value)} />
+        {assistance ? <>
+          <Select label="Priorité" placeholder="Toutes les priorités" options={priorities} value={params.get('priority') ?? ''} onChange={event => change('priority', event.target.value)} />
+          <Select label="Assurance" placeholder="Toutes les assurances" options={productOptions} value={params.get('productSlug') ?? ''} onChange={event => change('productSlug', event.target.value)} />
+        </> : <label className="flex min-h-11 items-center gap-2 text-sm font-medium"><input type="checkbox" checked={params.get('archived') === 'true'} onChange={event => change('archived', event.target.checked ? 'true' : '')} className="size-4 accent-primary" /> Afficher les archives</label>}
+        <Input label="Du" type="date" value={from} onChange={event => change('from', event.target.value)} />
+        <Input label="Au" type="date" value={to} onChange={event => change('to', event.target.value)} error={invalidDates ? 'La date de fin doit suivre la date de début.' : undefined} />
       </div>
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-        <RecordList key={JSON.stringify([reference, status, priority])} rows={rows} columns={columns} label={title} />
-        {record ? <CaseDetails key={record.id} record={record} onSelect={selectRecord} /> : <EmptyState>Sélectionnez un dossier pour afficher son détail.</EmptyState>}
+        <div className="grid gap-3">
+          {list.loading && !invalidDates && <LoadingState />}
+          {list.error && <ErrorState>{businessError(list.error)} <Button variant="secondary" onClick={list.reload}>Réessayer</Button></ErrorState>}
+          {list.data && !invalidDates && <RecordList rows={list.data.data} columns={columns} label={title} pagination={{ ...list.data.meta, onPageChange: page => change('page', String(page)) }} />}
+        </div>
+        <div ref={detailPanel} tabIndex={-1} className="min-w-0 focus:outline-none">
+          {detail.loading && id && <LoadingState />}
+          {detail.error && <ErrorState>{businessError(detail.error)} <Button variant="secondary" onClick={detail.reload}>Réessayer</Button></ErrorState>}
+          {record && ('description' in record
+            ? <AssistanceDetails key={record.id} record={record} reload={reloadDetail} save={saved => { detail.setData(saved); list.reload() }} />
+            : <MessageDetails key={record.id} record={record} reload={reloadDetail} save={saved => { detail.setData(saved); list.reload() }} />)}
+          {!id && !list.loading && <EmptyState>Sélectionnez un dossier pour afficher son détail.</EmptyState>}
+        </div>
       </div>
     </>
   )

@@ -17,7 +17,7 @@ All tasks below begin after architecture review. Milestones depend on agreed sco
 | M08 | Deliver SMTP and minimal contact/assistance handling | M04, M05 | Alert jobs deliver reference-only messages and authorized staff can open and process an enquiry. Retry and terminal failure are observable. Generic acknowledgements follow policy. Recovery link consumes once through M05. |
 | M09 | Verify and release MVP | M00–M08 | End-to-end, permissions, privacy, accessibility, responsive and restore checks pass. Signed content/notice and operator procedures exist. No demo data or unsupported links reach production. |
 
-M05 can start alongside M03/M04. M08 worker integration can start alongside the admin screens once outbox and auth interfaces are agreed. The production release waits on closing M00's business/asset and privacy decisions.
+M05 can start alongside M03/M04. M08 worker integration can start alongside the admin screens once outbox and auth interfaces are agreed. The production release waits on closing M00's business/asset and privacy decisions. B6–B7 delivered CRM and public contact/assistance with staff inboxes, support reporting and local SMTP verification. Advanced customer merges remain deferred.
 
 ## Version 2
 

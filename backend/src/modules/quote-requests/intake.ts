@@ -9,7 +9,7 @@ import { jsonBody } from '../../middleware/request.js'
 import { keyedDigest } from '../../utils/crypto.js'
 import { emailField } from '../auth/contracts.js'
 import { requireAttempt, takeAttempt } from '../auth/limits.js'
-import { casablancaDate, productSlug, profile } from '../business-inputs.js'
+import { casablancaDate, phoneField, productSlug, profile } from '../business-inputs.js'
 import type { PublicSlug } from '../business-inputs.js'
 
 const contexts: Record<PublicSlug, string[]> = {
@@ -23,12 +23,6 @@ const contexts: Record<PublicSlug, string[]> = {
 
 const mergedNeeds = (needs: string, context?: string) => context ? `Contexte : ${context}\n${needs}` : needs
 
-export function normalizePhone(value: string) {
-  const phone = value.replace(/[\s().-]/g, '')
-  if (/^0[5-7]\d{8}$/.test(phone)) return '+212' + phone.slice(1)
-  return /^\+[1-9]\d{7,14}$/.test(phone) ? phone : undefined
-}
-
 const inputSchema = z.strictObject({
   profile,
   productSlug,
@@ -38,12 +32,7 @@ const inputSchema = z.strictObject({
   context: z.string().trim().min(1).max(80).optional(),
   firstName: z.string().trim().min(2).max(120),
   lastName: z.string().trim().min(2).max(120),
-  phone: z.string().trim().max(32).transform((value, ctx) => {
-    const result = normalizePhone(value)
-    if (result) return result
-    ctx.addIssue({ code: 'custom', message: 'Numéro invalide.' })
-    return z.NEVER
-  }),
+  phone: phoneField,
   email: emailField,
   city: z.string().trim().min(2).max(100),
   preferredContact: z.enum(['PHONE', 'EMAIL']).default('PHONE'),
@@ -67,7 +56,7 @@ function unavailable() {
 export function quoteIntakeRoutes(database: PrismaClient, config: Config) {
   const routes = Router()
   routes.get('/notice', (_request, response) => {
-    response.json({ data: { noticeVersion: config.PRIVACY_NOTICE_VERSION ?? null, text: config.QUOTE_NOTICE_TEXT ?? null } })
+    response.json({ data: { noticeVersion: config.QUOTE_NOTICE_TEXT ? config.PRIVACY_NOTICE_VERSION : null, text: config.QUOTE_NOTICE_TEXT ?? null } })
   })
 
   routes.post('/', async (request, response) => {

@@ -1,60 +1,79 @@
-import { useRef } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { AdminHeading, DemoNote, Facts, LocalFeedback, NoRecord, RecordStatus } from '../../../components/admin/AdminContent'
-import { useDemoData } from '../../../components/admin/DemoData'
-import { DemoRequestList } from '../../../components/admin/RequestList'
+import { useCallback, useRef, useState } from 'react'
+import { Link, useLocation, useParams } from 'react-router-dom'
+import { ActivityList } from '../../../components/admin/ActivityList'
+import { AdminHeading, Facts, LocalFeedback, NoRecord, RecordStatus } from '../../../components/admin/AdminContent'
+import { useAdminSession } from '../../../components/admin/auth/AdminSession'
+import { RequestList } from '../../../components/admin/RequestList'
 import { ActionLink, Button } from '../../../components/ui/Button'
 import { Dialog } from '../../../components/ui/Dialog'
+import { ErrorState, LoadingState } from '../../../components/ui/States'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
-import { productName, profiles } from '../../../utils/admin'
+import { useApiData } from '../../../hooks/useApiData'
+import { ApiError, api, businessError } from '../../../services/api'
+import { profiles } from '../../../utils/admin'
 
 export default function ClientProfile() {
   const { id } = useParams()
-  const { data, setData } = useDemoData()
+  const { state } = useAdminSession()
+  const location = useLocation()
   const archiveDialog = useRef<HTMLDialogElement>(null)
-  const client = data.clients.find(row => row.id === id)
-  if (!client) return <NoRecord title="Client introuvable" back="/admin/clients" />
+  const [failure, setFailure] = useState('')
+  const [busy, setBusy] = useState(false)
+  const load = useCallback((signal: AbortSignal) => api.client(id ?? '', signal), [id])
+  const { data, loading, error, reload, setData } = useApiData(load)
+  const client = data?.id === id ? data : undefined
 
-  const requests = data.requests.filter(row => row.clientId === id)
-  const contracts = data.contracts.filter(row => row.clientId === id)
-  const quotes = data.quotes.filter(row => row.clientId === id)
-  const openRequest = requests.some(row => ['NEW', 'IN_REVIEW', 'QUOTE_SENT'].includes(row.status))
-  const activePolicy = contracts.some(row => row.status === 'ACTIVE')
-  const mayArchive = !openRequest && !activePolicy && !client.archived
+  if (error instanceof ApiError && [400, 404].includes(error.status)) return <NoRecord title="Client introuvable" back="/admin/clients" />
+
+  async function archive() {
+    if (!client || state.status !== 'authenticated' || busy) return
+    setFailure('')
+    setBusy(true)
+    try {
+      const saved = await api.archiveClient(client.id, client.version, state.user.csrfToken)
+      setData({ ...client, ...saved })
+      archiveDialog.current?.close()
+      reload()
+    } catch (error) {
+      setFailure(businessError(error))
+    } finally { setBusy(false) }
+  }
 
   return (
     <>
-      <AdminHeading title={client.displayName} parent={{ label: 'Clients', to: '/admin/clients' }} action={<StatusBadge label={client.archived ? 'Archivé' : 'Actif'} tone={client.archived ? 'neutral' : 'success'} />} />
-      <section className="panel grid gap-4 p-4 sm:p-5">
-        <h2 className="text-lg font-semibold">Coordonnées</h2>
-        <Facts items={[
-          ['Nom / Raison sociale', client.displayName], ['Profil', profiles.find(item => item.value === client.profile)?.label],
-          ['Téléphone fictif', client.phone], ['Email fictif', client.email || '—'], ['Ville', client.city || '—'], ['Notes', client.notes || '—'],
-        ]} />
-        {!client.archived && <div className="flex flex-wrap gap-2"><ActionLink to={`/admin/clients/${client.id}/modifier`}>Modifier</ActionLink><Button disabled={!mayArchive} variant="secondary" onClick={() => archiveDialog.current?.showModal()}>Archiver</Button></div>}
-        {client.archived ? <LocalFeedback>Fiche archivée dans cette démonstration.</LocalFeedback> : !mayArchive && <DemoNote>Une demande ouverte ou un contrat actif empêche l’archivage.</DemoNote>}
-      </section>
-      <section className="grid gap-3"><h2 className="text-lg font-semibold">Demandes liées</h2><DemoRequestList rows={requests} /></section>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="panel p-4 sm:p-5">
-          <h2 className="mb-3 text-lg font-semibold">Historique des devis</h2>
-          {quotes.length ? <ul className="grid gap-3">{quotes.map(row => <li className="flex flex-wrap items-center justify-between gap-2" key={row.id}><Link className="text-link text-sm" to={`/admin/devis/${row.id}`}>{row.reference} · {productName(row.product)}</Link><RecordStatus status={row.status} /></li>)}</ul> : <p className="text-muted">Aucun devis associé.</p>}
+      <AdminHeading title={client?.displayName ?? 'Fiche client'} parent={{ label: 'Clients', to: '/admin/clients' }} action={client && <StatusBadge label={client.archivedAt ? 'Archivé' : client.intakeProvisional ? 'Provisoire' : 'Vérifié'} tone={client.archivedAt || client.intakeProvisional ? 'neutral' : 'success'} />} />
+      {loading && <LoadingState />}
+      {error && <ErrorState>{businessError(error)} <Button variant="secondary" onClick={reload}>Réessayer</Button></ErrorState>}
+      {client && <>
+        {location.state?.savedClient && <LocalFeedback>Fiche client enregistrée.</LocalFeedback>}
+        <section className="panel grid gap-4 p-4 sm:p-5">
+          <h2 className="text-lg font-semibold">Coordonnées</h2>
+          <Facts items={[
+            ['Nom / Raison sociale', client.displayName], ['Profil', profiles.find(item => item.value === client.profile)?.label],
+            ['Téléphone', client.phone], ['Email', client.email || '—'], ['Ville', client.city || '—'], ['Notes', client.notes || '—'],
+          ]} />
+          {!client.archivedAt && <div className="flex flex-wrap gap-2">
+            <ActionLink to={`/admin/clients/${client.id}/modifier`}>Modifier</ActionLink>
+            {state.status === 'authenticated' && state.user.role === 'ADMIN' && <Button variant="secondary" onClick={() => { setFailure(''); archiveDialog.current?.showModal() }}>Archiver</Button>}
+          </div>}
         </section>
-        <section className="panel p-4 sm:p-5">
-          <h2 className="mb-3 text-lg font-semibold">Contrats associés</h2>
-          {contracts.length ? <ul className="grid gap-3">{contracts.map(row => <li className="flex flex-wrap items-center justify-between gap-2" key={row.id}><Link className="text-link text-sm" to={`/admin/contrats/${row.id}`}>{row.reference} · {productName(row.product)}</Link><RecordStatus status={row.status} /></li>)}</ul> : <p className="text-muted">Aucun contrat associé.</p>}
-        </section>
-      </div>
-      <Dialog title="Archiver cette fiche ?" dialogRef={archiveDialog}>
-        <p className="mb-4 text-muted">La fiche restera visible dans les archives de cette démonstration.</p>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => archiveDialog.current?.close()}>Annuler</Button>
-          <Button disabled={!mayArchive} onClick={() => {
-            setData(previous => ({ ...previous, clients: previous.clients.map(row => row.id === id ? { ...row, archived: true } : row) }))
-            archiveDialog.current?.close()
-          }}>Archiver localement</Button>
+        <section className="grid gap-3"><h2 className="text-lg font-semibold">Demandes de devis liées</h2><RequestList rows={client.recentRequests} label="Demandes de devis liées" /></section>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <section className="panel p-4 sm:p-5">
+            <h2 className="mb-3 text-lg font-semibold">Demandes d’assistance liées</h2>
+            {client.recentAssistance.length ? <ul className="grid gap-3">{client.recentAssistance.map(row => <li className="flex flex-wrap items-center justify-between gap-2" key={row.id}><Link className="text-link text-sm" to={`/admin/assistance?id=${row.id}`}>{row.reference}</Link><RecordStatus status={row.status} /></li>)}</ul> : <p className="text-muted">Aucune demande d’assistance liée.</p>}
+          </section>
+          <section className="panel p-4 sm:p-5"><h2 className="mb-3 text-lg font-semibold">Historique de la fiche</h2><ActivityList activity={client.activity} /></section>
         </div>
-      </Dialog>
+        <Dialog title="Archiver cette fiche ?" dialogRef={archiveDialog}>
+          <p className="mb-4 text-muted">La fiche et ses dossiers resteront consultables dans les archives.</p>
+          {failure && <ErrorState>{failure} <Button variant="secondary" onClick={() => { archiveDialog.current?.close(); reload() }}>Recharger la fiche</Button></ErrorState>}
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => archiveDialog.current?.close()}>Annuler</Button>
+            <Button disabled={busy} onClick={() => { void archive() }}>Confirmer l’archivage</Button>
+          </div>
+        </Dialog>
+      </>}
     </>
   )
 }

@@ -4,9 +4,9 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { ApiError } from '../../middleware/errors.js'
 import { jsonBody } from '../../middleware/request.js'
+import { dateRange, lockActiveClient } from '../staff-records.js'
 import { currentSession, requireCsrf } from '../auth/session.js'
-import { fromProductSlug, pagination, parseQuery, productSlug, profile, searchPrefix, toProductSlug, versionField } from '../business-inputs.js'
-import { normalizePhone } from './intake.js'
+import { fromProductSlug, normalizePhone, noteBody, pageBounds, pagination, parseQuery, productSlug, searchPrefix, toProductSlug, versionField } from '../business-inputs.js'
 
 const statusValues = z.enum(['NEW', 'IN_REVIEW', 'QUOTE_SENT', 'ACCEPTED', 'DECLINED', 'CLOSED'])
 const transitions: Record<RequestStatus, RequestStatus[]> = {
@@ -21,7 +21,6 @@ const listQuery = z.strictObject({
 const patch = z.strictObject({
   version: versionField, status: statusValues.optional(), assignedTo: z.uuid().nullable().optional(), clientId: z.uuid().nullable().optional(),
 }).refine(value => value.status !== undefined || value.assignedTo !== undefined || value.clientId !== undefined)
-const note = z.strictObject({ version: versionField, body: z.string().trim().min(1).max(1000) })
 const clientSelect = {
   id: true, profile: true, displayName: true, phone: true, email: true, city: true, version: true,
   intakeProvisional: true, archivedAt: true,
@@ -69,12 +68,6 @@ async function detail(database: Prisma.TransactionClient, id: string) {
   }
 }
 
-function pageBounds(query: { page?: number; limit?: number }) {
-  const page = query.page ?? 1
-  const limit = query.limit ?? 20
-  return { page, limit, skip: (page - 1) * limit }
-}
-
 export function quoteAdminRoutes(database: PrismaClient) {
   const routes = Router()
   routes.get('/', async (request, response) => {
@@ -94,14 +87,7 @@ export function quoteAdminRoutes(database: PrismaClient) {
         ] }
       }) } : {}),
     }
-    if (input.from || input.to) {
-      // PostgreSQL resolves local date boundaries correctly across Casablanca offset changes.
-      const [range] = await database.$queryRaw<{ start: Date | null; ending: Date | null }[]>`
-        SELECT (${input.from ?? null}::date::timestamp AT TIME ZONE 'Africa/Casablanca') AS start,
-          ((${input.to ?? null}::date + 1)::timestamp AT TIME ZONE 'Africa/Casablanca') AS ending
-      `
-      where.createdAt = { gte: range.start ?? undefined, lt: range.ending ?? undefined }
-    }
+    where.createdAt = await dateRange(database, input.from, input.to)
     const [rows, total] = await database.$transaction([
       database.quoteRequest.findMany({ where, skip, take: limit, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: requestRowSelect }),
       database.quoteRequest.count({ where }),
@@ -124,12 +110,7 @@ export function quoteAdminRoutes(database: PrismaClient) {
         throw new ApiError(409, 'INVALID_TRANSITION', 'Ce changement de statut est indisponible.')
       }
       if (input.clientId === null) throw new ApiError(422, 'CLIENT_REQUIRED', 'Sélectionnez un client pour conserver le lien du dossier.')
-      if (input.clientId) {
-        const active = await transaction.$queryRaw<{ id: string }[]>`
-          SELECT id FROM clients WHERE id = ${input.clientId}::uuid AND archived_at IS NULL FOR SHARE
-        `
-        if (!active.length) throw new ApiError(422, 'VALIDATION_FAILED', 'Client indisponible.', { clientId: 'Client indisponible.' })
-      }
+      if (input.clientId) await lockActiveClient(transaction, input.clientId)
       if (input.assignedTo) {
         const active = await transaction.$queryRaw<{ id: string }[]>`
           SELECT id FROM staff_users WHERE id = ${input.assignedTo}::uuid AND is_active AND password_hash IS NOT NULL FOR SHARE
@@ -147,7 +128,10 @@ export function quoteAdminRoutes(database: PrismaClient) {
       await transaction.auditEvent.create({ data: {
         action: 'QUOTE_REQUEST_UPDATED', requestId: response.locals.requestId, actorId: currentSession(response).user.id,
         targetType: 'quote_request', targetId: id,
-        metadata: { fields: Object.keys(input).filter(key => key !== 'version'), previousStatus: current.status, status: input.status ?? current.status },
+        metadata: {
+          fields: Object.keys(input).filter(key => key !== 'version'), previousStatus: current.status, status: input.status ?? current.status,
+          ...(input.clientId && input.clientId !== current.clientId ? { previousClientId: current.clientId, clientId: input.clientId } : {}),
+        },
       } })
       return detail(transaction, id)
     })
@@ -156,7 +140,7 @@ export function quoteAdminRoutes(database: PrismaClient) {
 
   routes.post('/:id/notes', requireCsrf, async (request, response) => {
     const id = parseQuery(z.uuid(), request.params.id)
-    const input = jsonBody(request, note)
+    const input = jsonBody(request, noteBody)
     const actorId = currentSession(response).user.id
     const data = await database.$transaction(async transaction => {
       const write = await transaction.quoteRequest.updateMany({ where: { id, version: input.version }, data: { version: { increment: 1 } } })
@@ -193,25 +177,6 @@ export function quoteSelectors(database: PrismaClient) {
       database.staffUser.count({ where }),
     ], { isolationLevel: 'RepeatableRead' })
     response.json({ data, meta: { page, limit, total } })
-  })
-  routes.get('/clients', async (request, response) => {
-    const input = parseQuery(z.strictObject({ ...pagination, profile: profile.optional(), archived: z.enum(['true','false']).optional() }), request.query)
-    const { page, limit, skip } = pageBounds(input)
-    const prefix = input.q ? searchPrefix(input.q) : undefined
-    const where: Prisma.ClientWhereInput = {
-      archivedAt: input.archived === 'true' ? { not: null } : null, profile: input.profile,
-      OR: prefix ? [
-        { displayName: { startsWith: prefix, mode: 'insensitive' } },
-        { city: { startsWith: prefix, mode: 'insensitive' } },
-        { phone: { startsWith: normalizePhone(input.q ?? '') ?? prefix } },
-      ] : undefined,
-    }
-    const listFields = { ...clientSelect, email: false } as const
-    const [rows, total] = await database.$transaction([
-      database.client.findMany({ where, skip, take: limit, orderBy: [{ intakeProvisional: 'asc' }, { createdAt: 'desc' }, { id: 'desc' }], select: listFields }),
-      database.client.count({ where }),
-    ], { isolationLevel: 'RepeatableRead' })
-    response.json({ data: rows, meta: { page, limit, total } })
   })
   return routes
 }

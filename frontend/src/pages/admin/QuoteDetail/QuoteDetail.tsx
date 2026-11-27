@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { AdminHeading, DemoNote, Facts, LocalFeedback, NoRecord, RecordStatus } from '../../../components/admin/AdminContent'
 import { useDemoData } from '../../../components/admin/DemoData'
 import { QuoteEditor } from '../../../components/admin/QuoteEditor'
@@ -29,7 +29,7 @@ function QuoteProfile({ record }: { record: DemoQuote }) {
         <section className="panel grid gap-5 p-4 sm:p-6">
           <h2 className="text-lg font-semibold">Informations du devis</h2>
           <Facts items={[
-            ['Client', <Link className="text-link" to={`/admin/clients/${record.clientId}`}>{clientName(data.clients, record.clientId)}</Link>],
+            ['Client', clientName(data.clients, record.clientId)],
             ['Assurance', productName(record.product)], ['Compagnie', partner?.name ?? 'Non renseignée'], ['Montant estimé (démo)', moneyLabel(record.premium)],
           ]} />
           <div className="border-t border-line pt-4"><h3 className="font-semibold">Garanties et conditions</h3><p className="mt-2 whitespace-pre-wrap text-muted">{record.conditions || 'Aucune condition saisie.'}</p></div>

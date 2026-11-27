@@ -1,13 +1,13 @@
 # 04 — Backend
 
-The foundation, staff authentication, catalog, anonymous quote intake, request management and dashboard summary are implemented. For current behavior see [Backend foundation](16-BACKEND-IMPLEMENTATION.md), [Live catalog](18-INSURANCE-CATALOG-IMPLEMENTATION.md) and [Quote requests](19-QUOTE-REQUEST-IMPLEMENTATION.md).
+The foundation, staff authentication, catalog, anonymous quote intake, customer CRM, contact, assistance and dashboard summary are implemented. For current behavior see [Backend foundation](16-BACKEND-IMPLEMENTATION.md), [Live catalog](18-INSURANCE-CATALOG-IMPLEMENTATION.md) and [Quote requests](19-QUOTE-REQUEST-IMPLEMENTATION.md).
 
 | Module | Owns |
 | --- | --- |
 | Auth | Provisioning command, login, sessions, CSRF, revocation, recovery and auth audit. |
 | Catalog | Six fixed slugs, approved product and audience metadata, staff reads, Admin editing, publication and deactivation. |
 | Intake | Quote/contact/assistance validation, references, idempotency, authorized case handling. |
-| Clients | Provisional records created with quote intake, staff search selector and explicit relinking. Full CRM is planned. |
+| Clients | Provisional records from quote intake, staff search, verified records, duplicate confirmation, explicit relinking and guarded archival. |
 | Dashboard | Live counts, recent requests, category breakdown, monthly series and request activity. Advanced quote and policy metrics are planned. |
 | Notifications | Transactional outbox, SMTP retry and operational alerts. |
 | Quotes / contracts | V2 draft, issue, decision, policy lifecycle and renewal scheduling. |
@@ -22,7 +22,7 @@ Staff updates require the last-read version. Atomically compare and advance it o
 
 ## Email and background work
 
-The quote transaction records the acknowledged privacy notice version. If SMTP is enabled and an approved recipient is configured, it queues an internal alert with a reference and authentication-gated link. When approved and email exists, send a generic acknowledgement with the reference. V2 renewal alerts start with approved internal recipients. Email addresses are resolved from approved settings or validated records at send time. Reset links are the only emails with an authentication secret. Encrypt the reset job token with a dedicated key and clear it on delivery, expiry or terminal failure.
+The public intake transaction records the acknowledged privacy notice version. If SMTP is enabled and an approved recipient is configured, it queues an internal alert with a reference and authentication-gated link. Quote and contact acknowledgements are independently configurable. Assistance provides an on-screen reference and can send an internal alert. V2 renewal alerts start with approved internal recipients. Email addresses are resolved from approved settings or validated records at send time. Reset links are the only emails with an authentication secret. Encrypt the reset job token with a dedicated key and clear it on delivery, expiry or terminal failure.
 
 Staff alert links point to the authorized quote detail route or the appropriate support list filtered by exact reference. The worker claims bounded batches with row locks and leases, sends outside the transaction, and records outcomes. Retry transient delivery with capped backoff and alert on terminal failure. SMTP delivery is at least once. Preserve stable message IDs across retries. V2 PDF tasks use approved quote/contract snapshots and trusted templates with escaped text and external fetching disabled. Write via temporary files and publish atomically, reconcile files with metadata and checksum on retry.
 

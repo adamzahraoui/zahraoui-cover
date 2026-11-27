@@ -21,6 +21,7 @@ export default function Assistance() {
         <IntakeForm mode="assistance" />
         <ContentCard title="Que faire en cas d’incident ?" icon={Phone}>
           <p>Gardez la référence de votre contrat à portée de main si vous l’avez. Appelez le numéro d’assistance pour connaître les démarches liées à votre situation.</p>
+          <p>En cas d’urgence, contactez directement les services de secours. Le formulaire en ligne ne remplace pas cet appel.</p>
         </ContentCard>
       </div>
     </>

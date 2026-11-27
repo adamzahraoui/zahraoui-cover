@@ -42,8 +42,21 @@ export type ContactIn = Notice & { fullName: string; phone: string; email: strin
 export type AssistanceIn = Notice & { fullName: string; phone: string; productSlug: ProductSlug; contractReference?: string; description: string }
 export type Receipt = { reference: string; receivedAt: string }
 export type Auth = { id: string; email: string; displayName: string; role: 'ADVISOR' | 'ADMIN'; expiresAt: string; csrfToken: string }
-export type ClientIn = { profile: Profile; displayName: string; phone: string; email?: string; city?: string; notes?: string }
-export type Client = ClientIn & { id: string; version: number; createdAt: string; updatedAt: string; archivedAt?: string }
+export type ClientIn = { profile: Profile; displayName: string; phone: string; email?: string | null; city?: string | null; notes?: string | null }
+export type Client = ClientIn & ClientOption & { createdAt: string; updatedAt: string }
+export type ClientDetail = Client & { recentRequests: RequestRow[]; recentAssistance: Pick<AssistanceRow, 'id' | 'reference' | 'status' | 'createdAt'>[]; activity: ActivityEntry[] }
+export type DuplicateClient = Pick<ClientOption, 'id' | 'displayName' | 'intakeProvisional' | 'archivedAt'>
+export type ActivityEntry = { id: string; action: string; createdAt: string; actor: { displayName: string } | null }
+export type MessageRow = { id: string; reference: string; fullName: string; subject: string; status: MessageStatus; createdAt: string; version: number; archivedAt: string | null }
+export type Message = MessageRow & { phone: string; email: string; message: string; noticeVersion: string; acknowledgedAt: string; updatedAt: string }
+export type AssistanceRow = { id: string; reference: string; fullName: string; productSlug: ProductSlug; status: AssistanceStatus; priority: 'NORMAL' | 'URGENT'; createdAt: string; version: number; assignedTo: string | null }
+export type ContractOption = { id: string; reference: string }
+export type AssistanceCase = AssistanceRow & {
+  phone: string; contractReference: string | null; description: string; noticeVersion: string; acknowledgedAt: string;
+  productTitle: string; client: DuplicateClient | null; contract: ContractOption | null; assignee: StaffOption | null;
+  allowedStatuses: AssistanceStatus[]; activity: ActivityEntry[]; notes: RequestDetail['notes']
+}
+export type AssistancePatch = { version: number; status?: AssistanceStatus; priority?: AssistanceRow['priority']; assignedTo?: string | null; clientId?: string | null; contractId?: string | null }
 export type RequestRow = {
   id: string; reference: string; displayName: string; phone: string; productSlug: ProductSlug
   status: RequestStatus; assignedTo?: string; createdAt: string; version: number
@@ -54,11 +67,11 @@ export type RequestDetail = RequestRow & Omit<QuoteRequestIn, 'acknowledged' | '
   acknowledgedAt: string; updatedAt: string; notes: { id: string; authorName: string; body: string; createdAt: string }[]
 }
 export type Dashboard = {
-  counts: { totalRequests: number; inReviewRequests: number; newRequests: number; openRequests: number; activeClients: number; openAssistance: number; unreadMessages: number }
+  counts: { totalRequests: number; inReviewRequests: number; newRequests: number; openRequests: number; activeClients: number; openAssistance: number; unreadMessages: number; totalClients: number; provisionalClients: number; newAssistance: number; inReviewAssistance: number }
   recentRequests: RequestRow[]
   byProduct: { slug: ProductSlug; title: string; count: number }[]
   months: { month: string; count: number }[]
-  activity: { id: string; action: string; targetId: string | null; createdAt: string }[]
+  activity: { id: string; action: string; targetId: string | null; targetType: string | null; createdAt: string }[]
 }
 export type StaffOption = { id: string; displayName: string }
 export type ClientOption = {

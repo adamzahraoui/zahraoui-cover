@@ -7,7 +7,7 @@ The implemented operator command, API and frontend behavior are described in [16
 | Permission | ANONYMOUS | ADVISOR | ADMIN |
 | --- | --- | --- | --- |
 | Public catalog, intake, login and recovery | Yes | Yes | Yes |
-| Staff dashboard, request read/update/assign/link/notes, client read/create/update, support read/update | — | Yes | Yes |
+| Staff dashboard, request read/update/assign/link/notes, client read/create/update/verify, assistance read/update/notes/link, contact read/update/archive | — | Yes | Yes |
 | Client archive, catalog or partner writes, agency settings | — | — | Yes |
 | V2 quote/contract read, draft create/update, document access | — | Yes | Yes |
 | V2 quote issue and decision, contract lifecycle transitions | — | — | Yes |

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { activityNames, activityDate } from '../../../components/admin/ActivityList'
 import { AdminHeading } from '../../../components/admin/AdminContent'
 import { RequestList } from '../../../components/admin/RequestList'
 import { Button } from '../../../components/ui/Button'
@@ -30,8 +31,15 @@ export default function Dashboard() {
     count: month.count,
   }))
   const topMonth = Math.max(1, ...months.map(month => month.count))
-  const activityNames: Record<string, string> = {
-    QUOTE_REQUEST_RECEIVED: 'Demande reçue', QUOTE_REQUEST_UPDATED: 'Traitement modifié', QUOTE_REQUEST_NOTE_ADDED: 'Note interne ajoutée',
+  const operations = data ? [
+    { label: 'Total clients', count: data.counts.totalClients, to: '/admin/clients' },
+    { label: 'Clients provisoires', count: data.counts.provisionalClients, to: '/admin/clients?provisional=true' },
+    { label: 'Messages non lus', count: data.counts.unreadMessages, to: '/admin/messages?status=UNREAD' },
+    { label: 'Nouvelles assistances', count: data.counts.newAssistance, to: '/admin/assistance?status=NEW' },
+    { label: 'Assistances en cours', count: data.counts.inReviewAssistance, to: '/admin/assistance?status=IN_PROGRESS' },
+  ] : []
+  const activityPaths: Record<string, string> = {
+    quote_request: '/admin/demandes/', client: '/admin/clients/', contact_message: '/admin/messages?id=', assistance_case: '/admin/assistance?id=',
   }
 
   function search(event: FormEvent<HTMLFormElement>) {
@@ -62,6 +70,14 @@ export default function Dashboard() {
           <span className="text-sm font-semibold text-muted">Indisponible pour cette phase</span>
         </div>
       </div>
+      <section className="grid gap-3">
+        <h2 className="font-semibold">Clients et assistance</h2>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          {operations.map(({ label, count, to }) => <Link key={to} to={to} className="panel grid gap-1 p-3 hover:border-soft-blue sm:p-4">
+            <span className="text-sm text-muted">{label}</span><span className="text-2xl font-bold tabular-nums text-primary">{count}</span>
+          </Link>)}
+        </div>
+      </section>
       <section className="panel grid gap-3 p-4 lg:hidden">
         <h2 className="font-semibold">Accès rapide</h2>
         <div className="grid grid-cols-2 gap-2">{quickLinks.map(({ label, to }) => <Link to={to} key={to} className="text-link rounded border border-line bg-background p-3 text-sm">{label}</Link>)}</div>
@@ -102,8 +118,8 @@ export default function Dashboard() {
         <h2 className="font-semibold">Activité récente</h2>
         {data.activity.length ? <ul className="grid gap-2">
           {data.activity.map(event => <li key={event.id} className="flex flex-wrap justify-between gap-2 text-sm">
-            {event.targetId ? <Link to={`/admin/demandes/${event.targetId}`} className="text-link">{activityNames[event.action]}</Link> : <span>{activityNames[event.action]}</span>}
-            <time dateTime={event.createdAt} className="text-muted">{new Date(event.createdAt).toLocaleString('fr-MA', { timeZone: 'Africa/Casablanca', dateStyle: 'medium', timeStyle: 'short' })}</time>
+            {event.targetId && event.targetType && activityPaths[event.targetType] ? <Link to={activityPaths[event.targetType] + event.targetId} className="text-link">{activityNames[event.action] ?? 'Dossier mis à jour'}</Link> : <span>{activityNames[event.action] ?? 'Dossier mis à jour'}</span>}
+            <time dateTime={event.createdAt} className="text-muted">{activityDate(event.createdAt)}</time>
           </li>)}
         </ul> : <p className="text-sm text-muted">Aucune activité récente.</p>}
       </section>

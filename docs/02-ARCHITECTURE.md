@@ -15,6 +15,8 @@ flowchart LR
 
 The API and worker share one repository, build image and schema. The worker is a second command for the same application with independent restarts. PostgreSQL holds application records, admin sessions, limit buckets and the outbox. Runtime validators protect the HTTP boundary. Small services enforce transitions and transactions. Prisma selectors expose only documented DTO fields.
 
+B6–B7 use the same modular monolith. The API mounts CRM under `backend/src/modules/clients` and contact and assistance under `backend/src/modules/support`. The existing notification worker handles public submissions asynchronously through the PostgreSQL outbox. Locally, Vite proxies `/api` to Express and Compose supplies PostgreSQL and optionally Mailpit. The Nginx and HTTPS topology above is the deployment design. [Customer CRM](20-CUSTOMER-CRM-IMPLEMENTATION.md) · [Contact and assistance](21-CONTACT-ASSISTANCE-IMPLEMENTATION.md)
+
 ## Proposed implementation tree
 
 ```text

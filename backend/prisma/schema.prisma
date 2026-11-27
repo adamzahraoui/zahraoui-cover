@@ -163,6 +163,7 @@ model StaffUser {
   isActive     Boolean              @default(true) @map("is_active")
   sessions     AdminSession[]
   resetTokens  PasswordResetToken[]
+  assistance   AssistanceCase[]
   requests     QuoteRequest[]
   notes        RequestNote[]
   auditEvents  AuditEvent[]
@@ -232,18 +233,19 @@ model InsuranceProduct {
 }
 
 model Client {
-  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  version           Int            @default(1)
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version           Int              @default(1)
   profile           ClientProfile
-  displayName       String         @map("display_name") @db.VarChar(120)
-  phone             String         @db.VarChar(16)
-  email             String?        @db.VarChar(254)
-  city              String?        @db.VarChar(100)
-  notes             String?        @db.VarChar(1000)
-  archivedAt        DateTime?      @map("archived_at") @db.Timestamptz(6)
-  intakeProvisional Boolean        @default(false) @map("intake_provisional")
+  displayName       String           @map("display_name") @db.VarChar(120)
+  phone             String           @db.VarChar(16)
+  email             String?          @db.VarChar(254)
+  city              String?          @db.VarChar(100)
+  notes             String?          @db.VarChar(1000)
+  archivedAt        DateTime?        @map("archived_at") @db.Timestamptz(6)
+  intakeProvisional Boolean          @default(false) @map("intake_provisional")
+  assistance        AssistanceCase[]
   requests          QuoteRequest[]
   quotes            Quote[]
   contracts         Contract[]
@@ -296,15 +298,18 @@ model QuoteRequest {
 }
 
 model RequestNote {
-  id        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  requestId String       @map("request_id") @db.Uuid
-  authorId  String?      @map("author_id") @db.Uuid
-  body      String       @db.VarChar(1000)
-  request   QuoteRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  author    StaffUser?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  requestId  String?         @map("request_id") @db.Uuid
+  caseId     String?         @map("case_id") @db.Uuid
+  authorId   String?         @map("author_id") @db.Uuid
+  body       String          @db.VarChar(1000)
+  request    QuoteRequest?   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  assistance AssistanceCase? @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  author     StaffUser?      @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([requestId, createdAt, id])
+  @@index([caseId, createdAt, id])
   @@index([authorId])
   @@map("request_notes")
 }
@@ -317,6 +322,9 @@ model AssistanceCase {
   noticeVersion     String             @map("notice_version") @db.VarChar(32)
   acknowledgedAt    DateTime           @map("acknowledged_at") @db.Timestamptz(6)
   reference         String             @unique @db.VarChar(32)
+  assignedTo        String?            @map("assigned_to") @db.Uuid
+  clientId          String?            @map("client_id") @db.Uuid
+  contractId        String?            @map("contract_id") @db.Uuid
   productId         String             @map("product_id") @db.Uuid
   fullName          String             @map("full_name") @db.VarChar(120)
   phone             String             @db.VarChar(16)
@@ -326,6 +334,10 @@ model AssistanceCase {
   priority          AssistancePriority @default(NORMAL)
   closedAt          DateTime?          @map("closed_at") @db.Timestamptz(6)
   product           InsuranceProduct   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  assignee          StaffUser?         @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  client            Client?            @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  contract          Contract?          @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  notes             RequestNote[]
   submissionKeys    SubmissionKey[]
   outboxJobs        OutboxJob[]
 
@@ -333,6 +345,9 @@ model AssistanceCase {
   @@index([priority, createdAt, id])
   @@index([productId])
   @@index([closedAt])
+  @@index([clientId, createdAt])
+  @@index([contractId])
+  @@index([assignedTo])
   @@map("assistance_cases")
 }
 
@@ -350,12 +365,14 @@ model ContactMessage {
   subject        String          @db.VarChar(120)
   message        String          @db.VarChar(1000)
   status         MessageStatus   @default(UNREAD)
+  archivedAt     DateTime?       @map("archived_at") @db.Timestamptz(6)
   processedAt    DateTime?       @map("processed_at") @db.Timestamptz(6)
   submissionKeys SubmissionKey[]
   outboxJobs     OutboxJob[]
 
   @@index([status, createdAt, id])
   @@index([processedAt])
+  @@index([archivedAt, createdAt, id])
   @@map("contact_messages")
 }
 
@@ -481,6 +498,7 @@ model Contract {
   product            InsuranceProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
   partner            Partner          @relation(fields: [partnerId], references: [id], onDelete: Restrict)
   author             StaffUser?       @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  assistance         AssistanceCase[]
   documents          Document[]
   outboxJobs         OutboxJob[]
 

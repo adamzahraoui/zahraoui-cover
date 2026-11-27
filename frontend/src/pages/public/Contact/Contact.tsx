@@ -6,7 +6,7 @@ import { company } from '../../../config/company'
 export default function Contact() {
   return (
     <>
-      <PageHeading title={`Contactez ${company.name}`} description="Appelez l’agence ou utilisez l’aperçu du formulaire de contact." />
+      <PageHeading title={`Contactez ${company.name}`} description="Appelez l’agence ou utilisez le formulaire de contact." />
       <div className="site-container section-space grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <IntakeForm mode="contact" />
         <aside className="grid gap-3" aria-label="Informations de l’agence">

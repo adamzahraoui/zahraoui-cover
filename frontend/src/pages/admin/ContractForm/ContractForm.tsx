@@ -42,7 +42,7 @@ function ContractProfile({ record }: { record: DemoContract }) {
           <section className="panel grid gap-4 p-4 sm:p-6">
             <h2 className="text-lg font-semibold">Informations du contrat</h2>
             <Facts items={[
-              ['N° de police', record.policy], ['Client', <Link className="text-link" to={`/admin/clients/${record.clientId}`}>{clientName(data.clients, record.clientId)}</Link>],
+              ['N° de police', record.policy], ['Client', clientName(data.clients, record.clientId)],
               ['Catégorie', productName(record.product)], ['Compagnie', partner?.name ?? 'Non renseignée'],
               ['Date d’effet', dateLabel(record.startOn)], ['Échéance', dateLabel(record.endOn)],
               ['Devis source', quote ? <Link className="text-link" to={`/admin/devis/${quote.id}`}>{quote.reference}</Link> : '—'],

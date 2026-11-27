@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { AdminHeading, Facts, LocalFeedback, NoRecord, RecordStatus } from '../../../components/admin/AdminContent'
 import { useAdminSession } from '../../../components/admin/auth/AdminSession'
 import { Button } from '../../../components/ui/Button'
@@ -115,8 +115,8 @@ function Detail({ id }: { id: string }) {
           <section className="panel grid gap-3 p-4 sm:p-5">
             <h2 className="text-lg font-semibold">Client associé</h2>
             {record.client ? <Facts items={[
-              ['Nom', record.client.displayName], ['Téléphone', record.client.phone], ['Email', record.client.email],
-              ['Ville', record.client.city], ['Fiche', record.client.intakeProvisional ? 'Provisoire' : 'Existante'],
+              ['Nom', <Link className="text-link" to={`/admin/clients/${record.client.id}`}>{record.client.displayName}</Link>], ['Téléphone', record.client.phone], ['Email', record.client.email],
+              ['Ville', record.client.city], ['Fiche', record.client.archivedAt ? 'Archivée' : record.client.intakeProvisional ? 'Provisoire' : 'Vérifiée'],
             ]} /> : <p className="text-muted">Aucun client associé.</p>}
           </section>
           <section className="panel grid gap-3 p-4 sm:p-5">

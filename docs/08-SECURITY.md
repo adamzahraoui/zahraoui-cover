@@ -17,6 +17,8 @@ Treat all submitted data, staff-facing enquiries and generated PDFs as private. 
 
 Use health routes and metrics that expose no business data. Alert authorized operators on abnormal authentication attempts, repeated mail failures and overdue backups using counts and request identifiers. Use separate, approved operator procedures for account provisioning, incident response and access revocation.
 
+Staff CRM and inbox detail endpoints require a valid staff session and record a redacted view event. Writes also require CSRF and the current version. Customer archive requires ADMIN. Public support requests are rate-limited and idempotent, and return only a receipt. Contract matching happens in the staff workflow after customer verification.
+
 ## Privacy before launch
 
 - Assign a controller and an approved privacy contact. Review data categories, lawful basis, rights and records with the agency's privacy adviser. The acknowledgement fields record the published notice and timestamp. The owner must confirm where a separate consent record and controls are required. [CNDP website compliance](https://www.cndp.ma/conformite-des-sites-web/)

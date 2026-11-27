@@ -1,4 +1,4 @@
-import type { AssistanceIn, Auth, CatalogItem, CatalogWrite, ClientOption, ContactIn, Dashboard, Page, Product, ProductCard, QuoteNotice, QuoteRequestIn, QuoteRequestPatch, Receipt, RequestDetail, RequestRow, StaffOption } from '../types/api'
+import type { AssistanceCase, AssistanceIn, AssistancePatch, AssistanceRow, Client, ClientDetail, ClientIn, ContractOption, DuplicateClient, Message, MessageRow, MessageStatus, Auth, CatalogItem, CatalogWrite, ClientOption, ContactIn, Dashboard, Page, Product, ProductCard, QuoteNotice, QuoteRequestIn, QuoteRequestPatch, Receipt, RequestDetail, RequestRow, StaffOption } from '../types/api'
 import type { ProductSlug } from '../config/navigation'
 
 export class ApiError extends Error {
@@ -69,6 +69,24 @@ export const api = {
   addQuoteNote: (id: string, body: { version: number; body: string }, csrf: string) => post<RequestDetail>('/admin/quote-requests/' + encodeURIComponent(id) + '/notes', body, { 'X-CSRF-Token': csrf }),
   staffOptions: (query: string, signal?: AbortSignal) => list<StaffOption>('/admin/staff-options', query, signal),
   clientOptions: (query: string, signal?: AbortSignal) => list<ClientOption>('/admin/clients', query, signal),
+  supportNotice: (mode: 'contact' | 'assistance', signal?: AbortSignal) => request<QuoteNotice>(`/${mode}/notice`, { signal }),
+  client: (id: string, signal?: AbortSignal) => request<ClientDetail>('/admin/clients/' + encodeURIComponent(id), { signal }),
+  findDuplicates: (body: { phone: string; email?: string | null; excludeId?: string }, csrf: string) =>
+    post<DuplicateClient[]>('/admin/clients/duplicates', body, { 'X-CSRF-Token': csrf }),
+  createClient: (body: ClientIn & { confirmDuplicate?: true }, csrf: string) => post<Client>('/admin/clients', body, { 'X-CSRF-Token': csrf }),
+  updateClient: (id: string, body: Partial<ClientIn> & { version: number; confirmDuplicate?: true; verify?: true }, csrf: string) =>
+    patch<Client>('/admin/clients/' + encodeURIComponent(id), body, csrf),
+  archiveClient: (id: string, version: number, csrf: string) => post<Client>('/admin/clients/' + encodeURIComponent(id) + '/archive', { version }, { 'X-CSRF-Token': csrf }),
+  messages: (query: string, signal?: AbortSignal) => list<MessageRow>('/admin/messages', query, signal),
+  message: (id: string, signal?: AbortSignal) => request<Message>('/admin/messages/' + encodeURIComponent(id), { signal }),
+  updateMessage: (id: string, version: number, status: MessageStatus, csrf: string) =>
+    patch<Message>('/admin/messages/' + encodeURIComponent(id), { version, status }, csrf),
+  archiveMessage: (id: string, version: number, csrf: string) => post<Message>('/admin/messages/' + encodeURIComponent(id) + '/archive', { version }, { 'X-CSRF-Token': csrf }),
+  assistanceCases: (query: string, signal?: AbortSignal) => list<AssistanceRow>('/admin/assistance', query, signal),
+  assistanceCase: (id: string, signal?: AbortSignal) => request<AssistanceCase>('/admin/assistance/' + encodeURIComponent(id), { signal }),
+  updateAssistance: (id: string, body: AssistancePatch, csrf: string) => patch<AssistanceCase>('/admin/assistance/' + encodeURIComponent(id), body, csrf),
+  addAssistanceNote: (id: string, body: { version: number; body: string }, csrf: string) => post<AssistanceCase>('/admin/assistance/' + encodeURIComponent(id) + '/notes', body, { 'X-CSRF-Token': csrf }),
+  contractOptions: (id: string, query: string, signal?: AbortSignal) => list<ContractOption>('/admin/assistance/' + encodeURIComponent(id) + '/contract-options', query, signal),
   dashboard: (signal?: AbortSignal) => request<Dashboard>('/admin/dashboard', { signal }),
   submitQuote: (input: QuoteRequestIn, key: string) => post<Receipt>('/quotes', input, { 'Idempotency-Key': key }),
   submitContact: (input: ContactIn, key: string) => post<Receipt>('/contact', input, { 'Idempotency-Key': key }),

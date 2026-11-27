@@ -1,7 +1,7 @@
 import { createContext, useContext, useState } from 'react'
 import type { Dispatch, ReactNode, SetStateAction } from 'react'
-import { demoCases, demoClients, demoContracts, demoQuotes, demoRequests } from '../../data/demo'
-import type { CatalogItem, DemoClient, DemoContract, DemoPartner, DemoQuote, DemoRequest, DemoSettings, DemoSupportCase } from '../../data/demo'
+import { demoClients, demoContracts, demoQuotes, demoRequests } from '../../data/demo'
+import type { CatalogItem, DemoClient, DemoContract, DemoPartner, DemoQuote, DemoRequest, DemoSettings } from '../../data/demo'
 import { insurance } from '../../data/insurance'
 
 type DemoData = {
@@ -9,7 +9,6 @@ type DemoData = {
   clients: DemoClient[]
   quotes: DemoQuote[]
   contracts: DemoContract[]
-  support: DemoSupportCase[]
   catalog: CatalogItem[]
   partners: DemoPartner[]
   settings: DemoSettings
@@ -20,7 +19,6 @@ const initialData: DemoData = {
   clients: demoClients,
   quotes: demoQuotes,
   contracts: demoContracts,
-  support: demoCases,
   catalog: insurance.map(item => ({ slug: item.slug, summary: item.summary, published: true })),
   partners: [],
   settings: { email: '', address: '', hours: '' },

@@ -161,13 +161,14 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 | --- | --- |
 | id | uuid PK |
 | created_at | timestamptz default now() |
-| request_id | uuid FK quote_requests.id CASCADE |
+| request_id | uuid nullable FK quote_requests.id CASCADE |
+| case_id | uuid nullable FK assistance_cases.id CASCADE |
 | author_id | uuid nullable FK staff_users.id SET NULL |
 | body | varchar(1000) |
 
-**Rules.** Append-only through the normal application. Visibility is limited to staff.
+**Rules.** Exactly one parent is required. Append-only through the normal application. Visibility is limited to staff.
 
-**Additional indexes.** (request_id, created_at, id), (author_id).
+**Additional indexes.** (request_id, created_at, id), (case_id, created_at, id), (author_id).
 
 ### assistance_cases · MVP
 
@@ -181,6 +182,9 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 | acknowledged_at | timestamptz |
 | reference | varchar(32) UK |
 | product_id | uuid FK insurance_products.id |
+| assigned_to | uuid nullable FK staff_users.id SET NULL |
+| client_id | uuid nullable FK clients.id RESTRICT |
+| contract_id | uuid nullable FK contracts.id RESTRICT |
 | full_name | varchar(120) |
 | phone | varchar(16) |
 | contract_reference | varchar(64) nullable |
@@ -189,9 +193,9 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 | priority | assistance_priority default NORMAL |
 | closed_at | timestamptz nullable |
 
-**Rules.** Submitted contract reference is unverified text and does not link to a policy. Set closed_at on RESOLVED.
+**Rules.** Submitted contract reference remains unverified text. Staff can link a verified client and independently select a matching existing contract. A linked contract requires a client. Set closed_at on RESOLVED.
 
-**Additional indexes.** (status, created_at, id), (priority, created_at, id), (product_id), (closed_at).
+**Additional indexes.** (status, created_at, id), (priority, created_at, id), (product_id), (closed_at), (client_id, created_at), (assigned_to), (contract_id).
 
 ### contact_messages · MVP
 
@@ -211,10 +215,11 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 | message | varchar(1000) |
 | status | message_status default UNREAD |
 | processed_at | timestamptz nullable |
+| archived_at | timestamptz nullable |
 
-**Rules.** Set processed_at on PROCESSED.
+**Rules.** Set processed_at on PROCESSED. Only a processed message can be archived.
 
-**Additional indexes.** (status, created_at, id), (processed_at).
+**Additional indexes.** (status, created_at, id), (processed_at), (archived_at, created_at, id).
 
 ### submission_keys · MVP
 
@@ -409,7 +414,11 @@ erDiagram
     insurance_products ||..o{ quote_requests : "product_id"
     clients |o..o{ quote_requests : "client_id"
     staff_users |o..o{ quote_requests : "assigned_to"
-    quote_requests ||..o{ request_notes : "request_id"
+    quote_requests |o..o{ request_notes : "request_id"
+    assistance_cases |o..o{ request_notes : "case_id"
+    clients |o..o{ assistance_cases : "client_id"
+    staff_users |o..o{ assistance_cases : "assigned_to"
+    contracts |o..o{ assistance_cases : "contract_id"
     staff_users |o..o{ request_notes : "author_id"
     insurance_products ||..o{ assistance_cases : "product_id"
     quote_requests |o..o{ submission_keys : "request_id"
@@ -524,6 +533,7 @@ erDiagram
         uuid id PK
         timestamptz created_at
         uuid request_id FK
+        uuid case_id FK
         uuid author_id FK
         varchar_1000 body
     }
@@ -536,6 +546,9 @@ erDiagram
         timestamptz acknowledged_at
         varchar_32 reference UK
         uuid product_id FK
+        uuid assigned_to FK
+        uuid client_id FK
+        uuid contract_id FK
         varchar_120 full_name
         varchar_16 phone
         varchar_64 contract_reference
@@ -559,6 +572,7 @@ erDiagram
         varchar_1000 message
         message_status status
         timestamptz processed_at
+        timestamptz archived_at
     }
     submission_keys {
         intake_action action PK
