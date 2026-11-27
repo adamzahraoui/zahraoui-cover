@@ -1,6 +1,6 @@
 # 04 — Backend
 
-The foundation, staff authentication, catalog, anonymous quote intake, customer CRM, contact, assistance, issued quote management, private quote PDFs, local delivery, contract registration, renewals, partner management and dashboard summary are implemented. For current behavior see [Backend foundation](16-BACKEND-IMPLEMENTATION.md), [Live catalog](18-INSURANCE-CATALOG-IMPLEMENTATION.md) and [Quote requests](19-QUOTE-REQUEST-IMPLEMENTATION.md).
+The foundation, staff authentication, catalog, anonymous quote intake, customer CRM, contact, assistance, issued quote management, private quote PDFs, local delivery, contract registration, renewals, partner management, centralized document management and dashboard summary are implemented. For current behavior see [Backend foundation](16-BACKEND-IMPLEMENTATION.md), [Live catalog](18-INSURANCE-CATALOG-IMPLEMENTATION.md) and [Quote requests](19-QUOTE-REQUEST-IMPLEMENTATION.md).
 
 | Module | Owns |
 | --- | --- |
@@ -14,7 +14,7 @@ The foundation, staff authentication, catalog, anonymous quote intake, customer 
 | Contracts | Draft registration, insurer confirmation, expiration, cancellation and linked renewal preparation. |
 | Partners | Verified carrier records and category scope, administrator lifecycle changes, public publication and offer eligibility. |
 | Settings | Proposed approved agency profile and audit. |
-| Documents | B8 frozen quote PDF generation and private retrieval. B9 adds local insurer PDF attachment and private retrieval. |
+| Documents | Staff inventory and history, generated quote previews, private checksummed downloads, local contract PDF uploads and restricted archival. |
 
 ## Validation and persistence
 

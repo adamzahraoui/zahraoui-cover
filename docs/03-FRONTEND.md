@@ -1,8 +1,8 @@
 # 03 — Frontend page specification
 
-Routes are based on the handoff. Each page has its own folder, such as `frontend/src/pages/public/AutoInsurance/` or `frontend/src/pages/admin/QuoteRequests/`. The `P` and `A` identifiers link the documentation to the Stitch inventory. Separate modes of the same page share a folder. [Export references](14-DESIGN-AUDIT.md) map the IDs to the HTML files. [API contracts](06-API-ENDPOINTS.md) define the payloads and validation rules for the connected release.
+Routes are based on the handoff. Each page has its own folder, such as `frontend/src/pages/public/AutoInsurance/` or `frontend/src/pages/admin/QuoteRequests/`. The original `P` and `A` identifiers link the documentation to the Stitch inventory. A20 was added in B11 using the existing administration design. Separate modes of the same page share a folder. [Export references](14-DESIGN-AUDIT.md) map the IDs to the HTML files. [API contracts](06-API-ENDPOINTS.md) define the payloads and validation rules for the connected release.
 
-The implementation notes under each page describe the React app. Staff authentication, the public catalog, quote intake, staff request management, customer CRM, contact, assistance, issued quotes, contracts, renewals and the dashboard summary are connected. Other business endpoint descriptions remain the target for later phases. See [verification and differences](15-IMPLEMENTATION-STATUS.md).
+The implementation notes under each page describe the React app. Staff authentication, the public catalog, quote intake, staff request management, customer CRM, contact, assistance, issued quotes, contracts, renewals, partners, the document inventory and the dashboard summary are connected. Other business endpoint descriptions remain the target for later phases. See [verification and differences](15-IMPLEMENTATION-STATUS.md).
 
 ## How to follow the code
 
@@ -11,7 +11,7 @@ The implementation notes under each page describe the React app. Staff authentic
 3. Look for `useState` when a value changes on screen. The catalog keeps the selected audience in state and computes the visible cards from the local list. The quote wizard keeps the current step and the visitor’s draft in state. Admin pages share a fixture provider so edits remain visible while navigating within the demo.
 4. Use the API handoff under each page when connecting it to data. The service functions are prepared for same-origin requests. Form previews and fixture edits currently run in the browser.
 
-[PageMain](../frontend/src/layouts/PageMain.tsx) sets the browser-tab title from the visible page heading and focuses the main content after the route or its session check becomes visible. Every layout shares the `contenu` landmark. AdminSession restores the server session, redirects unauthenticated visits, and keeps the CSRF value in memory. Staff business pages still read the fixture provider.
+[PageMain](../frontend/src/layouts/PageMain.tsx) sets the browser-tab title from the visible page heading and focuses the main content after the route or its session check becomes visible. Every layout shares the `contenu` landmark. AdminSession restores the server session, redirects unauthenticated visits, and keeps the CSRF value in memory. Agency settings still use the fixture provider.
 
 ## Shared layout, behavior and states
 
@@ -787,3 +787,12 @@ Maintain confirmed agency details in V2.
 - **Component, props and state.** Sectioned Input/Textarea form. Uses official values in company configuration; saved flag in component.
 - **Interactions and styling.** View locked identity and phones, edit demo contact fields and see local acknowledgement.
 - **Data and API handoff.** Optional fields initially blank. Wire Admin-only V2 GET/PATCH settings when official facts are approved.
+
+### A20 · Documents
+
+**Route** `/admin/documents`
+
+- **Components and layout.** The page uses the existing sidebar, heading, statistics panel, filters, detail and upload dialogs, and record list. The shared list is a wide table and adapts to labelled cards on smaller viewports.
+- **Data and states.** The API provides counts, stored bytes, categories, associated records, statuses and paginated results. The page shows network, empty, success and upload error states. Date and record filters are in the URL.
+- **Workflow.** Staff preview generated proposals, download ready files and attach local test PDFs to eligible contracts. Only administrators can archive approved supporting documents. The client profile, quote revisions and policy renewal history link to the relevant filtered view.
+- **Files.** [Documents.tsx](../frontend/src/pages/admin/Documents/Documents.tsx), [UploadDocument.tsx](../frontend/src/pages/admin/Documents/UploadDocument.tsx) and the [document management guide](27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md).

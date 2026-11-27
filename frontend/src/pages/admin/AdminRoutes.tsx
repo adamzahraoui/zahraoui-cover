@@ -16,6 +16,7 @@ import Quotes from './Quotes/Quotes'
 import QuoteCreate from './QuoteCreate/QuoteCreate'
 import QuoteDetail from './QuoteDetail/QuoteDetail'
 import Contracts from './Contracts/Contracts'
+import Documents from './Documents/Documents'
 import ContractForm from './ContractForm/ContractForm'
 import AssistanceInbox from './AssistanceInbox/AssistanceInbox'
 import InsuranceManagement from './InsuranceManagement/InsuranceManagement'
@@ -46,6 +47,7 @@ export default function AdminRoutes() {
             <Route path="contrats" element={<Contracts />} />
             <Route path="contrats/nouveau" element={<ContractForm />} />
             <Route path="contrats/:id" element={<ContractForm />} />
+            <Route path="documents" element={<Documents />} />
             <Route path="assistance" element={<AssistanceInbox />} />
             <Route path="assurances" element={<InsuranceManagement />} />
             <Route path="partenaires" element={<Partners />} />

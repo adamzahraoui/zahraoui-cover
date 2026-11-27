@@ -73,7 +73,7 @@ function ContractProfile({ record, save, reload }: { record: Policy; save: (cont
     if (busy || state.status !== 'authenticated') return
     const form = event.currentTarget
     const file = new FormData(form).get('policyDocument')
-    if (!(file instanceof File) || file.type !== 'application/pdf' || !file.size || file.size > maxPdf) {
+    if (!(file instanceof File) || !/\.pdf$/i.test(file.name) || file.type !== 'application/pdf' || !file.size || file.size > maxPdf) {
       setError('Choisissez un PDF de 4 Mio maximum.')
       return
     }
@@ -125,6 +125,7 @@ function ContractProfile({ record, save, reload }: { record: Policy; save: (cont
     <div className="grid items-start gap-4 lg:grid-cols-2">
       <section className="panel grid min-w-0 gap-3 p-4 sm:p-6">
         <h2 className="text-lg font-semibold">Pièces de l’assureur</h2>
+        <Link className="text-link" to={`/admin/documents?contractId=${record.id}`}>Documents du contrat</Link>
         {record.documents.length ? <ul className="grid gap-2">{record.documents.map(doc => <li key={doc.id}>
           <a className="text-link" href={`/api/admin/documents/${encodeURIComponent(doc.id)}/download`} download>Télécharger la pièce {doc.revision}</a>
           <span className="text-sm text-muted"> · {activityDate(doc.createdAt)}</span>
@@ -149,6 +150,7 @@ function ContractProfile({ record, save, reload }: { record: Policy; save: (cont
       {record.renewalHistory.length > 1 && <ul className="grid gap-2 text-sm">{record.renewalHistory.map(row => <li key={row.id}>
         {row.id === record.id ? <span>{row.reference}</span> : <Link className="text-link" to={`/admin/contrats/${row.id}`}>{row.reference}</Link>}
         {row.activatedAt && <span className="text-muted"> · Confirmation enregistrée</span>}
+        <Link className="ml-2 text-link" to={`/admin/documents?contractId=${row.id}`}>Documents · {row.reference}</Link>
       </li>)}</ul>}
       <ActivityList activity={record.activity} />
     </section>

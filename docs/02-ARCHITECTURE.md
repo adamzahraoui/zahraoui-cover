@@ -23,6 +23,8 @@ B9 registers insurer-confirmed policies and renewal drafts in the existing Contr
 
 B10 adds live partner administration and a minimal public partner feed in the same Express application. Quote and contract services share the category eligibility check and continue to read issued documents from immutable snapshots and private storage. [Partner management](26-PARTNER-MANAGEMENT-IMPLEMENTATION.md)
 
+B11 adds the staff document inventory to the existing Express API and React console. PostgreSQL holds searchable metadata and links to quote revisions and contracts. The API and worker share the same private filesystem and checksum validation. [Document management](27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md)
+
 ## Proposed implementation tree
 
 ```text

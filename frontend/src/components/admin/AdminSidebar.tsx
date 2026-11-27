@@ -1,4 +1,4 @@
-import { Building2, ClipboardList, FileCheck2, FileText, Handshake, Headset, LayoutDashboard, Mail, Settings, Users } from 'lucide-react'
+import { Building2, ClipboardList, FileCheck2, Files, FileText, Handshake, Headset, LayoutDashboard, Mail, Settings, Users } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { Brand } from '../public/Brand'
 
@@ -8,6 +8,7 @@ const items = [
   { to: '/admin/clients', label: 'Clients', Icon: Users },
   { to: '/admin/devis', label: 'Devis', Icon: FileText },
   { to: '/admin/contrats', label: 'Contrats', Icon: FileCheck2 },
+  { to: '/admin/documents', label: 'Documents', Icon: Files },
   { to: '/admin/assistance', label: 'Assistance', Icon: Headset },
   { to: '/admin/assurances', label: 'Assurances', Icon: Building2 },
   { to: '/admin/partenaires', label: 'Partenaires', Icon: Handshake },

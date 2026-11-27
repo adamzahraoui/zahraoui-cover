@@ -145,6 +145,18 @@ The catalog returns an unpaginated bounded array. Health responses use bare prob
 | PATCH /api/admin/partners/:id | Edit or change state / Admin | Current version, partial PartnerIn, isActive?, isPublished? | 200 Partner detail | 404 missing, 409 state/stale/duplicate, 422 validation | A17 |
 | POST /api/admin/partners/:id/verify | Verify carrier / Admin | Current version, reference, stored category scope | 200 Partner detail | 404 missing, 409 state/stale, 422 validation | A17 |
 
+## Centralized private documents · B11
+
+| Method and URL | Purpose / permission | Request and validation | Success body |
+| --- | --- | --- | --- |
+| GET /api/admin/documents | Inventory / Staff | q?, page?, limit?, kind?, status?, archived?, clientId?, quoteId?, contractId?, from?, to? | 200 data, meta, storage and uploadEnabled |
+| GET /api/admin/documents/:id | Metadata and audited history / Staff | Document UUID | 200 Document detail |
+| POST /api/admin/documents | Attach approved PDF / Staff, local tests | CSRF, contractId, current contract version, kind, optional clientId, filename header and raw PDF up to 4 MiB | 201 Document detail |
+| POST /api/admin/documents/:id/archive | Archive supplemental or other approved ready PDF / Admin | CSRF, UUID, current document version | 200 archived Document detail |
+| GET /api/admin/documents/:id/download | Download a ready PDF / Staff | UUID, inline=true permitted for generated quote PDFs | 200 verified PDF with no-store |
+
+The shared uploader also serves the existing contract endpoint. It returns 409 for stale or duplicate writes, 413 for oversized uploads, 415 for unsupported MIME, 422 for invalid file contents or customer mismatch, 429 for throttling and 503 for unavailable storage or a disabled upload environment. [Document management](27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md)
+
 ## Proposed settings administration
 
 | Method and URL | Purpose / permission | Request and validation | Success body | Other errors | Pages |

@@ -1,4 +1,5 @@
 # 25 — Renewals and reminders
+B11 adds links from each renewal history entry to its [document inventory](27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md).
 
 A renewal is a separate linked draft. Staff can start one from a confirmed active or expired contract with no live successor, then correct the inherited premium and coverage and record a new insurer reference. The successor may start at the old exclusive expiration date or later. It requires a new insurer confirmation before activation. The original dates, snapshot and PDF files remain intact. A cancelled unconfirmed renewal can be replaced. A successor that was confirmed keeps its historical relationship even if later cancelled.
 

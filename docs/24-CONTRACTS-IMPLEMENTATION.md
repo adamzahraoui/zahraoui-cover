@@ -31,6 +31,8 @@ The React [contract list](../frontend/src/pages/admin/Contracts/Contracts.tsx) r
 
 B10 checks current carrier eligibility for policy drafts, confirmation and renewal preparation. The confirmation snapshot freezes the recorded legal carrier name. Previously confirmed policy records and files remain available after partner deactivation. [Partner rules](26-PARTNER-MANAGEMENT-IMPLEMENTATION.md)
 
+Contract details and renewal history link to [Documents](27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md) with the selected policy filter. Local policy, supporting and other approved attachments share the same contract sequence and private storage.
+
 ## Privacy and storage
 
 [The contract router](../backend/src/modules/contracts/routes.ts) checks MIME and file size, requires a PDF signature and classic cross-reference table, and rejects recognizable active names, encryption and compressed object containers. This narrow test path can reject otherwise legitimate PDFs. It does not perform malware scanning. Production upload is disabled. The server writes under a generated UUID in the B8 private directory, with exclusive publication, a 0600 file and SHA-256 verification on read. The download filename uses the internal reference and revision number. PDFs are attachment-only. The server never exposes a raw file path or the user's filename. New files append a revision number and preserve old documents. A failed transaction removes a known orphan when the database can confirm that it has no matching row.

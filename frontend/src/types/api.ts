@@ -154,3 +154,17 @@ export type PartnerDetail = PartnerRow & Omit<PartnerInput, 'name' | 'displayNam
   recentQuotes: IssuedQuoteRow[]; recentContracts: ContractRow[]; activity: ActivityEntry[]
 }
 export type PublicPartner = { name: string; website: string | null }
+
+export type DocumentKind = 'QUOTE_PDF' | 'CONTRACT_PDF' | 'CONTRACT_SUPPORT' | 'BUSINESS_PDF'
+type DocumentClient = { id: string; displayName: string }
+export type DocumentRow = {
+  id: string; name: string; kind: DocumentKind; status: 'QUEUED' | 'READY' | 'FAILED'
+  sizeBytes: string | null; version: number; revision: number; quoteVersion: number | null
+  createdAt: string; readyAt: string | null; archivedAt: string | null; client: DocumentClient | null
+  quote: { id: string; reference: string } | null; contract: { id: string; reference: string } | null
+  canPreview: boolean; canArchive: boolean
+}
+export type DocumentDetail = DocumentRow & {
+  uploader: { displayName: string } | null; mimeType: string | null; activity: ActivityEntry[]
+}
+export type DocumentPage = Page<DocumentRow> & { storage: { count: number; sizeBytes: string }; uploadEnabled: boolean }

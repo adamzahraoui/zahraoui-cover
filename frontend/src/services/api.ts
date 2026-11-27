@@ -1,4 +1,5 @@
 import type { PartnerDetail, PartnerInput, PartnerRow, PublicPartner, ContractDetail, ContractRow, PolicyFields, DecisionMethod, IssuedQuote, IssuedQuoteInput, IssuedQuoteRow, AssistanceCase, AssistanceIn, AssistancePatch, AssistanceRow, Client, ClientDetail, ClientIn, ContractOption, DuplicateClient, Message, MessageRow, MessageStatus, Auth, CatalogItem, CatalogWrite, ClientOption, ContactIn, Dashboard, Page, Product, ProductCard, QuoteNotice, QuoteRequestIn, QuoteRequestPatch, Receipt, RequestDetail, RequestRow, StaffOption } from '../types/api'
+import type { DocumentDetail, DocumentKind, DocumentPage } from '../types/api'
 import type { ProductSlug } from '../config/navigation'
 
 export class ApiError extends Error {
@@ -118,9 +119,17 @@ export const api = {
     post<ContractDetail>('/admin/contracts/' + encodeURIComponent(id) + '/status', body, { 'X-CSRF-Token': csrf }),
   startRenewal: (id: string, body: { version: number; effectiveOn: string; expiresOn: string }, csrf: string) =>
     post<ContractDetail>('/admin/contracts/' + encodeURIComponent(id) + '/renew', body, { 'X-CSRF-Token': csrf }),
+  documents: (query: string, signal?: AbortSignal) => fetchJson<DocumentPage>('/admin/documents?' + query, { signal }),
+  document: (id: string, signal?: AbortSignal) => request<DocumentDetail>('/admin/documents/' + encodeURIComponent(id), { signal }),
+  uploadDocument: (record: { contractId: string; clientId: string; version: number; kind: Exclude<DocumentKind, 'QUOTE_PDF'> }, file: File, csrf: string) =>
+    request<DocumentDetail>('/admin/documents?' + new URLSearchParams({ ...record, version: String(record.version) }), {
+      method: 'POST', headers: { 'Content-Type': file.type, 'X-CSRF-Token': csrf, 'X-Document-Filename': encodeURIComponent(file.name) }, body: file,
+    }),
+  archiveDocument: (id: string, version: number, csrf: string) =>
+    post<DocumentDetail>('/admin/documents/' + encodeURIComponent(id) + '/archive', { version }, { 'X-CSRF-Token': csrf }),
   attachPolicy: (id: string, version: number, file: File, csrf: string) =>
     request<ContractDetail>('/admin/contracts/' + encodeURIComponent(id) + '/documents?version=' + version, {
-      method: 'POST', headers: { 'Content-Type': file.type, 'X-CSRF-Token': csrf }, body: file,
+      method: 'POST', headers: { 'Content-Type': file.type, 'X-CSRF-Token': csrf, 'X-Document-Filename': encodeURIComponent(file.name) }, body: file,
     }),
   dashboard: (signal?: AbortSignal) => request<Dashboard>('/admin/dashboard', { signal }),
   submitQuote: (input: QuoteRequestIn, key: string) => post<Receipt>('/quotes', input, { 'Idempotency-Key': key }),

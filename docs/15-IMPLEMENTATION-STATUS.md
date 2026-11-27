@@ -1,12 +1,12 @@
 # 15 — Frontend and backend implementation status
 
-The local React frontend covers 19 public and 19 administration page types. Two admin pages have separate create and detail/edit routes, for 40 concrete page views in the browser test matrix, including a public unknown-path example. Quote confirmation is the final UI state of /devis. The admin root sends signed-in staff to the dashboard and visitors to login. Unknown admin paths show an authenticated fallback. The original Stitch archive and design files are preserved.
+The local React frontend covers 19 public and 20 administration page types. The baseline browser matrix covered 40 concrete page views, including a public unknown-path example. B11 adds the Documents page and its own four-width verification. Quote confirmation is the final UI state of /devis. The admin root sends signed-in staff to the dashboard and visitors to login. Unknown admin paths show an authenticated fallback. The original Stitch archive and design files are preserved.
 
 ## Resume checkpoint
 
 At the frontend baseline, the routes, public forms, admin demo, reusable components and API preparation were already in place. The resumed work repeated browser verification, reviewed the reference layouts and finished the handoff documentation. Two issues were confirmed and fixed. The catalog now uses the compact Stitch mobile heading and puts the audience selector above the cards in the introduction. Browser-tab titles now follow each route’s heading, with the navigation focus effect running inside the route loading boundary.
 
-The frontend baseline is complete. Staff authentication, the catalog, quote intake, customer CRM, contact, assistance, issued quotes, contract registration, renewals and insurance partner management now use the backend. Production release depends on approved imagery and the standalone brand asset, approved French company and legal content, and production settings.
+The frontend baseline is complete. Staff authentication, the catalog, quote intake, customer CRM, contact, assistance, issued quotes, contract registration, renewals, insurance partner management and the centralized document inventory now use the backend. Production release depends on approved imagery and the standalone brand asset, approved French company and legal content, and production settings.
 
 ## Development milestones
 
@@ -67,6 +67,7 @@ The frontend baseline is complete. Staff authentication, the catalog, quote inta
 | A17 | Partenaires · `/admin/partenaires` | Implemented | 4 widths | Create, edit, search, verify, activate, publish, deactivate and open record history | Live database, paginated search and role-restricted writes | Logo uploads deferred |
 | A18 | Messages reçus · `/admin/messages` | Implemented | 4 widths | Read, process and refresh | Live contact inbox and archive | Reply dispatch and internal message notes are outside this phase |
 | A19 | Paramètres · `/admin/parametres` | Implemented | 4 widths | Local update, locked main phone | Fictional data; endpoint pending | Official details require confirmation |
+| A20 | Documents · `/admin/documents` | Implemented in B11 | 4 widths | Search, filters, related records, preview, download, upload and archival | Live private file metadata and storage | Uploads are limited to local testing |
 
 ## Backend phase B1–B3
 
@@ -126,6 +127,15 @@ The frontend baseline is complete. Staff authentication, the catalog, quote inta
 - **Automated verification.** Frontend and backend TypeScript, ESLint and production builds passed. Six unit tests and 44 PostgreSQL integration tests passed, including all 39 prior cases and five partner cases. Checks covered roles, CSRF, version conflicts, duplicate names, publication, scoped eligibility, audits, files and queued delivery after deactivation.
 - **Browser verification.** Chrome completed partner creation, editing, verification, activation, publication, quote and contract workflows, deactivation and historical file checks at **390, 768, 1024 and 1440 px** without uncaught browser errors or page-level overflow on the checked layouts. Chrome also verified pagination, read-only advisor access and category filtering for external policies at all four widths. Mailpit captured the four test quotes and the four internal renewal reminders. The quote attachments matched the private downloads.
 - **Release limits.** Logo uploads are deferred. No partners are seeded. Agency settings remain a demonstration. Existing production issuance, file upload and email controls still apply. The original Stitch ZIP passed its integrity test and matched the recorded SHA-256.
+
+## Business phase B11
+
+- **Document inventory.** The protected Documents page shows searchable and paginated files, per-document metadata and audit history, and global document count and stored bytes. Customer profiles, quote details and revisions, and contracts and renewal history open record-specific views. [Document management](27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md)
+- **Private storage.** Local staff uploads reuse the contract PDF validation and private filesystem. The database stores the checksum and links. Only generated quotes are eligible for inline preview. Admin archival applies to approved supporting documents and preserves their bytes. Quote and insurer policy documents are protected from archival.
+- **Migration.** `20261127060000_document_management` extends the existing document table. All eight migrations applied to isolated PostgreSQL. A separate B10-to-B11 upgrade preserved two ready historical records, their frozen metadata, links and file bytes. Prisma schema validation and drift checks passed.
+- **Automated verification.** Both projects passed TypeScript, ESLint and production builds. Six unit tests and 53 PostgreSQL integration tests passed, including all 44 previous integration tests and nine B11 cases. Coverage includes access roles, CSRF, version conflicts, file integrity, interrupted uploads and state preservation after database and filesystem failures.
+- **Browser verification.** Chrome passed sign-in, Documents navigation, search and date/category filters, record links, a generated PDF preview, attachment upload/download, archival, refresh and anonymous access rejection at **390, 768, 1024 and 1440 px**. Historical PDFs matched byte for byte after additional uploads and archival. The checked layouts had no horizontal overflow or uncaught browser exceptions.
+- **Release limits.** Production PDF safeguards remain active. Malware scanning, an approved retention and document-handling policy, and private durable storage are still needed for production uploads. No automatic deletion or spreadsheet import was added. The original Stitch ZIP passed integrity and checksum checks.
 
 ## Differences from the Stitch prototypes
 

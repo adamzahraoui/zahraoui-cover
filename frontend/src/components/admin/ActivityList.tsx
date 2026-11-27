@@ -1,6 +1,10 @@
 import type { ActivityEntry } from '../../types/api'
 
 export const activityNames: Record<string, string> = {
+  DOCUMENT_UPLOADED: 'PDF déposé',
+  DOCUMENT_ARCHIVED: 'Document archivé',
+  QUOTE_DOCUMENT_VIEWED: 'PDF de devis consulté',
+  CONTRACT_DOCUMENT_VIEWED: 'PDF de contrat téléchargé',
   PARTNER_CREATED: 'Fiche partenaire créée',
   PARTNER_VERIFIED: 'Compagnie vérifiée',
   PARTNER_UPDATED: 'Fiche partenaire mise à jour',

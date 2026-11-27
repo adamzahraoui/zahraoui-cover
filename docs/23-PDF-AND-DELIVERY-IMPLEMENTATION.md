@@ -27,6 +27,8 @@ An approved standalone logo and complete production proposal information were un
 
 B9 reuses the same private storage for [insurer-provided contract attachments](24-CONTRACTS-IMPLEMENTATION.md). Contract documents are download-only. The B8 quote issuance gate remains in force.
 
+B11 provides [centralized document management](27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md) with the same private file directory and download URL. It links directly to each generated revision and preserves inline preview for generated quote PDFs.
+
 ## Verification
 
 [Integration tests](../backend/tests/issued-quotes.integration.ts) cover PDF authorization, invalid document paths, symbolic-link rejection, revision snapshots, exact attachment bytes, retry and request synchronization. The browser exercises the workflow with Mailpit. PDF layout is reviewed using Poppler renders and text extraction. [Implementation status](15-IMPLEMENTATION-STATUS.md)

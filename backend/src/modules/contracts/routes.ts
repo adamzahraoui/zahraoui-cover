@@ -1,7 +1,7 @@
-import { randomBytes, randomUUID } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
 import { Prisma } from '@prisma/client'
 import type { Contract, PrismaClient } from '@prisma/client'
-import express, { Router } from 'express'
+import { Router } from 'express'
 import { z } from 'zod'
 import type { Config } from '../../config/env.js'
 import { ApiError } from '../../middleware/errors.js'
@@ -9,7 +9,8 @@ import { jsonBody } from '../../middleware/request.js'
 import { currentSession, requireCsrf, requireRole } from '../auth/session.js'
 import { casablancaDate, pageBounds, pagination, parseQuery, productSlug, searchPrefix, toProductSlug, versionField } from '../business-inputs.js'
 import { lockActiveClient, recordHistory, staffAudit, staleRecord } from '../staff-records.js'
-import { maxPdfBytes, pdfDigest, privateDirectory, publishPdf, quotePdfEnabled, removePdf } from '../quotes/files.js'
+import { quotePdfEnabled } from '../quotes/files.js'
+import { attachPdf, limitUpload, pdfBody, uploadVersion } from '../documents/uploads.js'
 import { lockEligiblePartner } from '../partners/model.js'
 import { snapshotSchema } from '../quotes/model.js'
 import { addDays, contractConflict, contractFilter, contractRow, contractRowSelect, coverageStatus, dateOnly, lockContract, onDate, policyFields, validatePeriod } from './model.js'
@@ -285,44 +286,12 @@ export function contractRoutes(db: PrismaClient, config: Config) {
       response.status(201).json({ data })
     } catch (error) { uniqueConflict(error) }
   })
-  routes.post('/:id/documents', requireCsrf, express.raw({ type: 'application/pdf', limit: maxPdfBytes, inflate: false }), async (request, response) => {
+  routes.post('/:id/documents', requireCsrf, limitUpload(db, config), pdfBody, async (request, response) => {
     const id = parseQuery(z.uuid(), request.params.id)
-    const { version } = parseQuery(z.strictObject({ version: z.string().regex(/^\d+$/).transform(Number).pipe(versionField) }), request.query)
-    if (!quotePdfEnabled(config)) throw new ApiError(503, 'POLICY_UPLOAD_DISABLED', 'Le dépôt de documents est indisponible.')
-    if (!request.is('application/pdf')) throw new ApiError(415, 'POLICY_PDF_REQUIRED', 'Seuls les PDF sont acceptés.')
-    const bytes = request.body
-    if (!Buffer.isBuffer(bytes) || !validPolicyPdf(bytes)) throw new ApiError(422, 'INVALID_POLICY_PDF', 'Le fichier ne correspond pas à un PDF admissible.')
-    const directory = await privateDirectory(config)
-    const documentId = randomUUID()
-    const key = documentId + '.pdf'
-    let filePublished = false
-    try {
-      const data = await db.$transaction(async transaction => {
-        const contract = await lockVersion(transaction, id, version)
-        if (!['DRAFT', 'ACTIVE', 'SCHEDULED'].includes(coverageStatus(contract))) throw contractConflict('Ce contrat n’accepte plus de pièces.')
-        const latest = await transaction.document.findFirst({ where: { contractId: id, kind: 'CONTRACT_PDF' }, orderBy: { revision: 'desc' }, select: { revision: true } })
-        if ((latest?.revision ?? 0) >= 100) throw contractConflict('Le nombre maximal de pièces est atteint.')
-        const stored = await publishPdf(directory, key, bytes)
-        filePublished = true
-        await transaction.document.create({ data: {
-          id: documentId, contractId: id, kind: 'CONTRACT_PDF', status: 'READY', revision: (latest?.revision ?? 0) + 1,
-          mimeType: 'application/pdf', storageKey: key, sha256: pdfDigest(stored), sizeBytes: BigInt(stored.length), readyAt: new Date(),
-        } })
-        await transaction.contract.update({ where: { id }, data: { version: { increment: 1 } } })
-        await staffAudit(transaction, response, 'contract', id, 'CONTRACT_DOCUMENT_ATTACHED', { documentId })
-        return detail(transaction, id, config)
-      }, { timeout: 10_000 })
-      response.status(201).json({ data })
-    } catch (error) {
-      if (filePublished) {
-        try {
-          if (!await db.document.count({ where: { id: documentId } })) await removePdf(directory, key)
-        } catch {
-          console.warn(JSON.stringify({ event: 'contract_document_cleanup_pending', documentId }))
-        }
-      }
-      throw error
-    }
+    const { version } = parseQuery(z.strictObject({ version: uploadVersion }), request.query)
+    const result = await attachPdf(db, config, request, response, { contractId: id, version, kind: 'CONTRACT_PDF' },
+      transaction => detail(transaction, id, config))
+    response.status(201).json({ data: result })
   })
   return routes
 }
@@ -332,15 +301,4 @@ function uniqueConflict(error: unknown): never {
     throw contractConflict('Un contrat existe déjà pour ce devis, cette référence de police ou ce renouvellement.')
   }
   throw error
-}
-
-export function validPolicyPdf(bytes: Buffer) {
-  if (bytes.length < 32 || bytes.length > maxPdfBytes || !/^%PDF-(?:1\.[0-7]|2\.0)(?:\r|\n)/.test(bytes.subarray(0, 12).toString('latin1'))) return false
-  const footer = /startxref\s+(\d+)\s+%%EOF\s*$/.exec(bytes.subarray(-256).toString('latin1'))
-  if (!footer) return false
-  const index = Number(footer[1])
-  if (!Number.isSafeInteger(index) || index < 9 || index >= bytes.length || !/^xref\s/.test(bytes.subarray(index, index + 6).toString('latin1'))) return false
-  // The local-only upload path rejects detectable active content. These checks are not malware scanning.
-  const content = bytes.toString('latin1').replace(/#([a-f0-9]{2})/gi, (_, hex: string) => String.fromCharCode(Number.parseInt(hex, 16)))
-  return !/\/(?:JS|JavaScript|Launch|EmbeddedFile|RichMedia|OpenAction|AA|XFA|Encrypt|ObjStm)\b/i.test(content)
 }

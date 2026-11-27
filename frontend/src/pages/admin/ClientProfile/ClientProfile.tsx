@@ -72,6 +72,7 @@ export default function ClientProfile() {
             <h2 className="text-lg font-semibold">Contrats associés</h2>
             <Link className="text-link text-sm" to={`/admin/contrats?clientId=${client.id}`}>Voir tous les contrats</Link>
           </div>
+          <div><Link className="text-link" to={`/admin/documents?clientId=${client.id}`}>Documents du client</Link></div>
           <ContractList rows={client.recentContracts} label="Contrats associés" />
         </section>
         <div className="grid gap-4 lg:grid-cols-2">

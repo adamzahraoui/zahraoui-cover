@@ -25,6 +25,7 @@ export async function privateDirectory(config: Config) {
   outsideWorkspace(configured)
   await mkdir(configured, { mode: 0o700, recursive: true })
   const directory = await realpath(configured)
+  if (directory !== configured) throw new Error('Document storage must use its canonical path')
   outsideWorkspace(directory)
   const info = await stat(directory)
   if (!info.isDirectory() || (info.mode & 0o077) !== 0 || (process.getuid && info.uid !== process.getuid())) throw new Error('Quote storage is not private')

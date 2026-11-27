@@ -59,7 +59,10 @@ export async function generateNextQuotePdf(db: PrismaClient, config: Config) {
       await transaction.document.update({ where: { id: doc.id }, data: {
         status: 'READY', storageKey: key, sizeBytes: BigInt(stored.length), sha256: pdfDigest(stored), readyAt: now,
       } })
-      await transaction.auditEvent.create({ data: { action: 'QUOTE_PDF_READY', targetType: 'quote', targetId: quote.id } })
+      await transaction.auditEvent.createMany({ data: [
+        { action: 'QUOTE_PDF_READY', targetType: 'quote', targetId: quote.id },
+        { action: 'QUOTE_PDF_READY', targetType: 'document', targetId: doc.id },
+      ] })
     })
   } catch {
     await failJob(db, job, 'QUOTE_PDF_RETRY', true)

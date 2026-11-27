@@ -25,6 +25,8 @@ B9 adds attachment-only insurer PDF retrieval and local PDF uploads with size, M
 
 B10 partner details and audit history require staff authentication. Only administrators can create, edit, verify, activate or publish partners. The server checks CSRF and the last-read version on updates. The public API sends an approved name and optional HTTPS website only. Logo uploads are deferred pending approved image validation. [Partner management](26-PARTNER-MANAGEMENT-IMPLEMENTATION.md)
 
+B11 centralizes document reads and audits access. Each download checks the document parent, readiness, private file and checksum. Generated quote PDFs retain inline preview. Uploaded PDFs use attachment-only responses. Upload and archive require CSRF and use version checks. A shared account limit bounds upload attempts and only administrators can archive eligible supporting records. [Document security and recovery](27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md)
+
 ## Privacy before launch
 
 - Assign a controller and an approved privacy contact. Review data categories, lawful basis, rights and records with the agency's privacy adviser. The acknowledgement fields record the published notice and timestamp. The owner must confirm where a separate consent record and controls are required. [CNDP website compliance](https://www.cndp.ma/conformite-des-sites-web/)

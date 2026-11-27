@@ -140,6 +140,7 @@ function QuoteProfile({ record, save, reload }: { record: IssuedQuote; save: (qu
         </div>
         {record.status === 'ISSUED' && !verified && <p className="text-sm text-muted">Vérifiez la fiche et l’adresse du client avant l’envoi.</p>}
         {admin && record.status === 'SENT' && !record.hasNext && <DecisionForm onSubmit={recordDecision} busy={busy} />}
+        <Link className="text-link" to={`/admin/documents?quoteId=${record.id}`}>Documents du devis</Link>
         {record.status === 'ACCEPTED' && <div><ActionLink to={`/admin/contrats/nouveau?devis=${record.id}`} variant="secondary">Créer le contrat</ActionLink></div>}
         {record.decidedAt && <Facts items={[
           ['Décision enregistrée le', activityDate(record.decidedAt)], ['Par', record.decisionActor?.displayName],
@@ -156,6 +157,7 @@ function QuoteProfile({ record, save, reload }: { record: IssuedQuote; save: (qu
       <ul className="grid gap-2">{record.revisions.map(revision => <li className="flex flex-wrap items-center justify-between gap-2" key={revision.id}>
         {revision.id === record.id ? <span className="wrap-anywhere">Révision {revision.revision} · {revision.reference}</span>
           : <Link to={`/admin/devis/${revision.id}`} className="text-link wrap-anywhere">Révision {revision.revision} · {revision.reference}</Link>}
+        <Link className="text-link" to={`/admin/documents?quoteId=${revision.id}`}>Documents · révision {revision.revision}</Link>
         <RecordStatus status={revision.status} />
       </li>)}</ul>
     </section>

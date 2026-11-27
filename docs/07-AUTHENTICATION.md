@@ -13,6 +13,8 @@ The implemented operator command, API and frontend behavior are described in [16
 | B8 quote read, draft create/update and private PDF access | — | Yes | Yes |
 | B8 quote issue, delivery, cancellation, revision and decisions | — | — | Yes |
 | Contract read, draft preparation, renewal preparation and supporting PDF handling | — | Yes | Yes |
+| Document inventory, metadata, ready download and local approved PDF attachment | — | Yes | Yes |
+| Archive eligible supporting documents | — | — | Yes |
 | Insurer confirmation, activation and cancellation | — | — | Yes |
 
 ADVISOR and ADMIN are individually authorized back-office staff. The proposal assumes one brokerage team with shared caseload and assignment for routing. Review this before granting access. Resolve active account and permission on each request. A missing or expired session yields 401 and an authenticated user lacking permission receives 403. Check the target record and its scope on reads and downloads.

@@ -10,7 +10,7 @@ import { currentSession, requireCsrf, requireRole } from '../auth/session.js'
 import { casablancaDate, pageBounds, pagination, parseQuery, productSlug, searchPrefix, toProductSlug, versionField } from '../business-inputs.js'
 import { dateRange, lockActiveClient, staffAudit, staleRecord } from '../staff-records.js'
 import { eligiblePartner, lockEligiblePartner } from '../partners/model.js'
-import { privateDirectory, quotePdfEnabled, readPdf } from './files.js'
+import { privateDirectory, quotePdfEnabled } from './files.js'
 import { calculateTotal, decisionMethod, deliveryJobKey, effectiveStatus, lockLinkedRequest, pdfJobKey, quoteInput, quoteRow, quoteRowSelect, quoteStatus, snapshotSchema } from './model.js'
 import type { QuoteSnapshot } from './model.js'
 
@@ -337,31 +337,6 @@ export function issuedQuoteRoutes(db: PrismaClient, config: Config) {
       return detail(transaction, next.id, config)
     })
     response.status(201).json({ data })
-  })
-  return routes
-}
-
-export function privateDocumentRoutes(db: PrismaClient, config: Config) {
-  const routes = Router()
-  routes.get('/:id/download', async (request, response) => {
-    const id = z.uuid().safeParse(request.params.id)
-    if (!id.success) throw missing()
-    const { inline } = parseQuery(z.strictObject({ inline: z.literal('true').optional() }), request.query)
-    const document = await db.document.findUnique({ where: { id: id.data }, include: { quote: { select: { reference: true } }, contract: { select: { reference: true } } } })
-    const parent = document?.kind === 'QUOTE_PDF' ? document.quote : document?.contract
-    if (!document || !parent || (document.kind === 'CONTRACT_PDF' && inline)) throw missing()
-    if (document.status !== 'READY' || !document.storageKey || !document.sha256 || !document.sizeBytes) throw invalid('Ce PDF n’est pas prêt.')
-    let bytes: Buffer
-    try {
-      const directory = await privateDirectory(config)
-      bytes = await readPdf(directory, document.storageKey, { sha256: document.sha256, sizeBytes: document.sizeBytes })
-    } catch {
-      throw new ApiError(503, 'DOCUMENT_UNAVAILABLE', 'Le PDF est temporairement indisponible.')
-    }
-    await staffAudit(db, response, 'document', document.id, document.kind === 'QUOTE_PDF' ? 'QUOTE_DOCUMENT_VIEWED' : 'CONTRACT_DOCUMENT_VIEWED')
-    const name = parent.reference.replace(/[^A-Za-z0-9-]/g, '_') + (document.kind === 'CONTRACT_PDF' ? '-piece-' + document.revision : '') + '.pdf'
-    response.set('Content-Disposition', (inline ? 'inline' : 'attachment') + '; filename="' + name + '"')
-    response.type('application/pdf').send(bytes)
   })
   return routes
 }

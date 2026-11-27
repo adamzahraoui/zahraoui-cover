@@ -1,6 +1,6 @@
 # Zahraoui Cover backend
 
-Express 5 and TypeScript serve the API. Prisma 6 manages PostgreSQL, Zod validates requests and Argon2id hashes staff passwords. Authentication is connected to the existing React interface. The public catalog, quote request flow, staff request management, catalog administration, customer CRM, contact, assistance, issued quotes, contracts, renewals, partner management and the dashboard summary are live.
+Express 5 and TypeScript serve the API. Prisma 6 manages PostgreSQL, Zod validates requests and Argon2id hashes staff passwords. Authentication is connected to the existing React interface. The public catalog, quote request flow, staff request management, catalog administration, customer CRM, contact, assistance, issued quotes, contracts, renewals, partner management, centralized document management and the dashboard summary are live.
 
 ## Start locally
 
@@ -43,6 +43,8 @@ Use Node.js 22.12 or later, npm and Docker Compose.
 8. For B8 quote testing, create a private directory outside the repository, set its absolute path in `QUOTE_PDF_DIR` and run the existing worker. In a disposable local test database, create a synthetic provider in **Partenaires** using an administrator account. Assign its test category, record an evidence reference, verify it and activate it. The seed leaves the partner list empty. Keep test PDF delivery on loopback Mailpit and verify the synthetic CRM email before sending. [Partner management](../docs/26-PARTNER-MANAGEMENT-IMPLEMENTATION.md) · [Issued quotes](../docs/22-ISSUED-QUOTES-IMPLEMENTATION.md) · [PDF and delivery](../docs/23-PDF-AND-DELIVERY-IMPLEMENTATION.md)
 
 9. For local B9 testing, use the same private PDF directory and worker. Set `RENEWAL_NOTIFY_EMAIL` to a synthetic internal address and optionally set `RENEWAL_REMINDER_DAYS` (default `30,15,7,1`). Start Mailpit and use synthetic insurer confirmation and PDF documents. Confirm a contract with a near-term end date to test a due reminder. [Contracts](../docs/24-CONTRACTS-IMPLEMENTATION.md) · [Renewals](../docs/25-RENEWALS-AND-REMINDERS-IMPLEMENTATION.md)
+
+The **Documents** menu lists private files and allows local PDF uploads when the configured private directory is available. The worker and API use the same directory. [Document management](../docs/27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md)
 
 The public probe is `GET /api/health`. From the API machine, check database readiness using `GET /api/health/ready`. The first-admin command operates once per database. For a missing or expired setup link, request a new one from the password recovery page.
 

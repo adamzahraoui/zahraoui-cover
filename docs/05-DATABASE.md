@@ -18,7 +18,7 @@ This logical schema is implemented by the [Prisma model](../backend/prisma/schem
 | intake_action | QUOTE_REQUEST, ASSISTANCE, CONTACT |
 | quote_status | DRAFT, ISSUED, SENT, ACCEPTED, DECLINED, EXPIRED, CANCELLED |
 | contract_status | DRAFT, ACTIVE, CANCELLED, EXPIRED |
-| document_kind | QUOTE_PDF, CONTRACT_PDF |
+| document_kind | QUOTE_PDF, CONTRACT_PDF, CONTRACT_SUPPORT, BUSINESS_PDF |
 | document_status | QUEUED, READY, FAILED |
 | job_kind | REQUEST_ALERT, REQUEST_ACK, ASSISTANCE_ALERT, CONTACT_ALERT, CONTACT_ACK, RESET_EMAIL; B8 uses GENERATE_PDF and QUOTE_DELIVERY; B9 uses RENEWAL_ALERT |
 | job_status | PENDING, RUNNING, SUCCEEDED, FAILED |
@@ -366,7 +366,7 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 
 **Additional indexes.** Unique (partner_id, policy_number); (status, expires_on, id), (client_id, expires_on), (product_id), (created_by), (previous_id), (confirmed_by), (partner_id).
 
-### documents · B8 quote PDF and B9 insurer-provided PDF
+### documents · B8–B11 private PDFs
 
 | Column | PostgreSQL type and modifiers |
 | --- | --- |
@@ -377,16 +377,20 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 | kind | document_kind |
 | revision | integer |
 | quote_version | integer nullable (quote version after issuance) |
-| mime_type | varchar(32) nullable, application/pdf for B8/B9 |
+| mime_type | varchar(32) nullable, application/pdf for generated and uploaded PDFs |
+| original_name | varchar(180) nullable, safe original display name |
+| version | integer default 1, positive |
+| archived_at | timestamptz nullable |
+| uploaded_by | uuid nullable FK staff_users.id, on delete set null |
 | status | document_status default QUEUED |
 | storage_key | text nullable UK |
 | sha256 | bytea nullable |
 | size_bytes | bigint nullable |
 | ready_at | timestamptz nullable |
 
-**Rules.** Exactly one parent matches kind. Revision > 0. READY requires safe storage key, 32-byte digest, positive size and ready_at. Distinct revision per parent. Private PDF MIME is fixed.
+**Rules.** Exactly one quote or contract parent matches the kind. The customer comes from the parent. READY requires a safe storage key, 32-byte digest, positive size and ready_at. Positive revisions are unique per parent. Only ready supporting and other approved contract PDFs can be archived. Archival retains the file and its links.
 
-**Additional indexes.** Unique partial (quote_id, revision) where quote_id is present and (contract_id, revision) where contract_id is present; (status, created_at).
+**Additional indexes.** Unique partial (quote_id, revision) where quote_id is present and (contract_id, revision) where contract_id is present; (status, created_at), (kind, created_at, id), (archived_at, created_at, id), (contract_id, kind, revision), (quote_id), (uploaded_by). [Document management](27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md)
 
 ### agency_settings · V2
 
@@ -477,6 +481,7 @@ erDiagram
     assistance_cases |o..o{ outbox_jobs : "case_id"
     contact_messages |o..o{ outbox_jobs : "message_id"
     password_reset_tokens |o..o{ outbox_jobs : "reset_id"
+    staff_users |o..o{ documents : "uploaded_by"
     documents |o..o{ outbox_jobs : "document_id"
     contracts |o..o{ outbox_jobs : "contract_id"
     staff_users {
@@ -729,6 +734,10 @@ erDiagram
         document_kind kind
         integer revision
         integer quote_version
+        integer version
+        varchar_180 original_name
+        timestamptz archived_at
+        uuid uploaded_by FK
         varchar_32 mime_type
         document_status status
         text storage_key UK
