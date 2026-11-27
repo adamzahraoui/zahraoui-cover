@@ -1,6 +1,6 @@
 # 06 — API endpoints
 
-Same-origin JSON API under /api. Health, authentication, catalog, quote intake and staff processing, customer CRM, contact, assistance, issued quote management, private quote PDFs, local delivery and the dashboard summary are implemented. Other business routes below describe upcoming phases. Status codes in the endpoint tables are in addition to the common errors below. The page IDs refer to the [frontend specification](03-FRONTEND.md).
+Same-origin JSON API under /api. Health, authentication, catalog, quote intake and staff processing, customer CRM, contact, assistance, issued quote management, private quote PDFs, local delivery, contract registration, renewals and the dashboard summary are implemented. Other business routes below describe upcoming phases. Status codes in the endpoint tables are in addition to the common errors below. The page IDs refer to the [frontend specification](03-FRONTEND.md).
 
 ## Conventions and validation
 
@@ -37,14 +37,14 @@ Same-origin JSON API under /api. Health, authentication, catalog, quote intake a
 | AssistanceCase | AssistanceRow plus phone, contractReference?, description, noticeVersion, acknowledgedAt, updatedAt, client?, contract?, assignee?, allowedStatuses[], notes[], activity[] |
 | MessageRow | id, reference, fullName, subject, status, archivedAt?, createdAt, version |
 | Message | MessageRow plus phone, email, message, noticeVersion, acknowledgedAt, updatedAt |
-| Dashboard | counts {totalRequests, newRequests, inReviewRequests, openRequests, activeClients, totalClients, provisionalClients, openAssistance, newAssistance, inReviewAssistance, unreadMessages}, recentRequests (up to 10 RequestRow), byProduct[{slug,title,count}], activity[{id,action,targetType,targetId,createdAt}], months[{month,count}], quoteCounts by status, recentQuotes (up to 8 QuoteRow) |
+| Dashboard | counts {totalRequests, newRequests, inReviewRequests, openRequests, activeClients, totalClients, provisionalClients, openAssistance, newAssistance, inReviewAssistance, unreadMessages}, recentRequests (up to 10 RequestRow), byProduct[{slug,title,count}], activity[{id,action,targetType,targetId,createdAt}], months[{month,count}], quoteCounts by status, recentQuotes (up to 8 QuoteRow), contractCounts, recentContracts (up to 8 ContractRow) |
 | Trends | from, to, monthly[{month, requests}], byProduct[{productSlug, requests}], counts {draftQuotes, activeContracts, dueRenewals} |
 | PartnerIn / Partner | name, website? (HTTPS only, max 300), logoKey? (approved manifest), isActive; read adds id, version. No publishable partner defaults. |
 | QuoteIn | clientId, requestId?, productSlug, partnerId, annualPremiumMad, feesMad?, taxesMad?, validUntil?, coverage?, coverageLimits?, deductibles?, conditions?, customerNotes?, internalNotes?. Money fields are fixed-point decimal strings. |
 | QuoteRow / Quote | id, reference, clientId, clientName, requestId?, partnerId, partnerName, productSlug, productTitle, status, annualPremiumMad, totalMad, currency, createdAt, issuedAt?, sentAt?, validUntil?, revision, version. Detail adds offer fields, decision metadata, revision history, PDF and delivery states. |
-| ContractIn | clientId, quoteId?, productSlug, partnerId, policyNumber (2–64), effectiveOn, expiresOn (after effectiveOn) |
-| ContractRow / Contract | id, reference, clientId, clientName, productSlug, partnerId, partnerName, expiresOn, status, version; detail adds quoteId?, policyNumber, effectiveOn, createdAt, documents[] (DocumentRef) |
-| DocumentRef | B8 quote PDF has id, status, revision, quoteVersion, mimeType, createdAt and delivery state. Contract document references remain planned. |
+| ContractIn | effectiveOn, expiresOn (exclusive), policyNumber?, coverage?, premiumMad?, internalNotes?, renewalReminders?. Quote conversion requires quoteId and quoteVersion. External registration requires clientId, productSlug and partnerId. |
+| ContractRow / Contract | Client, product, partner and optional quote IDs and labels, reference, status, version, dates, premium, currency and renewal links. Detail adds policy reference, coverage, confirmation, audit, snapshots, documents and reminder states. |
+| DocumentRef | B8 quote PDF has id, status, revision, quoteVersion, mimeType, createdAt and delivery state. B9 insurer attachments have id, revision, createdAt and mimeType. They are download-only. |
 | Settings | agencyName, officePhone, assistancePhone, email?, address? (max 300), hours? (max 300), version. Official name and numbers are locked to approved values. |
 
 ## Public, auth and operations
@@ -88,7 +88,7 @@ The catalog returns an unpaginated bounded array. Health responses use bare prob
 | POST /api/admin/clients | Create / Staff | ClientIn, confirmDuplicate? | 201 Client | 409 duplicates | A09 |
 | GET /api/admin/clients/:id | Profile / Staff | UUID | 200 ClientDetail | 404 | A08, A09 |
 | PATCH /api/admin/clients/:id | Edit / Staff | {version,...partial ClientIn,verify?,confirmDuplicate?}, active record | 200 Client | 404, 409 stale/archived/duplicates | A09 |
-| POST /api/admin/clients/:id/archive | Archive / Admin | {version}, no open quote request, open assistance case or active contract | 200 Client | 404, 409 stale/linked open | A08 |
+| POST /api/admin/clients/:id/archive | Archive / Admin | {version}, no open quote request, open assistance case or unexpired active contract | 200 Client | 404, 409 stale/linked open | A08 |
 | GET /api/admin/catalog | List catalog records / Staff | no inputs, bounded array | 200 CatalogItem[] | — | A16 |
 | GET /api/admin/catalog/:id | Read a catalog record / Staff | UUID | 200 CatalogItem | 404 | A16 |
 | POST /api/admin/catalog | Add a reserved product / Admin | CatalogWrite plus slug, all six slots already seeded unless approved migration leaves one open | 201 CatalogItem | 409 reserved slot exists | A16 |
@@ -120,15 +120,24 @@ The catalog returns an unpaginated bounded array. Health responses use bare prob
 | POST /api/admin/quotes/:id/revision | Create successor draft / Admin | {version}, issued history, eligible status and no successor or pending delivery | 201 Quote | 404, 409 state | A12 |
 | GET /api/admin/documents/:id/download | Read ready quote PDF / Staff | UUID, inline=true for preview | 200 application/pdf with no-store | 404 absent/scope, 409 not ready, 503 storage | A12 |
 
+## Contract registration and renewal · B9
+
+| Method and URL | Purpose / permission | Request and validation | Success body | Other errors | Pages |
+| --- | --- | --- | --- | --- | --- |
+| GET /api/admin/contracts | List registered contracts / Staff | q?, page, limit, status?, clientId?, quoteId?, productSlug?, partnerId?, expiresFrom?, expiresTo?, renewals? | 200 ContractRow page | 400 invalid filters | A08, A13 |
+| POST /api/admin/contracts | Convert accepted quote / Staff | versioned accepted quote and ContractIn date/offer fields | 201 Contract | 409 duplicate/stale/ineligible | A14 |
+| POST /api/admin/contracts/external | Register external policy draft / Staff | explicit customer, category, carrier, dates and policy fields | 201 Contract | 409 state/duplicate | A14 |
+| GET /api/admin/contracts/:id | Read policy / Staff | UUID | 200 Contract | 404 | A14 |
+| PATCH /api/admin/contracts/:id | Edit draft / Staff | version and changed draft fields | 200 Contract | 404, 409 stale/state | A14 |
+| POST /api/admin/contracts/:id/status | Confirm or cancel / Admin | version, status and insurer confirmation evidence or cancellation reason | 202 on confirmation, 200 on cancel | 404, 409 stale/state | A14 |
+| POST /api/admin/contracts/:id/renew | Prepare successor / Staff | version, effectiveOn, expiresOn with no overlap | 201 Contract | 404, 409 duplicate/state | A14 |
+| POST /api/admin/contracts/:id/documents | Attach PDF / Staff | version query, raw application/pdf body <=4 MiB | 201 Contract | 403 access, 409 state/stale, 413 size, 415 type, 422 format, 503 disabled | A14 |
+| GET /api/admin/documents/:id/download | Retrieve insurer PDF / Staff | UUID and ready private record, attachment only | 200 application/pdf, no-store | 404, 409 not ready, 503 storage | A14 |
+
 ## Version 2 administration
 
 | Method and URL | Purpose / permission | Request and validation | Success body | Other errors | Pages |
 | --- | --- | --- | --- | --- | --- |
-| GET /api/admin/contracts | List policies / Staff | page, limit, status?, clientId?, expiresFrom?, expiresTo? (ordered dates) | 200 ContractRow list | — | A08, A13 |
-| POST /api/admin/contracts | Save draft / Staff | ContractIn, valid links, accepted source quote if provided, unique carrier/policy number and source quote | 201 Contract | 409 existing/incompatible | A14 |
-| GET /api/admin/contracts/:id | Read policy / Staff | UUID | 200 Contract | 404 | A14 |
-| PATCH /api/admin/contracts/:id | Edit draft / Staff | {version,...partial ContractIn}, valid date/link checks as on create | 200 Contract | 404, 409 stale/state/link | A14 |
-| POST /api/admin/contracts/:id/status | Activate or cancel / Admin | {version,status}, eligible transition, activation queues PDF and renewal | 202 Contract on activation; 200 on cancel | 404, 409 stale/state | A14 |
 | GET /api/admin/partners | List carriers / Staff | page, limit, q?, active? | 200 Partner list | — | A11, A14, A17 |
 | POST /api/admin/partners | Create carrier / Admin | PartnerIn, unique case-insensitive name | 201 Partner | 409 duplicate | A17 |
 | PATCH /api/admin/partners/:id | Edit or deactivate / Admin | {version,...partial PartnerIn} with same rules | 200 Partner | 404, 409 stale/duplicate | A17 |

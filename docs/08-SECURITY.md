@@ -21,6 +21,8 @@ Staff CRM and inbox detail endpoints require a valid staff session and record a 
 
 Private B8 PDFs use an authenticated UUID endpoint, an integrity digest and a private directory. Quote emails use the frozen, verified customer email. Development PDF issuance and the loopback-only delivery path are gated from production. [PDF and delivery](23-PDF-AND-DELIVERY-IMPLEMENTATION.md)
 
+B9 adds attachment-only insurer PDF retrieval and local PDF uploads with size, MIME and signature validation. Production uploads remain disabled while malware scanning and the approved policy are pending. Insurer confirmation and cancellation require ADMIN, CSRF and the current version. [Contract document security](24-CONTRACTS-IMPLEMENTATION.md)
+
 ## Privacy before launch
 
 - Assign a controller and an approved privacy contact. Review data categories, lawful basis, rights and records with the agency's privacy adviser. The acknowledgement fields record the published notice and timestamp. The owner must confirm where a separate consent record and controls are required. [CNDP website compliance](https://www.cndp.ma/conformite-des-sites-web/)

@@ -7,7 +7,7 @@ import type { Config } from '../../config/env.js'
 import { ApiError } from '../../middleware/errors.js'
 
 const keyPattern = /^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}\.pdf$/
-const maxBytes = 4 * 1024 * 1024
+export const maxPdfBytes = 4 * 1024 * 1024
 const moduleRoot = fileURLToPath(new URL('../../../../', import.meta.url))
 const workspace = basename(resolve(moduleRoot)) === 'backend' ? dirname(resolve(moduleRoot)) : resolve(moduleRoot)
 
@@ -44,7 +44,7 @@ export async function readPdf(directory: string, key: string, expected?: { sha25
   const file = await open(filePath(directory, key), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
   try {
     const info = await file.stat()
-    if (!info.isFile() || info.size < 5 || info.size > maxBytes || (info.mode & 0o077) !== 0) throw new Error('Invalid quote file')
+    if (!info.isFile() || info.size < 5 || info.size > maxPdfBytes || (info.mode & 0o077) !== 0) throw new Error('Invalid quote file')
     const bytes = await file.readFile()
     if (bytes.subarray(0, 5).toString() !== '%PDF-' || (expected &&
         (BigInt(bytes.length) !== expected.sizeBytes || !pdfDigest(bytes).equals(expected.sha256)))) throw new Error('Invalid PDF integrity')
@@ -67,4 +67,8 @@ export async function publishPdf(directory: string, key: string, bytes: Buffer) 
     try { await folder.sync() } finally { await folder.close() }
     return await readPdf(directory, key)
   } finally { await unlink(temporary) }
+}
+
+export async function removePdf(directory: string, key: string) {
+  await unlink(filePath(directory, key))
 }

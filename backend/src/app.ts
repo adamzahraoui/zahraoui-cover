@@ -13,7 +13,8 @@ import { quoteAdminRoutes, quoteSelectors } from './modules/quote-requests/admin
 import { clientRoutes } from './modules/clients/routes.js'
 import { assistanceAdminRoutes, messageAdminRoutes } from './modules/support/admin.js'
 import { supportIntakeRoutes } from './modules/support/intake.js'
-import { issuedQuoteRoutes, quoteDocumentRoutes } from './modules/quotes/routes.js'
+import { issuedQuoteRoutes, privateDocumentRoutes } from './modules/quotes/routes.js'
+import { contractRoutes } from './modules/contracts/routes.js'
 import { dashboardRoutes } from './modules/dashboard/routes.js'
 import { hashPassword, randomToken } from './utils/crypto.js'
 
@@ -45,7 +46,7 @@ export async function createApp(database: PrismaClient, config: Config) {
       const [migration] = await database.$queryRaw<{ ready: boolean }[]>`
         SELECT EXISTS (
           SELECT 1 FROM "_prisma_migrations"
-          WHERE migration_name = '20261127030100_issued_quotes' AND finished_at IS NOT NULL AND rolled_back_at IS NULL
+          WHERE migration_name = '20261127040000_contracts_renewals' AND finished_at IS NOT NULL AND rolled_back_at IS NULL
         ) AS ready
       `
       if (!migration?.ready) { response.status(503).json({ status: 'unavailable' }); return }
@@ -67,7 +68,8 @@ export async function createApp(database: PrismaClient, config: Config) {
   app.use('/api/admin/assistance', assistanceAdminRoutes(database))
   app.use('/api/admin/messages', messageAdminRoutes(database))
   app.use('/api/admin/quotes', issuedQuoteRoutes(database, config))
-  app.use('/api/admin/documents', quoteDocumentRoutes(database, config))
+  app.use('/api/admin/contracts', contractRoutes(database, config))
+  app.use('/api/admin/documents', privateDocumentRoutes(database, config))
   app.use('/api/admin/dashboard', dashboardRoutes(database))
   app.use('/api/admin', quoteSelectors(database))
   app.get('/api/admin/access', requireRole('ADMIN'), (_request, response) => {

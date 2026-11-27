@@ -1,25 +1,10 @@
 import { createContext, useContext, useState } from 'react'
 import type { Dispatch, ReactNode, SetStateAction } from 'react'
-import { demoClients, demoContracts, demoQuotes, demoRequests } from '../../data/demo'
-import type { CatalogItem, DemoClient, DemoContract, DemoPartner, DemoQuote, DemoRequest, DemoSettings } from '../../data/demo'
-import { insurance } from '../../data/insurance'
+import type { DemoPartner, DemoSettings } from '../../data/demo'
 
-type DemoData = {
-  requests: DemoRequest[]
-  clients: DemoClient[]
-  quotes: DemoQuote[]
-  contracts: DemoContract[]
-  catalog: CatalogItem[]
-  partners: DemoPartner[]
-  settings: DemoSettings
-}
+type DemoData = { partners: DemoPartner[]; settings: DemoSettings }
 
 const initialData: DemoData = {
-  requests: demoRequests,
-  clients: demoClients,
-  quotes: demoQuotes,
-  contracts: demoContracts,
-  catalog: insurance.map(item => ({ slug: item.slug, summary: item.summary, published: true })),
   partners: [],
   settings: { email: '', address: '', hours: '' },
 }

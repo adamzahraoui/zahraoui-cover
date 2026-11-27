@@ -1,6 +1,17 @@
 import type { ActivityEntry } from '../../types/api'
 
 export const activityNames: Record<string, string> = {
+  CONTRACT_CREATED_FROM_QUOTE: 'Contrat préparé depuis un devis',
+  CONTRACT_EXTERNAL_DRAFT_CREATED: 'Police externe enregistrée en brouillon',
+  CONTRACT_UPDATED: 'Brouillon de contrat modifié',
+  CONTRACT_CONFIRMED: 'Confirmation de l’assureur enregistrée',
+  CONTRACT_CANCELLED: 'Fiche de contrat annulée',
+  CONTRACT_EXPIRED: 'Contrat arrivé à échéance',
+  CONTRACT_DOCUMENT_ATTACHED: 'Pièce de l’assureur ajoutée',
+  CONTRACT_RENEWAL_PREPARED: 'Renouvellement préparé',
+  CONTRACT_RENEWAL_CREATED: 'Brouillon de renouvellement créé',
+  CONTRACT_REMINDER_DELIVERED: 'Rappel d’échéance accepté par SMTP',
+  CONTRACT_REMINDER_FAILED: 'Échec du rappel d’échéance',
   QUOTE_CREATED: 'Brouillon de devis créé',
   QUOTE_UPDATED: 'Brouillon de devis modifié',
   QUOTE_ISSUED: 'Devis émis',

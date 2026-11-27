@@ -1,4 +1,4 @@
-import type { DecisionMethod, IssuedQuote, IssuedQuoteInput, IssuedQuoteRow, AssistanceCase, AssistanceIn, AssistancePatch, AssistanceRow, Client, ClientDetail, ClientIn, ContractOption, DuplicateClient, Message, MessageRow, MessageStatus, Auth, CatalogItem, CatalogWrite, ClientOption, ContactIn, Dashboard, Page, Product, ProductCard, QuoteNotice, QuoteRequestIn, QuoteRequestPatch, Receipt, RequestDetail, RequestRow, StaffOption } from '../types/api'
+import type { ContractDetail, ContractRow, PolicyFields, DecisionMethod, IssuedQuote, IssuedQuoteInput, IssuedQuoteRow, AssistanceCase, AssistanceIn, AssistancePatch, AssistanceRow, Client, ClientDetail, ClientIn, ContractOption, DuplicateClient, Message, MessageRow, MessageStatus, Auth, CatalogItem, CatalogWrite, ClientOption, ContactIn, Dashboard, Page, Product, ProductCard, QuoteNotice, QuoteRequestIn, QuoteRequestPatch, Receipt, RequestDetail, RequestRow, StaffOption } from '../types/api'
 import type { ProductSlug } from '../config/navigation'
 
 export class ApiError extends Error {
@@ -97,6 +97,22 @@ export const api = {
     post<IssuedQuote>('/admin/quotes/' + encodeURIComponent(id) + '/' + action, { version }, { 'X-CSRF-Token': csrf }),
   quoteDecision: (id: string, body: { version: number; status: 'ACCEPTED' | 'DECLINED'; method: DecisionMethod; evidence: string }, csrf: string) =>
     post<IssuedQuote>('/admin/quotes/' + encodeURIComponent(id) + '/decision', body, { 'X-CSRF-Token': csrf }),
+  contracts: (query: string, signal?: AbortSignal) => list<ContractRow>('/admin/contracts', query, signal),
+  contract: (id: string, signal?: AbortSignal) => request<ContractDetail>('/admin/contracts/' + encodeURIComponent(id), { signal }),
+  convertQuote: (body: PolicyFields & { quoteId: string; quoteVersion: number }, csrf: string) =>
+    post<ContractDetail>('/admin/contracts', body, { 'X-CSRF-Token': csrf }),
+  registerPolicy: (body: PolicyFields & { clientId: string; partnerId: string; productSlug: ProductSlug }, csrf: string) =>
+    post<ContractDetail>('/admin/contracts/external', body, { 'X-CSRF-Token': csrf }),
+  updateContract: (id: string, body: PolicyFields & { version: number }, csrf: string) =>
+    patch<ContractDetail>('/admin/contracts/' + encodeURIComponent(id), body, csrf),
+  changeContractStatus: (id: string, body: { version: number } & ({ status: 'ACTIVE'; confirmationReference: string; confirmationOn: string } | { status: 'CANCELLED'; reason: string }), csrf: string) =>
+    post<ContractDetail>('/admin/contracts/' + encodeURIComponent(id) + '/status', body, { 'X-CSRF-Token': csrf }),
+  startRenewal: (id: string, body: { version: number; effectiveOn: string; expiresOn: string }, csrf: string) =>
+    post<ContractDetail>('/admin/contracts/' + encodeURIComponent(id) + '/renew', body, { 'X-CSRF-Token': csrf }),
+  attachPolicy: (id: string, version: number, file: File, csrf: string) =>
+    request<ContractDetail>('/admin/contracts/' + encodeURIComponent(id) + '/documents?version=' + version, {
+      method: 'POST', headers: { 'Content-Type': file.type, 'X-CSRF-Token': csrf }, body: file,
+    }),
   dashboard: (signal?: AbortSignal) => request<Dashboard>('/admin/dashboard', { signal }),
   submitQuote: (input: QuoteRequestIn, key: string) => post<Receipt>('/quotes', input, { 'Idempotency-Key': key }),
   submitContact: (input: ContactIn, key: string) => post<Receipt>('/contact', input, { 'Idempotency-Key': key }),

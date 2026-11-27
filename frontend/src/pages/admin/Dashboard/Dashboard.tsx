@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { activityNames, activityDate } from '../../../components/admin/ActivityList'
 import { AdminHeading } from '../../../components/admin/AdminContent'
+import { ContractList } from '../../../components/admin/ContractList'
 import { IssuedQuoteList } from '../../../components/admin/IssuedQuoteList'
 import { RequestList } from '../../../components/admin/RequestList'
 import { Button } from '../../../components/ui/Button'
@@ -46,7 +47,7 @@ export default function Dashboard() {
     { status: 'DECLINED', label: 'Refusés' }, { status: 'EXPIRED', label: 'Expirés' },
   ]
   const activityPaths: Record<string, string> = {
-    quote_request: '/admin/demandes/', quote: '/admin/devis/', client: '/admin/clients/', contact_message: '/admin/messages?id=', assistance_case: '/admin/assistance?id=',
+    quote_request: '/admin/demandes/', quote: '/admin/devis/', contract: '/admin/contrats/', client: '/admin/clients/', contact_message: '/admin/messages?id=', assistance_case: '/admin/assistance?id=',
   }
 
   function search(event: FormEvent<HTMLFormElement>) {
@@ -128,6 +129,24 @@ export default function Dashboard() {
       <section className="grid gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold">Devis émis récemment</h2><Link to="/admin/devis" className="text-link text-sm">Voir les devis</Link></div>
         <IssuedQuoteList rows={data.recentQuotes} label="Devis émis récemment" />
+      </section>
+      <section className="grid gap-3">
+        <h2 className="font-semibold">Contrats et renouvellements</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {([
+            ['Contrats enregistrés', data.contractCounts.total, '/admin/contrats'],
+            ['Contrats actifs', data.contractCounts.active, '/admin/contrats?status=ACTIVE'],
+            ['Contrats à valider', data.contractCounts.draft, '/admin/contrats?status=DRAFT'],
+            ['Contrats à effet futur', data.contractCounts.scheduled, '/admin/contrats?status=SCHEDULED'],
+            ['Contrats expirés', data.contractCounts.expired, '/admin/contrats?status=EXPIRED'],
+            ['Renouvellements à suivre', data.contractCounts.attention, '/admin/contrats?renewals=true'],
+          ] as const).map(([label, count, to]) => <Link key={to} to={to} className="panel grid gap-1 p-3 hover:border-soft-blue sm:p-4">
+            <span className="text-sm text-muted">{label}</span><span className="text-2xl font-bold tabular-nums text-primary">{count}</span>
+          </Link>)}
+          <div className="panel grid gap-1 p-3 sm:p-4"><span className="text-sm text-muted">Échéances sous 30 jours</span><span className="text-2xl font-bold tabular-nums text-primary">{data.contractCounts.expiring}</span></div>
+        </div>
+        <h3 className="font-semibold">Contrats récents</h3>
+        <ContractList rows={data.recentContracts} label="Contrats récents" />
       </section>
       <section className="panel grid gap-3 p-4 sm:p-5">
         <h2 className="font-semibold">Activité récente</h2>

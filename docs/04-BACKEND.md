@@ -1,6 +1,6 @@
 # 04 — Backend
 
-The foundation, staff authentication, catalog, anonymous quote intake, customer CRM, contact, assistance, issued quote management, private quote PDFs, local delivery and dashboard summary are implemented. For current behavior see [Backend foundation](16-BACKEND-IMPLEMENTATION.md), [Live catalog](18-INSURANCE-CATALOG-IMPLEMENTATION.md) and [Quote requests](19-QUOTE-REQUEST-IMPLEMENTATION.md).
+The foundation, staff authentication, catalog, anonymous quote intake, customer CRM, contact, assistance, issued quote management, private quote PDFs, local delivery, contract registration, renewals and dashboard summary are implemented. For current behavior see [Backend foundation](16-BACKEND-IMPLEMENTATION.md), [Live catalog](18-INSURANCE-CATALOG-IMPLEMENTATION.md) and [Quote requests](19-QUOTE-REQUEST-IMPLEMENTATION.md).
 
 | Module | Owns |
 | --- | --- |
@@ -8,12 +8,12 @@ The foundation, staff authentication, catalog, anonymous quote intake, customer 
 | Catalog | Six fixed slugs, approved product and audience metadata, staff reads, Admin editing, publication and deactivation. |
 | Intake | Quote/contact/assistance validation, references, idempotency, authorized case handling. |
 | Clients | Provisional records from quote intake, staff search, verified records, duplicate confirmation, explicit relinking and guarded archival. |
-| Dashboard | Live request and quote counts, recent records, category breakdown, monthly series and activity. Policy metrics are planned. |
+| Dashboard | Live request and quote counts, recent records, category breakdown, monthly series and activity. Contract metrics include effective, scheduled, expiring and expired terms. |
 | Notifications | Transactional outbox, SMTP retry and operational alerts. |
 | Quotes | B8 drafts, decimal totals, issue snapshot, delivery, revisions and verified decision tracking. |
-| Contracts | Planned policy lifecycle and renewal scheduling. |
+| Contracts | Draft registration, insurer confirmation, expiration, cancellation and linked renewal preparation. |
 | Partners / settings | V2 partner data, approved agency profile and audit. |
-| Documents | B8 frozen quote PDF generation and private retrieval. Contract documents remain planned. |
+| Documents | B8 frozen quote PDF generation and private retrieval. B9 adds local insurer PDF attachment and private retrieval. |
 
 ## Validation and persistence
 
@@ -23,7 +23,7 @@ Staff updates require the last-read version. Atomically compare and advance it o
 
 ## Email and background work
 
-The public intake transaction records the acknowledged privacy notice version. If SMTP is enabled and an approved recipient is configured, it queues an internal alert with a reference and authentication-gated link. Quote and contact acknowledgements are independently configurable. Assistance provides an on-screen reference and can send an internal alert. V2 renewal alerts start with approved internal recipients. Email addresses are resolved from approved settings or validated records at send time. Reset links are the only emails with an authentication secret. Encrypt the reset job token with a dedicated key and clear it on delivery, expiry or terminal failure.
+The public intake transaction records the acknowledged privacy notice version. If SMTP is enabled and an approved recipient is configured, it queues an internal alert with a reference and authentication-gated link. Quote and contact acknowledgements are independently configurable. Assistance provides an on-screen reference and can send an internal alert. B9 renewal alerts use a configured internal recipient on loopback SMTP. Email addresses are resolved from approved settings or validated records at send time. Reset links are the only emails with an authentication secret. Encrypt the reset job token with a dedicated key and clear it on delivery, expiry or terminal failure.
 
 Staff alert links point to the authorized quote detail route or the appropriate support list filtered by exact reference. The worker claims bounded batches with row locks and leases, sends outside the transaction, and records outcomes. Retry transient delivery with capped backoff and alert on terminal failure. SMTP delivery is at least once. Preserve stable message IDs across retries. B8 PDF jobs render frozen snapshots using the template for local development. Document text is rendered directly and external fetching stays disabled. Write via temporary files and publish atomically, reconcile files with metadata and checksum on retry.
 

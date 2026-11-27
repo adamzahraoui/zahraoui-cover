@@ -2,7 +2,7 @@
 
 Routes are based on the handoff. Each page has its own folder, such as `frontend/src/pages/public/AutoInsurance/` or `frontend/src/pages/admin/QuoteRequests/`. The `P` and `A` identifiers link the documentation to the Stitch inventory. Separate modes of the same page share a folder. [Export references](14-DESIGN-AUDIT.md) map the IDs to the HTML files. [API contracts](06-API-ENDPOINTS.md) define the payloads and validation rules for the connected release.
 
-The implementation notes under each page describe the React app. Staff authentication, the public catalog, quote intake, staff request management, customer CRM, contact, assistance, issued quotes and the dashboard summary are connected. Other business endpoint descriptions remain the target for later phases. See [verification and differences](15-IMPLEMENTATION-STATUS.md).
+The implementation notes under each page describe the React app. Staff authentication, the public catalog, quote intake, staff request management, customer CRM, contact, assistance, issued quotes, contracts, renewals and the dashboard summary are connected. Other business endpoint descriptions remain the target for later phases. See [verification and differences](15-IMPLEMENTATION-STATUS.md).
 
 ## How to follow the code
 
@@ -653,7 +653,7 @@ Review the proposal, preview the exact PDF, queue test delivery and record a cus
 
 **Route** `/admin/contrats`
 
-Find and track policies in V2.
+Find and track policy records and upcoming renewals.
 
 - **Content and components.** Reference, client, product/carrier, expiry/status and navigate to details/new.
 - **Responsive.** Use mobile policy cards and accessible filters.
@@ -667,27 +667,27 @@ Find and track policies in V2.
 - **File.** [Contracts.tsx](../frontend/src/pages/admin/Contracts/Contracts.tsx).
 - **Component, props and state.** Filter controls and RecordList. Search, status and expiry range in state, client scope via URL.
 - **Interactions and styling.** Filter by name/date/status and open draft/detail. Cards replace dense table on smaller widths.
-- **Data and API handoff.** Fictional contracts and client associations. Use V2 GET contracts with validated filters and pagination.
+- **Data and API handoff.** Live contract rows and server pagination. Search and filter by category, insurer, status, expiry and renewal attention.
 
 ### A14 · Création / détails d’un contrat
 
 **Route** `/admin/contrats/nouveau` · `/admin/contrats/:id`
 
-Create a draft and view/maintain a policy in V2.
+Register a draft, confirm a policy and maintain its documents and renewal history.
 
 - **Content and components.** Policy reference, client, product, partner, term dates, state, save and document areas.
 - **Responsive.** Existing versions use similar fields. Stack linked selectors and separate state actions from editable draft fields.
 - **Interactions.** Open with accepted quote preselection, save draft, activate or cancel if Admin, download PDF on readiness.
 - **Fields and validation.** ContractIn, version, valid date order and unique carrier/policy. Source quote must be accepted and match other relationships.
-- **API data.** GET /api/admin/clients, /api/admin/catalog, /api/admin/partners and optional source quote; GET/PATCH /api/admin/contracts/:id or POST /api/admin/contracts → Contract. Status subroute → Contract. Document download → PDF.
+- **API data.** GET /api/admin/clients, /api/admin/quotes/partner-options and optional accepted source quote; GET/PATCH /api/admin/contracts/:id or POST /api/admin/contracts → Contract. Versioned status and renewal actions return stored contract data. Local PDF upload and authenticated download use private storage.
 - **States.** New/edit/detail skeletons and no eligible choices, saved/active result, PDF status, field or stale conflict with retry.
 
 **Frontend implementation**
 
 - **File.** [ContractForm.tsx](../frontend/src/pages/admin/ContractForm/ContractForm.tsx).
-- **Component, props and state.** Reads :id or devis preselection; ContractEditor receives record/accepted quote; validation and status dialog local.
-- **Interactions and styling.** Validate policy and term, edit draft, simulate activation/cancel. Detail and editor stack on mobile.
-- **Data and API handoff.** Fictional policies and quotes. Use V2 contract CRUD and lifecycle, server checks for source quote, carrier, policy uniqueness, PDF and renewal readiness.
+- **Component, props and state.** Reads :id or the devis parameter. ContractEditor loads the accepted quote or external-policy choices. ContractDetail owns versioned actions, upload state and feedback.
+- **Interactions and styling.** Validate dates, edit the draft, record insurer confirmation, attach a local PDF, cancel with a reason or start a successor draft. Detail and editor stack on mobile.
+- **Data and API handoff.** Live contract data, supporting documents and renewal jobs. The server validates accepted quote eligibility and separates future effective dates from present coverage.
 
 ### A15 · Demandes d’assistance
 

@@ -88,8 +88,12 @@ export function AssistanceDetails({ record, save, reload }: { record: Assistance
         ['Référence déclarée', record.contractReference || '—'],
         ['Notice lue', `${record.noticeVersion} · ${activityDate(record.acknowledgedAt)}`],
         ['Client lié', record.client ? <Link className="text-link" to={`/admin/clients/${record.client.id}`}>{record.client.displayName}</Link> : '—'],
-        ['Contrat lié', record.contract?.reference ?? '—'],
+        ['Contrat lié', record.contract ? <span className="flex flex-wrap items-center gap-2">
+          <Link className="text-link" to={`/admin/contrats/${record.contract.id}`}>{record.contract.reference}</Link>
+          <RecordStatus status={record.contract.status} />
+        </span> : '—'],
       ]} />
+      {record.contract && <p className="text-sm text-muted">Le statut enregistré ne confirme pas l’admissibilité de cette demande d’assistance.</p>}
       <p className="rounded bg-background p-3 leading-7 whitespace-pre-wrap wrap-anywhere text-muted">{record.description}</p>
       <form className="grid gap-3" onSubmit={event => { void submit(event) }} key={record.version}>
         <h3 className="font-semibold">Traitement du dossier</h3>

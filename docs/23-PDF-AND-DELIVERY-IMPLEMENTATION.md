@@ -25,6 +25,8 @@ Create a private directory with `mkdir -m 700 /path/to/private-quote-pdfs`, set 
 
 An approved standalone logo and complete production proposal information were unavailable. All generated PDFs use the agency name and label every page as a test document. B8 prevents issuance in production and permits delivery only via loopback Mailpit or equivalent local SMTP. Production enablement requires approved identity assets and offer wording, private durable storage, an approved sender and relay, and review of the release configuration.
 
+B9 reuses the same private storage for [insurer-provided contract attachments](24-CONTRACTS-IMPLEMENTATION.md). Contract documents are download-only. The B8 quote issuance gate remains in force.
+
 ## Verification
 
 [Integration tests](../backend/tests/issued-quotes.integration.ts) cover PDF authorization, invalid document paths, symbolic-link rejection, revision snapshots, exact attachment bytes, retry and request synchronization. The browser exercises the workflow with Mailpit. PDF layout is reviewed using Poppler renders and text extraction. [Implementation status](15-IMPLEMENTATION-STATUS.md)

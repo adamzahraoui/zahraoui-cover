@@ -1,14 +1,30 @@
 import type { PrismaClient } from '@prisma/client'
 import { Router } from 'express'
 import { casablancaDate, fromProductSlug } from '../business-inputs.js'
+import { addDays, contractRow, contractRowSelect, dateOnly, onDate } from '../contracts/model.js'
 import { quoteRow, quoteRowSelect } from '../quotes/model.js'
 import { requestRow, requestRowSelect } from '../quote-requests/admin.js'
 
 export function dashboardRoutes(database: PrismaClient) {
   const routes = Router()
   routes.get('/', async (_request, response) => {
-    const today = new Date(casablancaDate() + 'T00:00:00Z')
-    const [quoteMetrics, issuedQuotes, statuses, products, recent, activeClients, openAssistance, unreadMessages, activity, months, totalClients, provisionalClients, newAssistance, inReviewAssistance] = await database.$transaction([
+    const today = onDate(casablancaDate())
+    const horizon = onDate(addDays(dateOnly(today), 30))
+    const [policyMetrics, recentContracts, quoteMetrics, issuedQuotes, statuses, products, recent, activeClients, openAssistance, unreadMessages, activity, months, totalClients, provisionalClients, newAssistance, inReviewAssistance] = await database.$transaction([
+      database.$queryRaw<{ total: number; active: number; draft: number; scheduled: number; expiring: number; expired: number; attention: number }[]>`
+        SELECT
+          count(*)::int AS total,
+          count(*) FILTER (WHERE status='ACTIVE' AND confirmation_on IS NOT NULL AND effective_on <= ${today}::date AND expires_on > ${today}::date)::int AS active,
+          count(*) FILTER (WHERE status='DRAFT')::int AS draft,
+          count(*) FILTER (WHERE status='ACTIVE' AND confirmation_on IS NOT NULL AND effective_on > ${today}::date AND expires_on > ${today}::date)::int AS scheduled,
+          count(*) FILTER (WHERE status='ACTIVE' AND confirmation_on IS NOT NULL AND effective_on <= ${today}::date
+            AND expires_on > ${today}::date AND expires_on <= ${horizon}::date)::int AS expiring,
+          count(*) FILTER (WHERE status='EXPIRED' OR (status='ACTIVE' AND expires_on <= ${today}::date))::int AS expired,
+          count(*) FILTER (WHERE status IN ('ACTIVE','EXPIRED') AND confirmation_on IS NOT NULL AND expires_on <= ${horizon}::date
+            AND NOT EXISTS (SELECT 1 FROM contracts successor WHERE successor.previous_id=policy.id AND successor.activated_at IS NOT NULL))::int AS attention
+        FROM contracts policy
+      `,
+      database.contract.findMany({ select: contractRowSelect, take: 8, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }] }),
       database.$queryRaw<{ status: string; count: number }[]>`
         SELECT CASE WHEN status IN ('ISSUED','SENT') AND valid_until < ${today}::date THEN 'EXPIRED' ELSE status::text END AS status,
           count(*)::int AS count FROM quotes GROUP BY 1
@@ -22,7 +38,7 @@ export function dashboardRoutes(database: PrismaClient) {
       database.assistanceCase.count({ where: { status: { not: 'RESOLVED' } } }),
       database.contactMessage.count({ where: { status: 'UNREAD' } }),
       database.auditEvent.findMany({
-        where: { targetType: { in: ['quote_request', 'client', 'contact_message', 'assistance_case', 'quote'] }, action: { not: 'RECORD_VIEWED' } },
+        where: { targetType: { in: ['quote_request', 'client', 'contact_message', 'assistance_case', 'quote', 'contract'] }, action: { not: 'RECORD_VIEWED' } },
         take: 8, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: { id: true, action: true, targetType: true, targetId: true, createdAt: true },
       }),
       database.$queryRaw<{ month: string; count: number }[]>`
@@ -50,6 +66,7 @@ export function dashboardRoutes(database: PrismaClient) {
       },
       recentRequests: recent.map(requestRow),
       recentQuotes: issuedQuotes.map(quoteRow),
+      contractCounts: policyMetrics[0], recentContracts: recentContracts.map(contractRow),
       quoteCounts: Object.fromEntries(quoteMetrics.map(({ status, count }) => [status, count])),
       byProduct: names.map(row => ({ slug: fromProductSlug(row.slug), title: row.title, count: products.find(product => product.productId === row.id)?.count ?? 0 })),
       activity, months,

@@ -6,7 +6,7 @@ import { activityDate } from '../../../components/admin/ActivityList'
 import { quoteAmount } from '../../../components/admin/IssuedQuoteList'
 import { QuoteEditor } from '../../../components/admin/QuoteEditor'
 import { useAdminSession } from '../../../components/admin/auth/AdminSession'
-import { Button } from '../../../components/ui/Button'
+import { ActionLink, Button } from '../../../components/ui/Button'
 import { Dialog } from '../../../components/ui/Dialog'
 import { Select, Textarea } from '../../../components/ui/Fields'
 import { ErrorState, LoadingState } from '../../../components/ui/States'
@@ -140,6 +140,7 @@ function QuoteProfile({ record, save, reload }: { record: IssuedQuote; save: (qu
         </div>
         {record.status === 'ISSUED' && !verified && <p className="text-sm text-muted">Vérifiez la fiche et l’adresse du client avant l’envoi.</p>}
         {admin && record.status === 'SENT' && !record.hasNext && <DecisionForm onSubmit={recordDecision} busy={busy} />}
+        {record.status === 'ACCEPTED' && <div><ActionLink to={`/admin/contrats/nouveau?devis=${record.id}`} variant="secondary">Créer le contrat</ActionLink></div>}
         {record.decidedAt && <Facts items={[
           ['Décision enregistrée le', activityDate(record.decidedAt)], ['Par', record.decisionActor?.displayName],
           ['Communication', methods.find(method => method.value === record.decisionMethod)?.label],

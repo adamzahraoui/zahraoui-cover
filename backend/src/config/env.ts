@@ -24,6 +24,9 @@ const schema = z.object({
   CONTACT_ACK_EMAIL: z.enum(['true', 'false']).default('false').transform(value => value === 'true'),
   QUOTE_ACK_EMAIL: z.enum(['true', 'false']).default('false').transform(value => value === 'true'),
   INTAKE_NOTIFY_EMAIL: z.preprocess(optional, z.string().email().optional()),
+  RENEWAL_NOTIFY_EMAIL: z.preprocess(optional, z.string().email().optional()),
+  RENEWAL_REMINDER_DAYS: z.string().default('30,15,7,1').transform(value => value.split(',').map(day => Number(day.trim())))
+    .refine(days => days.length <= 12 && days.every(day => Number.isInteger(day) && day >= 1 && day <= 365) && new Set(days).size === days.length),
   QUOTE_PDF_DIR: z.preprocess(optional, z.string().min(1).optional()),
   SMTP_MODE: z.enum(['disabled', 'local', 'tls', 'starttls']).default('disabled'),
   SMTP_HOST: z.preprocess(optional, z.string().min(1).optional()),

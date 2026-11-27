@@ -337,14 +337,15 @@ export function issuedQuoteRoutes(db: PrismaClient, config: Config) {
   return routes
 }
 
-export function quoteDocumentRoutes(db: PrismaClient, config: Config) {
+export function privateDocumentRoutes(db: PrismaClient, config: Config) {
   const routes = Router()
   routes.get('/:id/download', async (request, response) => {
     const id = z.uuid().safeParse(request.params.id)
     if (!id.success) throw missing()
     const { inline } = parseQuery(z.strictObject({ inline: z.literal('true').optional() }), request.query)
-    const document = await db.document.findUnique({ where: { id: id.data }, include: { quote: { select: { reference: true } } } })
-    if (!document?.quote || document.kind !== 'QUOTE_PDF') throw missing()
+    const document = await db.document.findUnique({ where: { id: id.data }, include: { quote: { select: { reference: true } }, contract: { select: { reference: true } } } })
+    const parent = document?.kind === 'QUOTE_PDF' ? document.quote : document?.contract
+    if (!document || !parent || (document.kind === 'CONTRACT_PDF' && inline)) throw missing()
     if (document.status !== 'READY' || !document.storageKey || !document.sha256 || !document.sizeBytes) throw invalid('Ce PDF n’est pas prêt.')
     let bytes: Buffer
     try {
@@ -353,8 +354,8 @@ export function quoteDocumentRoutes(db: PrismaClient, config: Config) {
     } catch {
       throw new ApiError(503, 'DOCUMENT_UNAVAILABLE', 'Le PDF est temporairement indisponible.')
     }
-    await staffAudit(db, response, 'document', document.id, 'QUOTE_DOCUMENT_VIEWED')
-    const name = document.quote.reference.replace(/[^A-Za-z0-9-]/g, '_') + '.pdf'
+    await staffAudit(db, response, 'document', document.id, document.kind === 'QUOTE_PDF' ? 'QUOTE_DOCUMENT_VIEWED' : 'CONTRACT_DOCUMENT_VIEWED')
+    const name = parent.reference.replace(/[^A-Za-z0-9-]/g, '_') + (document.kind === 'CONTRACT_PDF' ? '-piece-' + document.revision : '') + '.pdf'
     response.set('Content-Disposition', (inline ? 'inline' : 'attachment') + '; filename="' + name + '"')
     response.type('application/pdf').send(bytes)
   })

@@ -44,13 +44,13 @@ export type Receipt = { reference: string; receivedAt: string }
 export type Auth = { id: string; email: string; displayName: string; role: 'ADVISOR' | 'ADMIN'; expiresAt: string; csrfToken: string }
 export type ClientIn = { profile: Profile; displayName: string; phone: string; email?: string | null; city?: string | null; notes?: string | null }
 export type Client = ClientIn & ClientOption & { createdAt: string; updatedAt: string }
-export type ClientDetail = Client & { recentRequests: RequestRow[]; recentQuotes: IssuedQuoteRow[]; recentAssistance: Pick<AssistanceRow, 'id' | 'reference' | 'status' | 'createdAt'>[]; activity: ActivityEntry[] }
+export type ClientDetail = Client & { recentRequests: RequestRow[]; recentQuotes: IssuedQuoteRow[]; recentContracts: ContractRow[]; recentAssistance: Pick<AssistanceRow, 'id' | 'reference' | 'status' | 'createdAt'>[]; activity: ActivityEntry[] }
 export type DuplicateClient = Pick<ClientOption, 'id' | 'displayName' | 'intakeProvisional' | 'archivedAt'>
 export type ActivityEntry = { id: string; action: string; createdAt: string; actor: { displayName: string } | null }
 export type MessageRow = { id: string; reference: string; fullName: string; subject: string; status: MessageStatus; createdAt: string; version: number; archivedAt: string | null }
 export type Message = MessageRow & { phone: string; email: string; message: string; noticeVersion: string; acknowledgedAt: string; updatedAt: string }
 export type AssistanceRow = { id: string; reference: string; fullName: string; productSlug: ProductSlug; status: AssistanceStatus; priority: 'NORMAL' | 'URGENT'; createdAt: string; version: number; assignedTo: string | null }
-export type ContractOption = { id: string; reference: string }
+export type ContractOption = { id: string; reference: string; status: ContractStatus }
 export type AssistanceCase = AssistanceRow & {
   phone: string; contractReference: string | null; description: string; noticeVersion: string; acknowledgedAt: string;
   productTitle: string; client: DuplicateClient | null; contract: ContractOption | null; assignee: StaffOption | null;
@@ -71,6 +71,8 @@ export type Dashboard = {
   recentRequests: RequestRow[]
   recentQuotes: IssuedQuoteRow[]
   quoteCounts: Partial<Record<QuoteStatus, number>>
+  contractCounts: { total: number; active: number; draft: number; scheduled: number; expiring: number; expired: number; attention: number }
+  recentContracts: ContractRow[]
   byProduct: { slug: ProductSlug; title: string; count: number }[]
   months: { month: string; count: number }[]
   activity: { id: string; action: string; targetId: string | null; targetType: string | null; createdAt: string }[]
@@ -116,4 +118,25 @@ export type IssuedQuote = IssuedQuoteRow & OfferFields & {
   revisions: Pick<IssuedQuoteRow, 'id' | 'reference' | 'revision' | 'status'>[]
   decidedAt: string | null; decisionMethod: DecisionMethod | null; decisionEvidence: string | null
   decisionActor: { displayName: string } | null; hasNext: boolean; pdfEnabled: boolean; deliveryEnabled: boolean
+}
+
+export type ContractStatus = 'DRAFT' | 'ACTIVE' | 'SCHEDULED' | 'EXPIRED' | 'CANCELLED' | 'UNVERIFIED'
+export type PolicyFields = {
+  policyNumber: string | null; effectiveOn: string; expiresOn: string;
+  coverage: string | null; premiumMad: string | null; internalNotes: string | null; renewalReminders: boolean
+}
+export type ContractRow = {
+  id: string; clientId: string; clientName: string; quoteId: string | null; quoteReference: string | null;
+  partnerId: string; partnerName: string; productSlug: ProductSlug; productTitle: string; reference: string;
+  status: ContractStatus; version: number; createdAt: string; currency: 'MAD';
+  previousId: string | null; successorId: string | null; successorReference: string | null; renewed: boolean; confirmed: boolean
+} & Pick<PolicyFields, 'policyNumber' | 'effectiveOn' | 'expiresOn' | 'premiumMad' | 'renewalReminders'>
+export type ContractDetail = ContractRow & PolicyFields & {
+  confirmationReference: string | null; confirmationOn: string | null; confirmer: { displayName: string } | null;
+  cancelledAt: string | null; cancellationReason: string | null; uploadEnabled: boolean; reminderDeliveryEnabled: boolean
+  previous: { id: string; reference: string; expiresOn: string } | null
+  documents: { id: string; revision: number; createdAt: string; mimeType: string | null }[]
+  renewalHistory: { id: string; reference: string; status: ContractStatus; activatedAt: string | null }[]
+  activity: ActivityEntry[]
+  reminders: { id: string; days: number | null; expiresOn: string | null; status: 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'OBSOLETE'; nextAttemptAt: string; finishedAt: string | null }[]
 }

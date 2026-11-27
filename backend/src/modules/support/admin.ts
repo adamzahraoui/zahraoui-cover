@@ -3,6 +3,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { ApiError } from '../../middleware/errors.js'
 import { jsonBody } from '../../middleware/request.js'
+import { coverageStatus } from '../contracts/model.js'
 import { currentSession, requireCsrf } from '../auth/session.js'
 import { fromProductSlug, normalizePhone, noteBody, pageBounds, pagination, parseQuery, productSlug, searchPrefix, toProductSlug, versionField } from '../business-inputs.js'
 import { dateRange, lockActiveClient, recordHistory, staffAudit, staleRecord } from '../staff-records.js'
@@ -12,6 +13,7 @@ const priority = z.enum(['NORMAL', 'URGENT'])
 const messageStatus = z.enum(['UNREAD', 'READ', 'PROCESSED'])
 const dates = { from: z.iso.date().optional(), to: z.iso.date().optional() }
 const dateOrder = ({ from, to }: { from?: string; to?: string }) => !from || !to || from <= to
+const assistanceContractSelect = { id: true, reference: true, status: true, effectiveOn: true, expiresOn: true, confirmationOn: true } as const
 const baseRow = { id: true, reference: true, fullName: true, createdAt: true, version: true } as const
 const messageRow = { ...baseRow, status: true, subject: true, archivedAt: true } as const
 const assistanceRow = { ...baseRow, status: true, priority: true, assignedTo: true, product: { select: { slug: true } } } as const
@@ -41,15 +43,15 @@ async function assistanceDetail(database: Prisma.TransactionClient, id: string) 
       product: { select: { slug: true, title: true } },
       assignee: { select: { id: true, displayName: true } },
       client: { select: { id: true, displayName: true, intakeProvisional: true, archivedAt: true } },
-      contract: { select: { id: true, reference: true } },
+      contract: { select: assistanceContractSelect },
       notes: { take: 50, orderBy: recent, select: { id: true, body: true, createdAt: true, author: { select: { displayName: true } } } },
     },
   })
   if (!record) throw notFound()
-  const { product, productId, notes, ...fields } = record
+  const { product, productId, notes, contract, ...fields } = record
   void productId
   return {
-    ...fields, productSlug: fromProductSlug(product.slug), productTitle: product.title,
+    ...fields, contract: contract && { id: contract.id, reference: contract.reference, status: coverageStatus(contract) }, productSlug: fromProductSlug(product.slug), productTitle: product.title,
     allowedStatuses: transitions[fields.status],
     notes: notes.map(note => ({ id: note.id, body: note.body, createdAt: note.createdAt, authorName: note.author?.displayName ?? '—' })),
     activity: await recordHistory(database, 'assistance_case', id),
@@ -91,13 +93,13 @@ export function assistanceAdminRoutes(database: PrismaClient) {
       const client = await lockActiveClient(transaction, clientId)
       if (client.provisional) return [[], 0] as const
       const where: Prisma.ContractWhereInput = {
-        clientId, productId: record.productId, status: { not: 'DRAFT' },
+        clientId, productId: record.productId, status: { in: ['ACTIVE', 'EXPIRED'] },
         reference: q ? { startsWith: searchPrefix(q), mode: 'insensitive' } : undefined,
       }
-      const data = await transaction.contract.findMany({ where, take: limit, skip, orderBy: recent, select: { id: true, reference: true } })
+      const data = await transaction.contract.findMany({ where, take: limit, skip, orderBy: recent, select: assistanceContractSelect })
       return [data, await transaction.contract.count({ where })] as const
     }, { isolationLevel: 'RepeatableRead' })
-    response.json({ data, meta: { page, limit, total } })
+    response.json({ data: data.map(record => ({ id: record.id, reference: record.reference, status: coverageStatus(record) })), meta: { page, limit, total } })
   })
   routes.get('/:id', async (request, response) => {
     const id = parseQuery(z.uuid(), request.params.id)
@@ -125,7 +127,7 @@ export function assistanceAdminRoutes(database: PrismaClient) {
       if ((clientId !== undefined || contractId !== undefined) && nextContract) {
         const [contract] = await transaction.$queryRaw<{ id: string }[]>`
           SELECT id FROM contracts WHERE id = ${nextContract}::uuid AND client_id = ${nextClient}::uuid
-            AND product_id = ${current.productId}::uuid AND status <> 'DRAFT' FOR SHARE
+            AND product_id = ${current.productId}::uuid AND status IN ('ACTIVE', 'EXPIRED') FOR SHARE
         `
         if (!contract) throw new ApiError(422, 'CONTRACT_MISMATCH', 'Le contrat doit correspondre au client et à l’assurance.')
       }

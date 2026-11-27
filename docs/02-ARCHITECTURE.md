@@ -19,6 +19,8 @@ B6–B7 use the same modular monolith. The API mounts CRM under `backend/src/mod
 
 B8 extends the existing outbox worker to generate quote PDFs and deliver their exact bytes. The API and worker share a private storage directory. Authentication and document readiness gate every file read. [Issued quotes](22-ISSUED-QUOTES-IMPLEMENTATION.md) · [PDF and delivery](23-PDF-AND-DELIVERY-IMPLEMENTATION.md)
 
+B9 registers insurer-confirmed policies and renewal drafts in the existing Contract table. The worker uses the PostgreSQL outbox for reminder leases and expiration updates. Insurer PDFs use the existing private volume and staff download route, with local-only uploads. [Contracts](24-CONTRACTS-IMPLEMENTATION.md) · [Renewals](25-RENEWALS-AND-REMINDERS-IMPLEMENTATION.md)
+
 ## Proposed implementation tree
 
 ```text

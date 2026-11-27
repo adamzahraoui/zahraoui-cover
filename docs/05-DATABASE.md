@@ -20,7 +20,7 @@ This logical schema is implemented by the [Prisma model](../backend/prisma/schem
 | contract_status | DRAFT, ACTIVE, CANCELLED, EXPIRED |
 | document_kind | QUOTE_PDF, CONTRACT_PDF |
 | document_status | QUEUED, READY, FAILED |
-| job_kind | REQUEST_ALERT, REQUEST_ACK, ASSISTANCE_ALERT, CONTACT_ALERT, CONTACT_ACK, RESET_EMAIL; B8 uses GENERATE_PDF and QUOTE_DELIVERY; V2 reserves RENEWAL_ALERT |
+| job_kind | REQUEST_ALERT, REQUEST_ACK, ASSISTANCE_ALERT, CONTACT_ALERT, CONTACT_ACK, RESET_EMAIL; B8 uses GENERATE_PDF and QUOTE_DELIVERY; B9 uses RENEWAL_ALERT |
 | job_status | PENDING, RUNNING, SUCCEEDED, FAILED |
 
 Localize UI labels in French. Keep insurer offer lifecycle distinct from intake status. Immutable policy and quote snapshots are allowlisted, with customer display name and approved business terms only as needed to reproduce the document. Amounts stay numeric in PostgreSQL and decimal strings in JSON.
@@ -322,7 +322,7 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 
 **Additional indexes.** (status, created_at, id), (client_id, created_at), (request_id), (product_id), (partner_id), (created_by).
 
-### contracts · V2
+### contracts · B9
 
 | Column | PostgreSQL type and modifiers |
 | --- | --- |
@@ -336,18 +336,30 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 | product_id | uuid FK insurance_products.id |
 | partner_id | uuid FK partners.id |
 | created_by | uuid nullable FK staff_users.id SET NULL |
-| policy_number | varchar(64) |
+| policy_number | varchar(64) nullable in draft |
+| previous_id | uuid nullable FK contracts.id RESTRICT |
+| source_quote_snapshot | jsonb nullable |
+| premium_mad | numeric(12,2) nullable until recorded |
+| currency | char(3) default MAD |
+| coverage | varchar(3000) nullable |
+| internal_notes | varchar(2000) nullable |
+| confirmation_reference | varchar(160) nullable |
+| confirmation_on | date nullable |
+| confirmed_by | uuid nullable FK staff_users.id SET NULL |
+| cancelled_at | timestamptz nullable |
+| cancellation_reason | varchar(1000) nullable |
+| renewal_reminders | boolean default true |
 | effective_on | date |
 | expires_on | date |
 | status | contract_status default DRAFT |
 | activated_at | timestamptz nullable |
 | activation_snapshot | jsonb nullable |
 
-**Rules.** Unique (partner_id, policy_number), expire after effective date, optional accepted quote must match client/product/partner. Activated snapshot freezes approved document data.
+**Rules.** Unique carrier/policy number when present and one contract per accepted quote. The end date is exclusive and follows the effective date. The source snapshot preserves the accepted proposal. Activation records insurer confirmation and freezes the confirmed terms. A partial unique index permits a single live or historically confirmed successor per predecessor.
 
-**Additional indexes.** Unique (partner_id, policy_number); (status, expires_on, id), (client_id, expires_on), (product_id), (created_by).
+**Additional indexes.** Unique (partner_id, policy_number); (status, expires_on, id), (client_id, expires_on), (product_id), (created_by), (previous_id), (confirmed_by), (partner_id).
 
-### documents · B8 quote PDF, V2 contract PDF
+### documents · B8 quote PDF and B9 insurer-provided PDF
 
 | Column | PostgreSQL type and modifiers |
 | --- | --- |
@@ -358,7 +370,7 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 | kind | document_kind |
 | revision | integer |
 | quote_version | integer nullable (quote version after issuance) |
-| mime_type | varchar(32) nullable, application/pdf for B8 |
+| mime_type | varchar(32) nullable, application/pdf for B8/B9 |
 | status | document_status default QUEUED |
 | storage_key | text nullable UK |
 | sha256 | bytea nullable |
@@ -400,7 +412,9 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 | message_id | uuid nullable FK contact_messages.id CASCADE |
 | reset_id | uuid nullable FK password_reset_tokens.id CASCADE |
 | document_id | uuid nullable FK documents.id CASCADE V2 |
-| contract_id | uuid nullable FK contracts.id CASCADE V2 |
+| contract_id | uuid nullable FK contracts.id CASCADE |
+| reminder_expires_on | date nullable, term used to schedule reminder |
+| reminder_days | smallint nullable, offset in calendar days |
 | encrypted_secret | bytea nullable |
 | state | job_status default PENDING |
 | attempt_count | smallint default 0 |
@@ -444,6 +458,7 @@ erDiagram
     partners ||..o{ quotes : "partner_id"
     staff_users |o..o{ quotes : "created_by"
     clients ||..o{ contracts : "client_id"
+    contracts |o..o{ contracts : "previous_id"
     quotes |o..o| contracts : "quote_id"
     insurance_products ||..o{ contracts : "product_id"
     partners ||..o{ contracts : "partner_id"
@@ -669,6 +684,18 @@ erDiagram
         uuid partner_id FK
         uuid created_by FK
         varchar_64 policy_number
+        uuid previous_id FK
+        jsonb source_quote_snapshot
+        numeric_12_2 premium_mad
+        char_3 currency
+        varchar_3000 coverage
+        varchar_2000 internal_notes
+        varchar_160 confirmation_reference
+        date confirmation_on
+        uuid confirmed_by FK
+        timestamptz cancelled_at
+        varchar_1000 cancellation_reason
+        boolean renewal_reminders
         date effective_on
         date expires_on
         contract_status status
@@ -712,6 +739,8 @@ erDiagram
         uuid reset_id FK
         uuid document_id FK
         uuid contract_id FK
+        date reminder_expires_on
+        smallint reminder_days
         bytea encrypted_secret
         job_status state
         smallint attempt_count

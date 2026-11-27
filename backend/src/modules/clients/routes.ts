@@ -5,7 +5,8 @@ import { ApiError } from '../../middleware/errors.js'
 import { jsonBody } from '../../middleware/request.js'
 import { emailField } from '../auth/contracts.js'
 import { requireCsrf, requireRole } from '../auth/session.js'
-import { normalizePhone, pageBounds, pagination, parseQuery, phoneField, profile, searchPrefix, versionField } from '../business-inputs.js'
+import { casablancaDate, normalizePhone, pageBounds, pagination, parseQuery, phoneField, profile, searchPrefix, versionField } from '../business-inputs.js'
+import { contractRow, contractRowSelect, onDate } from '../contracts/model.js'
 import { quoteRow, quoteRowSelect } from '../quotes/model.js'
 import { requestRow, requestRowSelect } from '../quote-requests/admin.js'
 import { recordHistory, staffAudit, staleRecord } from '../staff-records.js'
@@ -93,16 +94,17 @@ export function clientRoutes(database: PrismaClient) {
     const data = await database.$transaction(async transaction => {
       const client = await transaction.client.findUnique({
         where: { id }, include: {
+          contracts: { take: 10, orderBy: [{ expiresOn: 'desc' }, { id: 'desc' }], select: contractRowSelect },
           quotes: { take: 10, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: quoteRowSelect },
           requests: { take: 10, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: requestRowSelect },
           assistance: { take: 10, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: { id: true, reference: true, status: true, createdAt: true } },
         },
       })
       if (!client) throw notFound()
-      const { requests, assistance, quotes, ...fields } = client
+      const { requests, assistance, quotes, contracts, ...fields } = client
       const activity = await recordHistory(transaction, 'client', id)
       await staffAudit(transaction, response, 'client', id, 'RECORD_VIEWED')
-      return { ...fields, recentRequests: requests.map(requestRow), recentQuotes: quotes.map(quoteRow), recentAssistance: assistance, activity }
+      return { ...fields, recentRequests: requests.map(requestRow), recentQuotes: quotes.map(quoteRow), recentContracts: contracts.map(contractRow), recentAssistance: assistance, activity }
     })
     response.json({ data })
   })
@@ -148,7 +150,7 @@ export function clientRoutes(database: PrismaClient) {
         version: true, archivedAt: true, quotes: { where: { documents: { some: { outboxJobs: { some: { kind: 'QUOTE_DELIVERY', state: { in: ['PENDING', 'RUNNING'] } } } } } }, take: 1, select: { id: true } },
         requests: { where: openRequest, take: 1, select: { id: true } },
         assistance: { where: { status: { not: 'RESOLVED' } }, take: 1, select: { id: true } },
-        contracts: { where: { status: 'ACTIVE' }, take: 1, select: { id: true } },
+        contracts: { where: { status: 'ACTIVE', expiresOn: { gt: onDate(casablancaDate()) } }, take: 1, select: { id: true } },
       } })
       if (client.version !== version) throw staleRecord()
       if (client.archivedAt || client.requests.length || client.quotes.length || client.assistance.length || client.contracts.length) {

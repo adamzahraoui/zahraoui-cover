@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from 'react-router-dom'
 import { ActivityList } from '../../../components/admin/ActivityList'
 import { AdminHeading, Facts, LocalFeedback, NoRecord, RecordStatus } from '../../../components/admin/AdminContent'
 import { useAdminSession } from '../../../components/admin/auth/AdminSession'
+import { ContractList } from '../../../components/admin/ContractList'
 import { IssuedQuoteList } from '../../../components/admin/IssuedQuoteList'
 import { RequestList } from '../../../components/admin/RequestList'
 import { ActionLink, Button } from '../../../components/ui/Button'
@@ -65,6 +66,13 @@ export default function ClientProfile() {
             <Link className="text-link text-sm" to={`/admin/devis?clientId=${client.id}`}>Voir tous les devis</Link>
           </div>
           <IssuedQuoteList rows={client.recentQuotes} label="Devis associés" />
+        </section>
+        <section className="grid gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">Contrats associés</h2>
+            <Link className="text-link text-sm" to={`/admin/contrats?clientId=${client.id}`}>Voir tous les contrats</Link>
+          </div>
+          <ContractList rows={client.recentContracts} label="Contrats associés" />
         </section>
         <div className="grid gap-4 lg:grid-cols-2">
           <section className="panel p-4 sm:p-5">
