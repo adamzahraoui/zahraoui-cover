@@ -6,7 +6,8 @@ export default function PrivacyPolicy() {
   return (
     <LegalArticle title="Politique de confidentialité">
       <h2>1. Collecte des données personnelles</h2>
-      <p>Les formulaires de cette démonstration ne transmettent aucune donnée. Saisissez uniquement des exemples fictifs et évitez les renseignements médicaux ou d’identité.</p>
+      <p>Les formulaires publics de cette démonstration ne transmettent aucune donnée. Saisissez uniquement des exemples fictifs et évitez les renseignements médicaux ou d’identité.</p>
+      <p>L’espace d’administration utilise l’adresse professionnelle, le nom affiché et les données de session des membres autorisés de l’équipe pour gérer leur accès.</p>
       <h2>2. Finalité du traitement</h2>
       <p>Les futurs formulaires sont prévus pour répondre aux demandes de devis, de contact et d’assistance.</p>
       <h2>3. Conservation et protection</h2>

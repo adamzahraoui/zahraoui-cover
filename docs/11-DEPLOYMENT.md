@@ -1,5 +1,7 @@
 # 11 — Deployment and operations
 
+The [local setup](../backend/README.md) uses Compose for PostgreSQL and optional loopback Mailpit. The full production topology below remains a deployment plan.
+
 ## Compose topology
 
 | Service | Configuration |

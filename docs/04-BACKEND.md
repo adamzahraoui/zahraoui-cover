@@ -1,5 +1,7 @@
 # 04 — Backend
 
+The foundation, database schema and auth module are implemented. The remaining module descriptions define the target behavior for later phases. [Backend implementation report](16-BACKEND-IMPLEMENTATION.md)
+
 | Module | Owns |
 | --- | --- |
 | Auth | Provisioning command, login, sessions, CSRF, revocation, recovery and auth audit. |

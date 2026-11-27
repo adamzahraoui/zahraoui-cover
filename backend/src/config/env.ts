@@ -7,12 +7,12 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   HOST: z.string().min(1).default('127.0.0.1'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-  PUBLIC_ORIGIN: z.string().url().refine(value => {
+  PUBLIC_ORIGIN: z.string().url().pipe(z.string().refine(value => {
     const url = new URL(value)
     return ['http:', 'https:'].includes(url.protocol) && url.origin === value
-  }),
+  })),
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(4).default(0),
-  DATABASE_URL: z.string().url().refine(value => ['postgresql:', 'postgres:'].includes(new URL(value).protocol)),
+  DATABASE_URL: z.string().url().pipe(z.string().refine(value => ['postgresql:', 'postgres:'].includes(new URL(value).protocol))),
   RATE_KEY_SECRET: secret,
   CSRF_SECRET: secret,
   RESET_JOB_KEY: secret,

@@ -11,7 +11,7 @@ import { changePasswordInput, forgotInput, loginInput, resetInput } from './cont
 import { releaseAttempt, requireAttempt, takeAttempt } from './limits.js'
 import { lockStaff, queueReset } from './recovery.js'
 import {
-  absoluteMs, authResponse, clearSessionCookie, currentSession, readSessionToken, requireCsrf,
+  absoluteMs, authResponse, clearSessionCookie, currentSession, idleMs, readSessionToken, requireCsrf,
   requireSession, sessionFrom, staffSelect, unauthorized, writeSessionCookie,
 } from './session.js'
 
@@ -150,6 +150,7 @@ export function authRoutes(database: PrismaClient, config: Config, dummyHash: st
       const rows = await transaction.$queryRaw<{ id: string }[]>`
         SELECT id FROM admin_sessions
         WHERE id = ${session.id}::uuid AND revoked_at IS NULL AND expires_at > now()
+          AND last_seen_at > ${new Date(Date.now() - idleMs)}
         FOR UPDATE
       `
       if (!rows.length) throw unauthorized()

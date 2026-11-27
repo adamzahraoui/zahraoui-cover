@@ -14,7 +14,7 @@ The original ZIP contains 73 HTML prototypes. All 19 public pages have two refer
 
 **MVP.** French public site, catalog and six product pages, anonymous quote/contact/assistance intake, admin login and recovery, admin request processing and client management, transactional email. **Version 2.** Issued quotes, contracts, private PDFs, partner and catalog administration, renewals, richer stats, dedicated inbox layouts and settings.
 
-Routes, DTOs, schema, statuses, permission split and operating thresholds are proposals. The project remains at the analysis stage. Owner review covers missing mobile layouts, approved assets, company content and privacy obligations.
+The frontend, database foundation and staff authentication are implemented. The proposed business APIs and operational workflows remain for later phases. Owner review still covers approved assets, company content and privacy obligations. See the [implementation status](15-IMPLEMENTATION-STATUS.md) and [backend report](16-BACKEND-IMPLEMENTATION.md).
 
 | Document | Content |
 | --- | --- |

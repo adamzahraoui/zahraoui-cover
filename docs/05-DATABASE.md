@@ -1,6 +1,6 @@
 # 05 — PostgreSQL data model
 
-This is the proposed logical schema for Prisma and PostgreSQL. Columns are required unless marked nullable. FK deletion defaults to RESTRICT. UK denotes a unique constraint with PostgreSQL's default distinct NULL behavior. UUID PKs use generated random UUIDs. All mutable records use positive versions, advanced with updated_at on successful writes. Store dates without a time and timestamps in UTC. Enforce named CHECK constraints and expression/partial indexes through SQL migrations. Primary and unique keys create their own indexes.
+This logical schema is implemented by the [Prisma model](../backend/prisma/schema.prisma) and the [foundation migration](../backend/prisma/migrations/20261127000000_foundation/migration.sql). Business modules and their domain validations will be added in later phases. Columns are required unless marked nullable. FK deletion defaults to RESTRICT. UK denotes a unique constraint with PostgreSQL's default distinct NULL behavior. UUID PKs use generated random UUIDs. All mutable records use positive versions, advanced with updated_at on successful writes. Store dates without a time and timestamps in UTC. Named CHECK constraints and expression/partial indexes live in the SQL migration. Primary and unique keys create their own indexes.
 
 ## Status enums and fixed values
 

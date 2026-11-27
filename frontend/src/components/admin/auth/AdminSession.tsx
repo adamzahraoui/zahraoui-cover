@@ -19,6 +19,7 @@ const Context = createContext<{
 } | null>(null)
 
 export function AdminSessionProvider({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation()
   const [state, setState] = useState<SessionState>({ status: 'loading' })
   const currentRequest = useRef<AbortController | undefined>(undefined)
 
@@ -38,7 +39,7 @@ export function AdminSessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refresh()
     return () => currentRequest.current?.abort()
-  }, [refresh])
+  }, [pathname, refresh])
 
   useEffect(() => {
     if (state.status !== 'authenticated') return
@@ -91,11 +92,25 @@ export function RequireAdminSession() {
   return <Outlet />
 }
 
+export function RequireAdminRole() {
+  const { state } = useAdminSession()
+  if (state.status === 'authenticated' && state.user.role === 'ADMIN') return <Outlet />
+  return (
+    <>
+      <h1 className="text-2xl font-bold text-primary">Accès réservé</h1>
+      <ErrorState>Cette page est réservée aux administrateurs.</ErrorState>
+    </>
+  )
+}
+
 export function afterLogin(state: unknown) {
   const destination = typeof state === 'object' && state !== null && 'returnTo' in state ? state.returnTo : ''
-  if (typeof destination === 'string' && destination.startsWith('/admin/') && !/[\\\u0000-\u001F]/.test(destination)) {
-    const path = new URL(destination, window.location.origin).pathname
-    if (path.startsWith('/admin/') && !/^\/admin\/(login|mot-de-passe-oublie|reinitialiser-mot-de-passe)(\/|$)/.test(path)) return destination
+  if (typeof destination === 'string' && destination.startsWith('/admin/')) {
+    const target = new URL(destination, window.location.origin)
+    if (target.origin === window.location.origin && target.pathname.startsWith('/admin/') &&
+        !/^\/admin\/(login|mot-de-passe-oublie|reinitialiser-mot-de-passe)(\/|$)/.test(target.pathname)) {
+      return target.pathname + target.search
+    }
   }
   return '/admin/dashboard'
 }

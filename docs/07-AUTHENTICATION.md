@@ -2,6 +2,8 @@
 
 Provision named staff accounts through an operator-controlled backend command with short-lived password setup links. Disable departed users and revoke their sessions immediately.
 
+The implemented operator command, API and frontend behavior are described in [16 Backend implementation](16-BACKEND-IMPLEMENTATION.md). The first-admin command queues a setup link and does not accept passwords. Staff can change their password from the top bar by verifying the current password. This operation revokes the current and other sessions and sends the user back to login.
+
 | Permission | ANONYMOUS | ADVISOR | ADMIN |
 | --- | --- | --- | --- |
 | Public catalog, intake, login and recovery | Yes | Yes | Yes |
@@ -15,6 +17,8 @@ ADVISOR and ADMIN are individually authorized back-office staff. The proposal as
 ## Session
 
 Generate a random 32-byte opaque token, store its hash in PostgreSQL and set `__Host-zc_session` with `Secure; HttpOnly; SameSite=Lax; Path=/` and no Domain. Rotate after login and privilege changes. Start with 30 minutes idle and 12 hours absolute expiry. Throttle last-seen writes while enforcing both limits. Logout revokes the session and clears the cookie. Account disablement, role and password changes revoke existing sessions. Use no-store on auth and personal-data responses. [OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)
+
+For local HTTP only, the cookie is named `zc_session` and signed-in state continues to come from PostgreSQL. Credentials are revoked through the database trigger in the same transaction as the account change.
 
 Use Argon2id with automatic per-password salts and a baseline of 19 MiB, two iterations and parallelism one, calibrated under load. Accept 15–128 characters including spaces. Allow paste and password managers. Limit login by source and normalized account identifier. Use generic credential failures and comparable password work for unknown accounts. [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
 

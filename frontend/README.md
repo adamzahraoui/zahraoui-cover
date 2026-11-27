@@ -1,6 +1,6 @@
 # Zahraoui Cover · Frontend
 
-React, TypeScript, Vite, Tailwind CSS, React Router and Lucide React. This workspace contains a local preview of the public site and administration interface.
+React, TypeScript, Vite, Tailwind CSS, React Router and Lucide React. The workspace contains the public site and an authenticated staff console. Business records and actions in the console are labeled demonstrations.
 
 ## Run locally
 
@@ -12,7 +12,7 @@ npm ci
 npm run dev
 ```
 
-Open the local address printed by Vite. The public site starts at `/`. Go to `/admin/login` and select **Ouvrir la démonstration** to review the administrative interface.
+Open the local address printed by Vite. The public site starts at `/`. Start the [backend and local database](../backend/README.md) and create a staff account before opening `/admin/login`. Vite proxies `/api` to the local Express server. The browser URL must match the backend’s `PUBLIC_ORIGIN`.
 
 ```sh
 npm run typecheck
@@ -37,6 +37,6 @@ export default function AutoInsurance() {
 }
 ```
 
-For the future backend, `src/types/api.ts` defines the initial typed contracts and `src/services/api.ts` provides same-origin calls for catalog, intake and authentication. The current preview runs without network calls to those endpoints. Quote confirmation is a UI preview. Login, password recovery, PDFs and administrative edits are demonstrations. Use fictional data only.
+`src/components/admin/auth/AdminSession.tsx` restores the authenticated session through `/api/auth/session` and gates console routes. `src/services/api.ts` calls authentication over the same origin, with the session in an HttpOnly cookie and the CSRF value in React memory. The catalog and intake methods are prepared for the next phase. Quote confirmation, PDFs and administrative business edits remain demonstrations. Use fictional business data.
 
 See the [page specifications](../docs/03-FRONTEND.md) and [implementation status](../docs/15-IMPLEMENTATION-STATUS.md) for file paths, behaviors, test coverage and outstanding integration work.

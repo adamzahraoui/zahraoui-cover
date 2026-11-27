@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client'
 import express from 'express'
+import type { RequestHandler } from 'express'
 import helmet from 'helmet'
 import type { Config } from './config/env.js'
 import { ApiError, handleError } from './middleware/errors.js'
@@ -26,9 +27,11 @@ export async function createApp(database: PrismaClient, config: Config) {
   app.use('/api', sameOrigin(config.PUBLIC_ORIGIN))
   app.use('/api', express.json({ limit: '32kb', strict: true }))
 
-  app.get(['/api/health', '/api/health/live'], (_request, response) => {
+  const liveness: RequestHandler = (_request, response) => {
     response.json({ status: 'ok' })
-  })
+  }
+  app.get('/api/health', liveness)
+  app.get('/api/health/live', liveness)
   app.get('/api/health/ready', async (_request, response) => {
     try {
       const [migration] = await database.$queryRaw<{ ready: boolean }[]>`

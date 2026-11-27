@@ -1,12 +1,12 @@
 # 15 — Frontend implementation status
 
-The local React frontend covers 19 public and 19 administration page types. Two admin pages have separate create and detail/edit routes, for 40 concrete page views in the browser test matrix, including a public unknown-path example. Quote confirmation is the final UI state of /devis. The admin root redirects to login and unknown admin paths show an admin fallback. The original Stitch archive and design files are preserved.
+The local React frontend covers 19 public and 19 administration page types. Two admin pages have separate create and detail/edit routes, for 40 concrete page views in the browser test matrix, including a public unknown-path example. Quote confirmation is the final UI state of /devis. The admin root sends signed-in staff to the dashboard and visitors to login. Unknown admin paths show an authenticated fallback. The original Stitch archive and design files are preserved.
 
 ## Resume checkpoint
 
 The routes, public forms, admin demo, reusable components and API preparation were already in place. The resumed work repeated browser verification, reviewed the reference layouts and finished the handoff documentation. Two issues were confirmed and fixed. The catalog now uses the compact Stitch mobile heading and puts the audience selector above the cards in the introduction. Browser-tab titles now follow each route’s heading, with the navigation focus effect running inside the route loading boundary.
 
-The frontend demo is complete. Production work still depends on approved imagery and the standalone brand asset, approved French company and legal content, and backend authentication, submissions and persistence.
+The frontend demo is complete. Production work still depends on approved imagery and the standalone brand asset, approved French company and legal content, and live business submissions and persistence.
 
 ## Development milestones
 
@@ -18,10 +18,10 @@ The frontend demo is complete. Production work still depends on approved imagery
 | D · Assets | Audited 73 original prototypes, two Markdown references and the brand board. Probed nine distinct asset URLs across 30 image references. HEAD returned HTTP 200 with text/html for all nine, so image availability could not be confirmed. No photography was downloaded or embedded. |
 | E · API preparation | Read 50 endpoint contracts. Added typed catalog, intake, auth and operational DTOs, an error type and a small same-origin client for catalog/intake/auth. UI remains independent of unavailable services. |
 
-## Verification
+## Frontend baseline verification
 
 - Dependency installation, TypeScript, ESLint and Vite production build passed. npm reported that the pinned ESLint 9 release is deprecated. It remains compatible with the current configuration and plugins.
-- Headless Chrome with Playwright exercised the final production build at **390, 768, 1024 and 1440 px**. At each width, 40 route views and six admin redirect or fallback cases rendered with a single main heading, a matching tab title and no page-level horizontal overflow. The full four-step quote flow and public and admin navigation passed at all four widths, including menu focus, filtering and pagination.
+- Before authentication integration, headless Chrome with Playwright exercised the frontend production build at **390, 768, 1024 and 1440 px**. At each width, 40 route views and six admin redirect or fallback cases rendered with a single main heading, a matching tab title and no page-level horizontal overflow. The full four-step quote flow and public and admin navigation passed at all four widths, including menu focus, filtering and pagination.
 - The extended browser run also covered public form validation, FAQ, cookie preferences, login and recovery previews, staff record edits, quote and contract simulations, and local settings. The demo flows produced zero uncaught browser errors and zero API requests.
 - Compared the matching Stitch HTML sources and rendered ten representative references in Chrome, covering home, catalog, quote wizard, dashboard and the two desktop quote admin screens. With remote photos blocked, reviewed hierarchy, responsive structure and spacing and refined the quote panel, utility bar and dashboard. Final photo cropping and logo parity remain pending approved assets.
 
@@ -48,9 +48,9 @@ The frontend demo is complete. Production work still depends on approved imagery
 | P17 | Politique de confidentialité · `/politique-de-confidentialite` | Implemented | 4 widths | Route smoke | Bundled content; no request | Controller, notice version and retention pending |
 | P18 | Politique de cookies · `/politique-de-cookies` | Implemented | 4 widths | Modal and Escape | Bundled content; no request | Essential-only preview |
 | P19 | Page introuvable · `*` | Implemented | 4 widths | Unknown path layout | Bundled content; no request | Preview has SPA HTTP 200; production requires edge 404 |
-| A01 | Connexion · `/admin/login` | Implemented | 4 widths | Format, unavailable service and demo entry | Local validation; auth service prepared | No authentication |
-| A02 | Mot de passe oublié · `/admin/mot-de-passe-oublie` | Implemented | 4 widths | Email format and local acknowledgement | Local validation; auth service prepared | No recovery email |
-| A03 | Réinitialisation du mot de passe · `/admin/reinitialiser-mot-de-passe` | Implemented | 4 widths | Password mismatch and local acknowledgement | Local validation; auth service prepared | No reset token or password update |
+| A01 | Connexion · `/admin/login` | Implemented | 4 widths | Valid and invalid login, guarded return path and refresh | Connected auth session | Approved production deployment settings |
+| A02 | Mot de passe oublié · `/admin/mot-de-passe-oublie` | Implemented | 4 widths | Generic acknowledgement and Mailpit capture | Connected recovery endpoint | Approved SMTP provider pending |
+| A03 | Réinitialisation du mot de passe · `/admin/reinitialiser-mot-de-passe` | Implemented | 4 widths | Fragment cleanup, password validation and reset | Connected reset endpoint | Approved SMTP provider pending |
 | A04 | Tableau de bord · `/admin/dashboard` | Implemented | 4 widths | Search deep link, mobile navigation and desktop sidebar | Fictional data; endpoint pending | Fixture metrics only |
 | A05 | Demandes de devis · `/admin/demandes` | Implemented | 4 widths | Search and pagination | Fictional data; endpoint pending | Versioned/staff API and server pagination pending |
 | A06 | Détails d’une demande · `/admin/demandes/:id` | Implemented | 4 widths | Update status, assign and add note | Fictional data; endpoint pending | Updates in memory |
@@ -68,13 +68,20 @@ The frontend demo is complete. Production work still depends on approved imagery
 | A18 | Messages reçus · `/admin/messages` | Implemented | 4 widths | Local processed action | Fictional data; endpoint pending | Shared mobile inbox pattern |
 | A19 | Paramètres · `/admin/parametres` | Implemented | 4 widths | Local update, locked main phone | Fictional data; endpoint pending | Official details require confirmation |
 
+## Backend phase B1–B3
+
+- **Completed.** Local Compose PostgreSQL, all 18 table definitions, versioned migration and non-publishing category seed. Express has liveness/readiness and server-side authentication, recovery, password change and role checks. The bootstrap command queues a one-time admin setup link.
+- **Frontend.** Real forms, HttpOnly cookie session restoration, admin route guards, session expiry handling, logout and ADMIN-only settings access are connected. The demo entry shortcut is removed. Business fixtures remain separate from authentication data.
+- **Verified.** The production build worked through the Vite proxy in headless Chrome. Twenty protected entries redirected before sign-in. Secure provisioning with local SMTP capture, invalid and valid login, route restoration after refresh, expiry, recovery, password change, role checks and logout passed in an isolated database.
+- **Remaining.** Live catalog and quote intake, all business endpoints, approved SMTP settings and production deployment controls. See [16 Backend implementation](16-BACKEND-IMPLEMENTATION.md) and [17 Backend beginner guide](17-BACKEND-BEGINNER-GUIDE.md).
+
 ## Differences from the Stitch prototypes
 
 - **Brand and photography.** The ZIP’s PNG contains the brand board, and the HTML contains inline prototype monograms. The standalone approved logo/lockup was unavailable, so the app uses a typographic brand-name placeholder. Neutral themed media regions preserve layout space. The homepage omits the unverified carrier block. No partner names, contact details, registration identifiers, premiums or promises are presented as verified business facts.
 - **Intake.** The export’s mobile quote page only contains the start of a wizard. All four steps and the input review use the same controlled form at every width. Optional category selectors collect general context and fit within the documented needs text when integrated. Desktop/mobile contact and assistance use common required fields. The preview creates no submission, confirmation reference, session or email.
-- **Admin design.** A11 and A12 adapt the desktop design to stacked mobile form/detail sections. The merged assistance/messages mobile reference uses a shared layout, two distinct routes and a switch link. Dashboard metrics derive from fixtures. Submit, archive, issue, activate and resolve actions change React memory. The banner and explicit demo entry distinguish the preview from the future secured console.
+- **Admin design.** A11 and A12 adapt the desktop design to stacked mobile form/detail sections. The merged assistance/messages mobile reference uses a shared layout, two distinct routes and a switch link. Dashboard metrics derive from fixtures. Submit, archive, issue, activate and resolve actions change React memory. The banner distinguishes local business fixtures from the authenticated access layer.
 - **Supporting behavior.** Staff lists and legal content are local. The preferences dialog explains the essential-only posture. Admin catalog and settings changes affect only the demo. Client forms exclude CIN/ICE and medical information. Official phones are read-only.
-- **Release.** Replace the demo entry and provider with real authentication and role-aware routes before entering live customer data. Connect persistence, SMTP/recovery, permissions/CSRF, server validation, PDF generation and renewals. Obtain approved assets, French policy copy and company details before publication.
+- **Release.** Replace the fixture provider with authorized business APIs before entering live customer data. Configure the approved SMTP relay and complete business persistence, server permissions, PDF generation and renewals. Obtain approved assets, French policy copy and company details before publication.
 
 ## Files and local commands
 

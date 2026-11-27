@@ -2,7 +2,7 @@
 
 Routes are based on the handoff. Each page has its own folder, such as `frontend/src/pages/public/AutoInsurance/` or `frontend/src/pages/admin/QuoteRequests/`. The `P` and `A` identifiers link the documentation to the Stitch inventory. Separate modes of the same page share a folder. [Export references](14-DESIGN-AUDIT.md) map the IDs to the HTML files. [API contracts](06-API-ENDPOINTS.md) define the payloads and validation rules for the connected release.
 
-The implementation notes under each page describe the local React preview. The surrounding design and endpoint descriptions remain the target for a connected release. See [verification and differences](15-IMPLEMENTATION-STATUS.md).
+The implementation notes under each page describe the React app. Authentication is connected. The surrounding business endpoint descriptions remain the target for later phases. See [verification and differences](15-IMPLEMENTATION-STATUS.md).
 
 ## How to follow the code
 
@@ -11,7 +11,7 @@ The implementation notes under each page describe the local React preview. The s
 3. Look for `useState` when a value changes on screen. The catalog keeps the selected audience in state and computes the visible cards from the local list. The quote wizard keeps the current step and the visitor’s draft in state. Admin pages share a fixture provider so edits remain visible while navigating within the demo.
 4. Use the API handoff under each page when connecting it to data. The service functions are prepared for same-origin requests. Form previews and fixture edits currently run in the browser.
 
-The router sets the browser-tab title from the visible page heading and moves focus to the main content after in-app path changes. Each layout provides the same `contenu` landmark.
+[PageMain](../frontend/src/layouts/PageMain.tsx) sets the browser-tab title from the visible page heading and focuses the main content after the route or its session check becomes visible. Every layout shares the `contenu` landmark. AdminSession restores the server session, redirects unauthenticated visits, and keeps the CSRF value in memory. Staff business pages still read the fixture provider.
 
 ## Shared layout, behavior and states
 
@@ -384,7 +384,7 @@ Explain essential cookies and manage optional preferences.
 - **File.** [CookiePolicy.tsx](../frontend/src/pages/public/CookiePolicy/CookiePolicy.tsx).
 - **Component, props and state.** LegalArticle and Dialog. A ref opens/closes the native modal.
 - **Interactions and styling.** Display essential-only context and inspect available preferences. Dialog adapts to narrow screens.
-- **Data and API handoff.** No cookies or tracking created. Wire optional consent only if analytics is separately approved.
+- **Data and API handoff.** The essential staff session cookie is documented. The public preview uses no analytics cookies. Wire optional consent only if analytics is separately approved.
 
 ### P19 · Page introuvable
 
@@ -425,9 +425,9 @@ Open a staff session.
 **Frontend implementation**
 
 - **File.** [Login.tsx](../frontend/src/pages/admin/Login/Login.tsx).
-- **Component, props and state.** AuthLayout, Input and ErrorState. State controls reveal and unavailable-service message.
-- **Interactions and styling.** Validate input format, clear fields and show service unavailable. An independent link opens synthetic-data demo.
-- **Data and API handoff.** No credentials, session or authentication simulation. Connect api.login/session and remove direct production access to the fixture console.
+- **Component, props and state.** AuthLayout, Input and ErrorState. State controls password reveal, pending submit and error feedback.
+- **Interactions and styling.** Send credentials to the backend, present generic login errors and continue to the requested admin page or dashboard after sign-in.
+- **Data and API handoff.** Connected to api.login and api.session. The server sends the HttpOnly cookie, and the session guard protects the fixture console.
 
 ### A02 · Mot de passe oublié
 
@@ -445,9 +445,9 @@ Request recovery.
 **Frontend implementation**
 
 - **File.** [ForgotPassword.tsx](../frontend/src/pages/admin/ForgotPassword/ForgotPassword.tsx).
-- **Component, props and state.** AuthLayout, simple email form, LocalFeedback; one local result flag.
-- **Interactions and styling.** Verify email format and show no email was sent. Single-column mobile card.
-- **Data and API handoff.** No auth request. Wire api.forgotPassword and generic acknowledgement.
+- **Component, props and state.** AuthLayout, simple email form and LocalFeedback with pending, error and accepted states.
+- **Interactions and styling.** Ask for a reset link and display the generic acknowledgement. The card stays single-column on mobile.
+- **Data and API handoff.** Connected to api.forgotPassword. Development delivery is verified through the local mail sink.
 
 ### A03 · Réinitialisation du mot de passe
 
@@ -465,9 +465,9 @@ Set a new staff password from a recovery link.
 **Frontend implementation**
 
 - **File.** [ResetPassword.tsx](../frontend/src/pages/admin/ResetPassword/ResetPassword.tsx).
-- **Component, props and state.** AuthLayout with passwords, mismatch error and local result flag.
-- **Interactions and styling.** Verify minimum length and confirmation match. Inputs clear after validation.
-- **Data and API handoff.** No token parsing or reset. Read/strip the future URL fragment in memory and call api.resetPassword.
+- **Component, props and state.** AuthLayout with password fields, mismatch, pending and server error states.
+- **Interactions and styling.** Read the link secret from the fragment, remove it from the URL, confirm the password and return to login after a successful reset.
+- **Data and API handoff.** Connected to api.resetPassword. The token is kept in memory and missing, expired and used links point back to recovery.
 
 ### A04 · Tableau de bord
 

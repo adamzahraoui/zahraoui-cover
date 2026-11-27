@@ -1,6 +1,6 @@
 # 06 — API endpoints
 
-Same-origin JSON API under /api. Routes and schemas are proposed. MVP unless marked **V2**. Status codes in the endpoint tables are in addition to the common errors below. The page IDs refer to the [frontend specification](03-FRONTEND.md).
+Same-origin JSON API under /api. Health and authentication are implemented. The business routes below remain proposals, MVP unless marked **V2**. Status codes in the endpoint tables are in addition to the common errors below. The page IDs refer to the [frontend specification](03-FRONTEND.md).
 
 ## Conventions and validation
 
@@ -9,7 +9,7 @@ Same-origin JSON API under /api. Routes and schemas are proposed. MVP unless mar
 - Standard errors use {error: {code, message, fields?: Record<string,string>, requestId}}. Return 400 MALFORMED_REQUEST for malformed JSON/path/query, 413 PAYLOAD_TOO_LARGE, 415 UNSUPPORTED_MEDIA_TYPE, 422 VALIDATION_FAILED for field rules, 429 RATE_LIMITED with Retry-After, and 500 INTERNAL_ERROR. Use 503 temporarily when the service cannot safely accept a request. Staff endpoints additionally return 401 UNAUTHENTICATED or 403 FORBIDDEN. Unsafe browser requests require origin validation and authenticated mutations require X-CSRF-Token. 403 CSRF_FAILED distinguishes that failure. For under-scope objects use 404. Errors contain no input echoes or stack traces.
 - Access codes are **Public**, **Staff** (ADVISOR and ADMIN) and **Admin** (ADMIN). Permissions apply to the record as well as the route. Staff and auth responses are no-store.
 - Page starts at 1, limit defaults to 20 and maxes at 100. Lists use a stable sort with an ID tiebreaker. Search q is trimmed to 2–100 characters when set. Look up PII only through authorized lists. Treat query strings as sensitive in logs.
-- For public POSTs require Idempotency-Key (random UUID) plus noticeVersion, matching the configured published form notice, and acknowledged: true. Replay identical payloads for 24 hours with the original status/reference, even after a notice or product change. Changed payload returns 409 IDEMPOTENCY_CONFLICT. Stale notice returns 409 NOTICE_CHANGED. Public responses contain {reference, receivedAt}, with no public record lookup.
+- For public intake POSTs require Idempotency-Key (random UUID) plus noticeVersion, matching the configured published form notice, and acknowledged: true. Replay identical payloads for 24 hours with the original status/reference, even after a notice or product change. Changed payload returns 409 IDEMPOTENCY_CONFLICT. Stale notice returns 409 NOTICE_CHANGED. Public responses contain {reference, receivedAt}, with no public record lookup.
 - Common rules: name/company 2–120 chars, city 2–100 when supplied, email max 254 with syntax check, phone validated and normalized to E.164 (up to 15 digits), subject 3–120, free text 10–1000 unless noted, contract reference 1–64. For optional case narratives and notes, instruct users and staff to omit sensitive information. Product slugs map to six seeded values and visibility is checked for new public requests.
 - Status, profile, audience, contact preference and situation values are defined in [database enums](05-DATABASE.md). Money is a decimal string with two places, positive within NUMERIC(12,2), and currency MAD. Neither rates nor cover promises are prepopulated.
 
@@ -55,15 +55,18 @@ Same-origin JSON API under /api. Routes and schemas are proposed. MVP unless mar
 | POST /api/quotes | Create quote request / Public | QuoteRequestIn, idempotency header, published product and valid notice | 201 {reference,receivedAt} | 409 replay mismatch or notice | P09 |
 | POST /api/contact | Create message / Public | ContactIn, idempotency header and valid notice | 201 {reference,receivedAt} | 409 replay mismatch or notice | P13 |
 | POST /api/assistance | Create assistance request / Public | AssistanceIn, idempotency header, published product, valid notice | 201 {reference,receivedAt} | 409 replay mismatch or notice | P14 |
-| POST /api/auth/login | Start a session / Public | {email,password}, validate syntax and password length cap | 200 Auth + Set-Cookie | 401 generic invalid credentials | A01 |
+| POST /api/auth/login | Start a session / Public | {email,password}, validate syntax and password length cap | 200 Auth + Set-Cookie | 401 INVALID_CREDENTIALS, 429 RATE_LIMITED | A01 |
 | GET /api/auth/session | Restore current session / Staff | cookie, no body | 200 Auth | 401 expired or missing | A01, A04–A19 |
 | POST /api/auth/logout | End current session / Staff | cookie + CSRF, no body | 204 + clear cookie | — | A04–A19 |
+| POST /api/auth/change-password | Update current account password / Staff | cookie + CSRF, {currentPassword,newPassword}, new password 15–128 chars | 204 + clear cookie, revoke existing sessions | 422 CURRENT_PASSWORD_INVALID, 429 RATE_LIMITED | A04–A19 top bar |
 | POST /api/auth/forgot-password | Request reset / Public | {email} | 202 {accepted:true} | generic body for absent/disabled account | A02 |
 | POST /api/auth/reset-password | Consume reset / Public | {token,password}, base64url token of 32 random bytes and password 15–128 chars | 204 | 422 RESET_INVALID for unknown/expired/used | A03 |
+| GET /api/health | Process probe / Public | no inputs | 200 {status:"ok"} | — | — |
 | GET /api/health/live | Process probe / Internal | no inputs | 200 {status:"ok"} | — | — |
 | GET /api/health/ready | Migration and DB probe / Internal | no inputs | 200 {status:"ready"} | 503 {status:"unavailable"} | — |
+| GET /api/admin/access | Permission probe / Admin | session cookie | 200 {role:"ADMIN"} | 401 UNAUTHENTICATED, 403 FORBIDDEN | — |
 
-Catalog returns an unpaginated bounded array. Health routes are reachable only inside the deployment network, with bare probe bodies.
+Catalog will return an unpaginated bounded array. Health responses use bare probe bodies. The deployment proxy should keep `/api/health/live` and `/api/health/ready` internal. `Auth.expiresAt` is the earlier of the current idle and absolute deadlines.
 
 ## Operational admin
 

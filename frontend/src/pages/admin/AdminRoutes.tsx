@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { AdminSessionProvider, RequireAdminSession } from '../../components/admin/auth/AdminSession'
+import { AdminSessionProvider, RequireAdminRole, RequireAdminSession } from '../../components/admin/auth/AdminSession'
 import { NoRecord } from '../../components/admin/AdminContent'
 import { DemoDataProvider } from '../../components/admin/DemoData'
 import { AdminLayout } from '../../layouts/AdminLayout'
@@ -50,7 +50,9 @@ export default function AdminRoutes() {
             <Route path="assurances" element={<InsuranceManagement />} />
             <Route path="partenaires" element={<Partners />} />
             <Route path="messages" element={<Messages />} />
-            <Route path="parametres" element={<Settings />} />
+            <Route element={<RequireAdminRole />}>
+              <Route path="parametres" element={<Settings />} />
+            </Route>
             <Route path="*" element={<NoRecord title="Page d’administration introuvable" back="/admin/dashboard" />} />
           </Route>
         </Route>
