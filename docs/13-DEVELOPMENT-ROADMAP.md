@@ -32,4 +32,4 @@ M05 can start alongside M03/M04. M08 worker integration can start alongside the 
 | V07 | Advanced statistics and dedicated inboxes | M08, V01, V03, V04 | Date/category breakdowns reflect real records. Support and contact inboxes offer list/detail/action parity at authorized widths. |
 | V08 | Verify and release V2 | V02–V07 | End-to-end issued quote/contract/PDF/renewal, migrations, updated privacy review and restore rehearsal pass. Validate all 19 admin page types and the approved mobile plan. |
 
-V05 can start once the snapshots are specified and V07 inbox work can run alongside V02–V06. The MVP admin controls stay usable during the V2 migration.
+B8 implements V03 and the quote portion of V05 for local verification. Approved production assets, offer wording and SMTP delivery remain release prerequisites. V05 contract work can start once the snapshots are specified and V07 inbox work can run alongside V02–V06. The MVP admin controls stay usable during the V2 migration.

@@ -11,6 +11,7 @@ export const statuses = {
   CLOSED: { label: 'Clôturée', tone: 'neutral' },
   DRAFT: { label: 'Brouillon', tone: 'neutral' },
   ISSUED: { label: 'Émis', tone: 'info' },
+  SENT: { label: 'Envoyé', tone: 'success' },
   ACTIVE: { label: 'Actif', tone: 'success' },
   EXPIRED: { label: 'Expiré', tone: 'warning' },
   CANCELLED: { label: 'Annulé', tone: 'danger' },

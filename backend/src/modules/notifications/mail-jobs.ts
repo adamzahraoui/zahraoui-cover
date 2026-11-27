@@ -1,11 +1,9 @@
-import { randomUUID } from 'node:crypto'
 import type { PrismaClient } from '@prisma/client'
 import nodemailer from 'nodemailer'
 import type { Config } from '../../config/env.js'
 import { openResetToken, tokenFormat } from '../../utils/crypto.js'
 
-const leaseMs = 90_000
-const maxAttempts = 5
+import { claimJob, maxAttempts, retryTime } from './outbox.js'
 
 export function smtpMailer(config: Config) {
   if (config.SMTP_MODE === 'disabled') return
@@ -24,27 +22,12 @@ export function smtpMailer(config: Config) {
   })
 }
 
-type Mailer = NonNullable<ReturnType<typeof smtpMailer>>
+export type Mailer = NonNullable<ReturnType<typeof smtpMailer>>
 
 export async function deliverNextMail(database: PrismaClient, config: Config, mailer: Mailer) {
-  const now = new Date()
-  const leaseToken = randomUUID()
-  const leaseUntil = new Date(now.getTime() + leaseMs)
-  const [claimed] = await database.$queryRaw<{ id: string }[]>`
-    WITH next_job AS (
-      SELECT id FROM outbox_jobs
-      WHERE kind IN ('RESET_EMAIL', 'REQUEST_ACK', 'REQUEST_ALERT', 'CONTACT_ACK', 'CONTACT_ALERT', 'ASSISTANCE_ALERT') AND attempt_count < ${maxAttempts}
-        AND ((state = 'PENDING' AND next_attempt_at <= ${now}) OR (state = 'RUNNING' AND lease_until <= ${now}))
-      ORDER BY next_attempt_at, id
-      LIMIT 1 FOR UPDATE SKIP LOCKED
-    )
-    UPDATE outbox_jobs AS job SET
-      state = 'RUNNING', lease_until = ${leaseUntil}, lease_token = ${leaseToken}::uuid,
-      attempt_count = attempt_count + 1
-    FROM next_job WHERE job.id = next_job.id
-    RETURNING job.id
-  `
+  const claimed = await claimJob(database, ['RESET_EMAIL', 'REQUEST_ACK', 'REQUEST_ALERT', 'CONTACT_ACK', 'CONTACT_ALERT', 'ASSISTANCE_ALERT'])
   if (!claimed) return false
+  const { leaseToken } = claimed
 
   const job = await database.outboxJob.findFirst({
     where: { id: claimed.id, leaseToken },
@@ -129,7 +112,7 @@ export async function deliverNextMail(database: PrismaClient, config: Config, ma
       text: delivery.text,
     })
   } catch {
-    const retryAt = new Date(Date.now() + 15_000 * 2 ** (job.attemptCount - 1))
+    const retryAt = retryTime(job.attemptCount)
     if (job.attemptCount >= maxAttempts || (delivery.expiresAt !== undefined && retryAt >= delivery.expiresAt)) await finish('SMTP_DELIVERY_FAILED')
     else await database.outboxJob.updateMany({
       where: { id: job.id, leaseToken, state: 'RUNNING' },

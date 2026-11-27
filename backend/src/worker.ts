@@ -1,6 +1,7 @@
 import { setTimeout as delay } from 'node:timers/promises'
 import { loadConfig } from './config/env.js'
 import { connectPrisma } from './database/prisma.js'
+import { deliverNextQuote, generateNextQuotePdf, maintainQuoteJobs } from './modules/quotes/jobs.js'
 import { cleanAuthRecords, deliverNextMail, smtpMailer } from './modules/notifications/mail-jobs.js'
 
 async function run() {
@@ -20,9 +21,13 @@ async function run() {
       try {
         if (Date.now() >= nextCleanup) {
           await cleanAuthRecords(database)
+          await maintainQuoteJobs(database)
           nextCleanup = Date.now() + 60_000
         }
-        if (mailer && !stopping && await deliverNextMail(database, config, mailer)) continue
+        const mail = mailer && !stopping && await deliverNextMail(database, config, mailer)
+        const pdf = !stopping && await generateNextQuotePdf(database, config)
+        const quote = mailer && !stopping && await deliverNextQuote(database, config, mailer)
+        if (mail || pdf || quote) continue
       } catch {
         console.error(JSON.stringify({ event: 'mail_worker_iteration_failed' }))
       }

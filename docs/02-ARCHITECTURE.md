@@ -17,6 +17,8 @@ The API and worker share one repository, build image and schema. The worker is a
 
 B6–B7 use the same modular monolith. The API mounts CRM under `backend/src/modules/clients` and contact and assistance under `backend/src/modules/support`. The existing notification worker handles public submissions asynchronously through the PostgreSQL outbox. Locally, Vite proxies `/api` to Express and Compose supplies PostgreSQL and optionally Mailpit. The Nginx and HTTPS topology above is the deployment design. [Customer CRM](20-CUSTOMER-CRM-IMPLEMENTATION.md) · [Contact and assistance](21-CONTACT-ASSISTANCE-IMPLEMENTATION.md)
 
+B8 extends the existing outbox worker to generate quote PDFs and deliver their exact bytes. The API and worker share a private storage directory. Authentication and document readiness gate every file read. [Issued quotes](22-ISSUED-QUOTES-IMPLEMENTATION.md) · [PDF and delivery](23-PDF-AND-DELIVERY-IMPLEMENTATION.md)
+
 ## Proposed implementation tree
 
 ```text

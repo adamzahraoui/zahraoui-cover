@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { AdminHeading, DemoNote, Facts, LocalFeedback, NoRecord, RecordStatus } from '../../../components/admin/AdminContent'
 import { useDemoData } from '../../../components/admin/DemoData'
 import { ActionLink, Button } from '../../../components/ui/Button'
@@ -45,7 +45,7 @@ function ContractProfile({ record }: { record: DemoContract }) {
               ['N° de police', record.policy], ['Client', clientName(data.clients, record.clientId)],
               ['Catégorie', productName(record.product)], ['Compagnie', partner?.name ?? 'Non renseignée'],
               ['Date d’effet', dateLabel(record.startOn)], ['Échéance', dateLabel(record.endOn)],
-              ['Devis source', quote ? <Link className="text-link" to={`/admin/devis/${quote.id}`}>{quote.reference}</Link> : '—'],
+              ['Devis source', quote ? quote.reference : '—'],
             ]} />
           </section>
         )}

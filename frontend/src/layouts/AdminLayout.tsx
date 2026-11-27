@@ -8,7 +8,7 @@ import { AdminTopbar } from '../components/admin/AdminTopbar'
 export function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { pathname } = useLocation()
-  const live = /^\/admin\/(dashboard|demandes|assurances|clients|assistance|messages)(\/|$)/.test(pathname)
+  const live = /^\/admin\/(dashboard|demandes|devis|assurances|clients|assistance|messages)(\/|$)/.test(pathname)
   return (
     <div className="flex min-h-dvh">
       <a href="#contenu" className="sr-only focus:not-sr-only focus:absolute focus:z-20 focus:bg-white focus:p-3">Aller au contenu</a>

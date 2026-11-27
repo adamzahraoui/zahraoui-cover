@@ -24,6 +24,7 @@ const schema = z.object({
   CONTACT_ACK_EMAIL: z.enum(['true', 'false']).default('false').transform(value => value === 'true'),
   QUOTE_ACK_EMAIL: z.enum(['true', 'false']).default('false').transform(value => value === 'true'),
   INTAKE_NOTIFY_EMAIL: z.preprocess(optional, z.string().email().optional()),
+  QUOTE_PDF_DIR: z.preprocess(optional, z.string().min(1).optional()),
   SMTP_MODE: z.enum(['disabled', 'local', 'tls', 'starttls']).default('disabled'),
   SMTP_HOST: z.preprocess(optional, z.string().min(1).optional()),
   SMTP_PORT: z.preprocess(optional, z.coerce.number().int().min(1).max(65535).optional()),

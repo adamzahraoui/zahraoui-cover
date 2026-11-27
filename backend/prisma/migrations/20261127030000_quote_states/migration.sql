@@ -1,0 +1,4 @@
+ALTER TYPE "quote_status" ADD VALUE 'SENT';
+ALTER TYPE "quote_status" ADD VALUE 'EXPIRED';
+ALTER TYPE "quote_status" ADD VALUE 'CANCELLED';
+ALTER TYPE "job_kind" ADD VALUE 'QUOTE_DELIVERY';

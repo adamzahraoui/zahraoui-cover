@@ -1,6 +1,21 @@
 import type { ActivityEntry } from '../../types/api'
 
 export const activityNames: Record<string, string> = {
+  QUOTE_CREATED: 'Brouillon de devis créé',
+  QUOTE_UPDATED: 'Brouillon de devis modifié',
+  QUOTE_ISSUED: 'Devis émis',
+  QUOTE_PDF_READY: 'PDF de devis prêt',
+  QUOTE_PDF_FAILED: 'Échec de génération du PDF',
+  QUOTE_PDF_REQUEUED: 'PDF remis en file',
+  QUOTE_DELIVERY_QUEUED: 'Envoi du devis mis en file',
+  QUOTE_DELIVERED: 'Envoi du devis accepté par SMTP',
+  QUOTE_DELIVERY_FAILED: 'Échec de l’envoi du devis',
+  QUOTE_EXPIRED: 'Devis arrivé à échéance',
+  QUOTE_CANCELLED: 'Devis annulé',
+  QUOTE_REVISION_CREATED: 'Révision de devis créée',
+  QUOTE_DECISION_RECORDED: 'Décision sur le devis enregistrée',
+  QUOTE_REQUEST_DELIVERED: 'Demande mise à jour après l’envoi du devis',
+  QUOTE_REQUEST_DECISION: 'Décision reportée sur la demande',
   QUOTE_REQUEST_RECEIVED: 'Demande de devis reçue',
   QUOTE_REQUEST_UPDATED: 'Demande de devis mise à jour',
   QUOTE_REQUEST_NOTE_ADDED: 'Note de devis ajoutée',

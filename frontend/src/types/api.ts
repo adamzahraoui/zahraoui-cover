@@ -44,7 +44,7 @@ export type Receipt = { reference: string; receivedAt: string }
 export type Auth = { id: string; email: string; displayName: string; role: 'ADVISOR' | 'ADMIN'; expiresAt: string; csrfToken: string }
 export type ClientIn = { profile: Profile; displayName: string; phone: string; email?: string | null; city?: string | null; notes?: string | null }
 export type Client = ClientIn & ClientOption & { createdAt: string; updatedAt: string }
-export type ClientDetail = Client & { recentRequests: RequestRow[]; recentAssistance: Pick<AssistanceRow, 'id' | 'reference' | 'status' | 'createdAt'>[]; activity: ActivityEntry[] }
+export type ClientDetail = Client & { recentRequests: RequestRow[]; recentQuotes: IssuedQuoteRow[]; recentAssistance: Pick<AssistanceRow, 'id' | 'reference' | 'status' | 'createdAt'>[]; activity: ActivityEntry[] }
 export type DuplicateClient = Pick<ClientOption, 'id' | 'displayName' | 'intakeProvisional' | 'archivedAt'>
 export type ActivityEntry = { id: string; action: string; createdAt: string; actor: { displayName: string } | null }
 export type MessageRow = { id: string; reference: string; fullName: string; subject: string; status: MessageStatus; createdAt: string; version: number; archivedAt: string | null }
@@ -69,6 +69,8 @@ export type RequestDetail = RequestRow & Omit<QuoteRequestIn, 'acknowledged' | '
 export type Dashboard = {
   counts: { totalRequests: number; inReviewRequests: number; newRequests: number; openRequests: number; activeClients: number; openAssistance: number; unreadMessages: number; totalClients: number; provisionalClients: number; newAssistance: number; inReviewAssistance: number }
   recentRequests: RequestRow[]
+  recentQuotes: IssuedQuoteRow[]
+  quoteCounts: Partial<Record<QuoteStatus, number>>
   byProduct: { slug: ProductSlug; title: string; count: number }[]
   months: { month: string; count: number }[]
   activity: { id: string; action: string; targetId: string | null; targetType: string | null; createdAt: string }[]
@@ -87,3 +89,31 @@ export type CatalogItem = Product & { isPublished: boolean; isActive: boolean; d
 export type QuoteRequestPatch = { version: number; status?: RequestStatus; clientId?: string; assignedTo?: string | null }
 
 export type ApiErrorBody = { code: string; message: string; fields?: Record<string, string>; requestId?: string }
+
+export type QuoteStatus = 'DRAFT' | 'ISSUED' | 'SENT' | 'ACCEPTED' | 'DECLINED' | 'EXPIRED' | 'CANCELLED'
+export type DecisionMethod = 'EMAIL' | 'PHONE' | 'IN_PERSON' | 'LETTER'
+export type OfferFields = {
+  annualPremiumMad: string; feesMad: string; taxesMad: string; validUntil: string | null
+  coverage: string | null; coverageLimits: string | null; deductibles: string | null; conditions: string | null
+  internalNotes: string | null; customerNotes: string | null
+}
+export type IssuedQuoteInput = OfferFields & { clientId: string; requestId?: string | null; productSlug: ProductSlug; partnerId: string }
+export type IssuedQuoteRow = {
+  id: string; reference: string; clientId: string; clientName: string; requestId: string | null;
+  partnerId: string; partnerName: string; productSlug: ProductSlug; productTitle: string; status: QuoteStatus;
+  annualPremiumMad: string; totalMad: string; currency: 'MAD'; createdAt: string; issuedAt: string | null;
+  sentAt: string | null; validUntil: string | null; version: number; revision: number
+}
+export type QuoteDocument = {
+  id: string; createdAt: string; revision: number; quoteVersion: number | null;
+  mimeType: 'application/pdf' | null; status: 'QUEUED' | 'READY' | 'FAILED';
+  delivery: 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | null
+}
+export type IssuedQuote = IssuedQuoteRow & OfferFields & {
+  client: { email: string | null; intakeProvisional: boolean; archivedAt: string | null }
+  requestReference: string | null
+  documents: QuoteDocument[]
+  revisions: Pick<IssuedQuoteRow, 'id' | 'reference' | 'revision' | 'status'>[]
+  decidedAt: string | null; decisionMethod: DecisionMethod | null; decisionEvidence: string | null
+  decisionActor: { displayName: string } | null; hasNext: boolean; pdfEnabled: boolean; deliveryEnabled: boolean
+}

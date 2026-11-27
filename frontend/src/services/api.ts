@@ -1,4 +1,4 @@
-import type { AssistanceCase, AssistanceIn, AssistancePatch, AssistanceRow, Client, ClientDetail, ClientIn, ContractOption, DuplicateClient, Message, MessageRow, MessageStatus, Auth, CatalogItem, CatalogWrite, ClientOption, ContactIn, Dashboard, Page, Product, ProductCard, QuoteNotice, QuoteRequestIn, QuoteRequestPatch, Receipt, RequestDetail, RequestRow, StaffOption } from '../types/api'
+import type { DecisionMethod, IssuedQuote, IssuedQuoteInput, IssuedQuoteRow, AssistanceCase, AssistanceIn, AssistancePatch, AssistanceRow, Client, ClientDetail, ClientIn, ContractOption, DuplicateClient, Message, MessageRow, MessageStatus, Auth, CatalogItem, CatalogWrite, ClientOption, ContactIn, Dashboard, Page, Product, ProductCard, QuoteNotice, QuoteRequestIn, QuoteRequestPatch, Receipt, RequestDetail, RequestRow, StaffOption } from '../types/api'
 import type { ProductSlug } from '../config/navigation'
 
 export class ApiError extends Error {
@@ -87,6 +87,16 @@ export const api = {
   updateAssistance: (id: string, body: AssistancePatch, csrf: string) => patch<AssistanceCase>('/admin/assistance/' + encodeURIComponent(id), body, csrf),
   addAssistanceNote: (id: string, body: { version: number; body: string }, csrf: string) => post<AssistanceCase>('/admin/assistance/' + encodeURIComponent(id) + '/notes', body, { 'X-CSRF-Token': csrf }),
   contractOptions: (id: string, query: string, signal?: AbortSignal) => list<ContractOption>('/admin/assistance/' + encodeURIComponent(id) + '/contract-options', query, signal),
+  issuedQuotes: (query: string, signal?: AbortSignal) => list<IssuedQuoteRow>('/admin/quotes', query, signal),
+  issuedQuote: (id: string, signal?: AbortSignal) => request<IssuedQuote>('/admin/quotes/' + encodeURIComponent(id), { signal }),
+  quotePartners: (signal?: AbortSignal) => request<{ id: string; name: string }[]>('/admin/quotes/partner-options', { signal }),
+  createIssuedQuote: (body: IssuedQuoteInput, csrf: string) => post<IssuedQuote>('/admin/quotes', body, { 'X-CSRF-Token': csrf }),
+  updateIssuedQuote: (id: string, body: Partial<IssuedQuoteInput> & { version: number }, csrf: string) =>
+    patch<IssuedQuote>('/admin/quotes/' + encodeURIComponent(id), body, csrf),
+  quoteAction: (id: string, action: 'issue' | 'send' | 'retry-pdf' | 'cancel' | 'revision', version: number, csrf: string) =>
+    post<IssuedQuote>('/admin/quotes/' + encodeURIComponent(id) + '/' + action, { version }, { 'X-CSRF-Token': csrf }),
+  quoteDecision: (id: string, body: { version: number; status: 'ACCEPTED' | 'DECLINED'; method: DecisionMethod; evidence: string }, csrf: string) =>
+    post<IssuedQuote>('/admin/quotes/' + encodeURIComponent(id) + '/decision', body, { 'X-CSRF-Token': csrf }),
   dashboard: (signal?: AbortSignal) => request<Dashboard>('/admin/dashboard', { signal }),
   submitQuote: (input: QuoteRequestIn, key: string) => post<Receipt>('/quotes', input, { 'Idempotency-Key': key }),
   submitContact: (input: ContactIn, key: string) => post<Receipt>('/contact', input, { 'Idempotency-Key': key }),

@@ -1,12 +1,20 @@
 import type { PrismaClient } from '@prisma/client'
 import { Router } from 'express'
-import { fromProductSlug } from '../business-inputs.js'
+import { casablancaDate, fromProductSlug } from '../business-inputs.js'
+import { quoteRow, quoteRowSelect } from '../quotes/model.js'
 import { requestRow, requestRowSelect } from '../quote-requests/admin.js'
 
 export function dashboardRoutes(database: PrismaClient) {
   const routes = Router()
   routes.get('/', async (_request, response) => {
-    const [statuses, products, recent, activeClients, openAssistance, unreadMessages, activity, months, totalClients, provisionalClients, newAssistance, inReviewAssistance] = await database.$transaction([
+    const today = new Date(casablancaDate() + 'T00:00:00Z')
+    const [quoteMetrics, issuedQuotes, statuses, products, recent, activeClients, openAssistance, unreadMessages, activity, months, totalClients, provisionalClients, newAssistance, inReviewAssistance] = await database.$transaction([
+      database.$queryRaw<{ status: string; count: number }[]>`
+        SELECT CASE WHEN status IN ('ISSUED','SENT') AND valid_until < ${today}::date THEN 'EXPIRED' ELSE status::text END AS status,
+          count(*)::int AS count FROM quotes GROUP BY 1
+      `,
+      database.quote.findMany({ where: { issuedAt: { not: null } }, select: quoteRowSelect,
+        take: 8, orderBy: [{ issuedAt: 'desc' }, { id: 'desc' }] }),
       database.$queryRaw<{ status: string; count: number }[]>`SELECT status, count(*)::int AS count FROM quote_requests GROUP BY status`,
       database.$queryRaw<{ productId: string; count: number }[]>`SELECT product_id AS "productId", count(*)::int AS count FROM quote_requests GROUP BY product_id`,
       database.quoteRequest.findMany({ take: 10, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: requestRowSelect }),
@@ -14,7 +22,7 @@ export function dashboardRoutes(database: PrismaClient) {
       database.assistanceCase.count({ where: { status: { not: 'RESOLVED' } } }),
       database.contactMessage.count({ where: { status: 'UNREAD' } }),
       database.auditEvent.findMany({
-        where: { targetType: { in: ['quote_request', 'client', 'contact_message', 'assistance_case'] }, action: { not: 'RECORD_VIEWED' } },
+        where: { targetType: { in: ['quote_request', 'client', 'contact_message', 'assistance_case', 'quote'] }, action: { not: 'RECORD_VIEWED' } },
         take: 8, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: { id: true, action: true, targetType: true, targetId: true, createdAt: true },
       }),
       database.$queryRaw<{ month: string; count: number }[]>`
@@ -41,6 +49,8 @@ export function dashboardRoutes(database: PrismaClient) {
         activeClients, openAssistance, unreadMessages, totalClients, provisionalClients, newAssistance, inReviewAssistance,
       },
       recentRequests: recent.map(requestRow),
+      recentQuotes: issuedQuotes.map(quoteRow),
+      quoteCounts: Object.fromEntries(quoteMetrics.map(({ status, count }) => [status, count])),
       byProduct: names.map(row => ({ slug: fromProductSlug(row.slug), title: row.title, count: products.find(product => product.productId === row.id)?.count ?? 0 })),
       activity, months,
     } })

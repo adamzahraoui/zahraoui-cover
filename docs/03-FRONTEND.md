@@ -2,7 +2,7 @@
 
 Routes are based on the handoff. Each page has its own folder, such as `frontend/src/pages/public/AutoInsurance/` or `frontend/src/pages/admin/QuoteRequests/`. The `P` and `A` identifiers link the documentation to the Stitch inventory. Separate modes of the same page share a folder. [Export references](14-DESIGN-AUDIT.md) map the IDs to the HTML files. [API contracts](06-API-ENDPOINTS.md) define the payloads and validation rules for the connected release.
 
-The implementation notes under each page describe the React app. Staff authentication, the public catalog, quote intake, staff request management, customer CRM, contact, assistance and the dashboard summary are connected. Other business endpoint descriptions remain the target for later phases. See [verification and differences](15-IMPLEMENTATION-STATUS.md).
+The implementation notes under each page describe the React app. Staff authentication, the public catalog, quote intake, staff request management, customer CRM, contact, assistance, issued quotes and the dashboard summary are connected. Other business endpoint descriptions remain the target for later phases. See [verification and differences](15-IMPLEMENTATION-STATUS.md).
 
 ## How to follow the code
 
@@ -517,9 +517,9 @@ Review and process a single intake record.
 
 - **Content and components.** Request summary, contact and needs, status/assignment card, client picker and notes. Create issued quote shortcut V2.
 - **Responsive.** Stack sections. Desktop controls for assignee, notes and all valid states need mobile parity.
-- **Interactions.** Call/email, assign, update status, append note, link client and open V2 quote creation.
+- **Interactions.** Call/email, assign, update status, append note, link client and open quote creation.
 - **Fields and validation.** Valid UUIDs, current version, permitted status transition, active assignee/client, note 1–1000.
-- **API data.** GET and PATCH /api/admin/quote-requests/:id → RequestDetail; POST its notes subroute {version,body} → RequestDetail; GET staff options and clients → pages; V2 quote creation via A11.
+- **API data.** GET and PATCH /api/admin/quote-requests/:id → RequestDetail; POST its notes subroute {version,body} → RequestDetail; GET staff options and clients → pages; quote creation via A11.
 - **States.** Shared staff detail states, success announcement per change and stale edit recovery.
 
 **Frontend implementation**
@@ -593,7 +593,7 @@ Maintain an authorized client record.
 
 **Route** `/admin/devis`
 
-Browse actual quote records in V2.
+Browse draft and issued proposals.
 
 - **Content and components.** Quote table, reference, client, product, MAD amount, status, add/view actions.
 - **Responsive.** Use stacked cards. Export shows a Devis & Contrats heading, but contracts have a separate mobile screen.
@@ -605,49 +605,49 @@ Browse actual quote records in V2.
 **Frontend implementation**
 
 - **File.** [Quotes.tsx](../frontend/src/pages/admin/Quotes/Quotes.tsx).
-- **Component, props and state.** AdminHeading, Input, Select and RecordList. Search/status in component, client/request scope from query.
+- **Component, props and state.** AdminHeading, Input, Select and RecordList. Search in local state and inclusion filters/paging in the URL, including client and request scopes.
 - **Interactions and styling.** Filter and open an existing quote or start draft. Responsive table/cards.
-- **Data and API handoff.** Fictional quotes/prices. Connect V2 GET quotes with server filtering/pagination.
+- **Data and API handoff.** GET quotes returns a page, with search, category, dates and status filtering. The amount comes from the server.
 
 ### A11 · Création de devis
 
 **Route** `/admin/devis/nouveau`
 
-Draft and optionally issue an approved quote in V2.
+Draft a proposal from a request or an existing customer. An administrator can finalize a local test proposal.
 
 - **Content and components.** Client, product and partner selectors, premium, conditions and draft/issue actions.
 - **Responsive.** Missing mobile prototype. Adapt existing form primitives and review layout before implementation.
 - **Interactions.** Preselect linked request, save draft, authorized Admin can confirm issuance after draft creation.
 - **Fields and validation.** QuoteIn; require active client and partner, positive MAD, conditions limit and compatible request. Issue requires version.
-- **API data.** GET /api/admin/clients, /api/admin/catalog and /api/admin/partners → selector data. POST /api/admin/quotes → Quote; POST its issue subroute → 202 Quote.
+- **API data.** GET /api/admin/clients and /api/admin/quotes/partner-options → selector data. POST /api/admin/quotes → Quote; POST its issue subroute → 202 Quote.
 - **States.** Load selectors, unavailable eligibility state, save draft success, issuance shows queued PDF, API errors preserve input.
 
 **Frontend implementation**
 
 - **File.** [QuoteCreate.tsx](../frontend/src/pages/admin/QuoteCreate/QuoteCreate.tsx).
 - **Component, props and state.** Reads demande param; QuoteEditor receives optional linked request and holds amount error.
-- **Interactions and styling.** Prefill linked client/category, validate decimal and save a local draft. Uses stacked fields for missing mobile reference.
-- **Data and API handoff.** Fictional clients/requests; no seeded partners. Wire V2 client/catalog/partner selectors, require verified partner and POST draft.
+- **Interactions and styling.** Prefill the linked client/category and save the persisted draft. Staff enter premium, fees, taxes, validity and actual offer terms. Uses stacked fields for missing mobile reference.
+- **Data and API handoff.** Loads the live source request and existing active partner options. The server validates and sums monetary strings.
 
 ### A12 · Détails d’un devis
 
 **Route** `/admin/devis/:id`
 
-Review quote, record decision, download PDF or start a contract in V2.
+Review the proposal, preview the exact PDF, queue test delivery and record a customer decision.
 
-- **Content and components.** Reference and status, client/product/carrier/amount, terms, PDF and contract CTA. Proposed draft edit uses A11 fields inline.
+- **Content and components.** Reference and status, client/product/carrier/amount, terms, PDF and delivery actions, a decision form and revision links. Draft edit uses A11 fields inline.
 - **Responsive.** Missing mobile prototype. Review stacked detail cards and accessible action placement.
-- **Interactions.** Approve a draft or record accepted/declined if Admin, download ready PDF, continue accepted quote to A14.
-- **Fields and validation.** UUID, version on writes, draft constraints and state transition; downstream contract meets ContractIn.
-- **API data.** GET/PATCH /api/admin/quotes/:id → Quote, POST its issue/decision subroutes → Quote, GET document download → PDF. Contract creation occurs through A14.
+- **Interactions.** Finalize or send a quote, record acceptance/refusal and create a revision if eligible. Preview and download the exact ready PDF.
+- **Fields and validation.** UUID, version on writes, draft constraints, verified customer and eligible state transitions.
+- **API data.** GET/PATCH /api/admin/quotes/:id → Quote, POST its issue/decision subroutes → Quote, GET document download → PDF. B8 leaves the contract workflow separate.
 - **States.** Shared detail states, queued/ready/failed PDF status, stale handling and download retry.
 
 **Frontend implementation**
 
 - **File.** [QuoteDetail.tsx](../frontend/src/pages/admin/QuoteDetail/QuoteDetail.tsx).
 - **Component, props and state.** Reads :id; QuoteProfile receives record; local editing/feedback plus issue Dialog. Reuses QuoteEditor.
-- **Interactions and styling.** Inspect terms, edit draft, simulate issue/decision, open contract. Mobile facts/actions stack; PDF is disabled.
-- **Data and API handoff.** Fictional quote. Wire V2 read/update/issue/decision APIs, allow readiness-gated document download with server permissions.
+- **Interactions and styling.** Inspect terms, edit a draft, generate/preview/download its PDF, queue delivery and record a decision. Mobile facts and actions stack.
+- **Data and API handoff.** Live read, update, issue, delivery, decision and revision APIs. The detail polls while worker jobs are queued and exposes download links for ready documents only.
 
 ### A13 · Contrats
 

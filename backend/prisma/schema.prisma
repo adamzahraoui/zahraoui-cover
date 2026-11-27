@@ -101,6 +101,9 @@ enum QuoteStatus {
   ISSUED
   ACCEPTED
   DECLINED
+  SENT
+  EXPIRED
+  CANCELLED
 
   @@map("quote_status")
 }
@@ -138,6 +141,7 @@ enum JobKind {
   RESET_EMAIL
   GENERATE_PDF
   RENEWAL_ALERT
+  QUOTE_DELIVERY
 
   @@map("job_kind")
 }
@@ -152,23 +156,24 @@ enum JobStatus {
 }
 
 model StaffUser {
-  id           String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  version      Int                  @default(1)
-  email        String               @unique @db.VarChar(254)
-  displayName  String               @map("display_name") @db.VarChar(120)
-  role         StaffRole
-  passwordHash String?              @map("password_hash")
-  isActive     Boolean              @default(true) @map("is_active")
-  sessions     AdminSession[]
-  resetTokens  PasswordResetToken[]
-  assistance   AssistanceCase[]
-  requests     QuoteRequest[]
-  notes        RequestNote[]
-  auditEvents  AuditEvent[]
-  quotes       Quote[]
-  contracts    Contract[]
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version        Int                  @default(1)
+  email          String               @unique @db.VarChar(254)
+  displayName    String               @map("display_name") @db.VarChar(120)
+  role           StaffRole
+  passwordHash   String?              @map("password_hash")
+  isActive       Boolean              @default(true) @map("is_active")
+  sessions       AdminSession[]
+  resetTokens    PasswordResetToken[]
+  assistance     AssistanceCase[]
+  requests       QuoteRequest[]
+  notes          RequestNote[]
+  auditEvents    AuditEvent[]
+  quotes         Quote[]              @relation("QuoteAuthor")
+  quoteDecisions Quote[]              @relation("QuoteDecision")
+  contracts      Contract[]
 
   @@index([isActive, displayName, id])
   @@map("staff_users")
@@ -454,6 +459,21 @@ model Quote {
   createdBy        String?          @map("created_by") @db.Uuid
   annualPremiumMad Decimal          @map("annual_premium_mad") @db.Decimal(12, 2)
   currency         String           @default("MAD") @db.Char(3)
+  revision         Int              @default(1)
+  previousId       String?          @unique @map("previous_id") @db.Uuid
+  coverage         String?          @db.VarChar(3000)
+  coverageLimits   String?          @map("coverage_limits") @db.VarChar(2000)
+  deductibles      String?          @db.VarChar(2000)
+  customerNotes    String?          @map("customer_notes") @db.VarChar(2000)
+  internalNotes    String?          @map("internal_notes") @db.VarChar(2000)
+  feesMad          Decimal          @default(0) @map("fees_mad") @db.Decimal(12, 2)
+  taxesMad         Decimal          @default(0) @map("taxes_mad") @db.Decimal(12, 2)
+  totalMad         Decimal?         @map("total_mad") @db.Decimal(12, 2)
+  validUntil       DateTime?        @map("valid_until") @db.Date
+  sentAt           DateTime?        @map("sent_at") @db.Timestamptz(6)
+  decidedBy        String?          @map("decided_by") @db.Uuid
+  decisionMethod   String?          @map("decision_method") @db.VarChar(16)
+  decisionEvidence String?          @map("decision_evidence") @db.VarChar(1000)
   conditions       String?          @db.VarChar(2000)
   status           QuoteStatus      @default(DRAFT)
   issuedAt         DateTime?        @map("issued_at") @db.Timestamptz(6)
@@ -463,7 +483,10 @@ model Quote {
   request          QuoteRequest?    @relation(fields: [requestId], references: [id], onDelete: SetNull)
   product          InsuranceProduct @relation(fields: [productId], references: [id], onDelete: Restrict)
   partner          Partner          @relation(fields: [partnerId], references: [id], onDelete: Restrict)
-  author           StaffUser?       @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  author           StaffUser?       @relation("QuoteAuthor", fields: [createdBy], references: [id], onDelete: SetNull)
+  decisionActor    StaffUser?       @relation("QuoteDecision", fields: [decidedBy], references: [id], onDelete: SetNull)
+  previous         Quote?           @relation("QuoteRevision", fields: [previousId], references: [id], onDelete: Restrict)
+  next             Quote?           @relation("QuoteRevision")
   contract         Contract?
   documents        Document[]
 
@@ -473,6 +496,8 @@ model Quote {
   @@index([productId])
   @@index([partnerId])
   @@index([createdBy])
+  @@index([decidedBy])
+  @@index([validUntil])
   @@map("quotes")
 }
 
@@ -511,20 +536,22 @@ model Contract {
 }
 
 model Document {
-  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  quoteId    String?        @map("quote_id") @db.Uuid
-  contractId String?        @map("contract_id") @db.Uuid
-  kind       DocumentKind
-  revision   Int
-  status     DocumentStatus @default(QUEUED)
-  storageKey String?        @unique @map("storage_key")
-  sha256     Bytes?
-  sizeBytes  BigInt?        @map("size_bytes")
-  readyAt    DateTime?      @map("ready_at") @db.Timestamptz(6)
-  quote      Quote?         @relation(fields: [quoteId], references: [id], onDelete: Restrict)
-  contract   Contract?      @relation(fields: [contractId], references: [id], onDelete: Restrict)
-  outboxJobs OutboxJob[]
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  quoteId      String?        @map("quote_id") @db.Uuid
+  contractId   String?        @map("contract_id") @db.Uuid
+  kind         DocumentKind
+  revision     Int
+  status       DocumentStatus @default(QUEUED)
+  quoteVersion Int?           @map("quote_version")
+  mimeType     String?        @map("mime_type") @db.VarChar(32)
+  storageKey   String?        @unique @map("storage_key")
+  sha256       Bytes?
+  sizeBytes    BigInt?        @map("size_bytes")
+  readyAt      DateTime?      @map("ready_at") @db.Timestamptz(6)
+  quote        Quote?         @relation(fields: [quoteId], references: [id], onDelete: Restrict)
+  contract     Contract?      @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  outboxJobs   OutboxJob[]
 
   @@index([status, createdAt])
   @@map("documents")

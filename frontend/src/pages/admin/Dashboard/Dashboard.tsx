@@ -3,11 +3,13 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { activityNames, activityDate } from '../../../components/admin/ActivityList'
 import { AdminHeading } from '../../../components/admin/AdminContent'
+import { IssuedQuoteList } from '../../../components/admin/IssuedQuoteList'
 import { RequestList } from '../../../components/admin/RequestList'
 import { Button } from '../../../components/ui/Button'
 import { Input } from '../../../components/ui/Fields'
 import { useApiData } from '../../../hooks/useApiData'
 import { api, businessError } from '../../../services/api'
+import type { QuoteStatus } from '../../../types/api'
 import { ErrorState, LoadingState } from '../../../components/ui/States'
 
 const quickLinks = [
@@ -38,8 +40,13 @@ export default function Dashboard() {
     { label: 'Nouvelles assistances', count: data.counts.newAssistance, to: '/admin/assistance?status=NEW' },
     { label: 'Assistances en cours', count: data.counts.inReviewAssistance, to: '/admin/assistance?status=IN_PROGRESS' },
   ] : []
+  const quoteIndicators: { status: QuoteStatus; label: string }[] = [
+    { status: 'DRAFT', label: 'Brouillons' }, { status: 'ISSUED', label: 'En attente d’envoi' },
+    { status: 'SENT', label: 'Envoyés' }, { status: 'ACCEPTED', label: 'Acceptés' },
+    { status: 'DECLINED', label: 'Refusés' }, { status: 'EXPIRED', label: 'Expirés' },
+  ]
   const activityPaths: Record<string, string> = {
-    quote_request: '/admin/demandes/', client: '/admin/clients/', contact_message: '/admin/messages?id=', assistance_case: '/admin/assistance?id=',
+    quote_request: '/admin/demandes/', quote: '/admin/devis/', client: '/admin/clients/', contact_message: '/admin/messages?id=', assistance_case: '/admin/assistance?id=',
   }
 
   function search(event: FormEvent<HTMLFormElement>) {
@@ -65,11 +72,15 @@ export default function Dashboard() {
             <span className={`text-2xl font-bold tabular-nums lg:text-[32px] ${color}`}>{count}</span>
           </Link>
         ))}
-        <div className="panel grid gap-1 p-3 sm:p-4">
-          <span className="text-sm text-muted">Devis acceptés</span>
-          <span className="text-sm font-semibold text-muted">Indisponible pour cette phase</span>
-        </div>
       </div>
+      <section className="grid gap-3">
+        <h2 className="font-semibold">Propositions d’assurance</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {quoteIndicators.map(({ status, label }) => <Link key={status} to={`/admin/devis?status=${status}`} className="panel grid gap-1 p-3 hover:border-soft-blue sm:p-4">
+            <span className="text-sm text-muted">{label}</span><span className="text-2xl font-bold tabular-nums text-primary">{data.quoteCounts[status] ?? 0}</span>
+          </Link>)}
+        </div>
+      </section>
       <section className="grid gap-3">
         <h2 className="font-semibold">Clients et assistance</h2>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
@@ -113,6 +124,10 @@ export default function Dashboard() {
       <section className="grid gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold">Demandes récentes</h2><Link to="/admin/demandes" className="text-link text-sm">Voir les demandes</Link></div>
         <RequestList rows={data.recentRequests} label="Demandes récentes" />
+      </section>
+      <section className="grid gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold">Devis émis récemment</h2><Link to="/admin/devis" className="text-link text-sm">Voir les devis</Link></div>
+        <IssuedQuoteList rows={data.recentQuotes} label="Devis émis récemment" />
       </section>
       <section className="panel grid gap-3 p-4 sm:p-5">
         <h2 className="font-semibold">Activité récente</h2>

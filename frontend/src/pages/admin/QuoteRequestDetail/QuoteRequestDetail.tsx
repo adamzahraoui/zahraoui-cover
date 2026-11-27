@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { AdminHeading, Facts, LocalFeedback, NoRecord, RecordStatus } from '../../../components/admin/AdminContent'
 import { useAdminSession } from '../../../components/admin/auth/AdminSession'
-import { Button } from '../../../components/ui/Button'
+import { ActionLink, Button } from '../../../components/ui/Button'
 import { Input, Select, Textarea } from '../../../components/ui/Fields'
 import { ErrorState, LoadingState } from '../../../components/ui/States'
 import { useApiData } from '../../../hooks/useApiData'
@@ -101,6 +101,11 @@ function Detail({ id }: { id: string }) {
   return (
     <>
       <AdminHeading title={`Demande #${record.reference}`} parent={{ label: 'Demandes de devis', to: '/admin/demandes' }} action={<RecordStatus status={record.status} />} />
+      <div className="flex flex-wrap gap-2">
+        {record.client && !record.client.archivedAt && !['ACCEPTED', 'CLOSED'].includes(record.status) &&
+          <ActionLink to={`/admin/devis/nouveau?demande=${record.id}`}>Créer un devis</ActionLink>}
+        <ActionLink to={`/admin/devis?requestId=${record.id}`} variant="secondary">Voir les devis liés</ActionLink>
+      </div>
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <div className="grid gap-4">
           <section className="panel grid gap-4 p-4 sm:p-5">

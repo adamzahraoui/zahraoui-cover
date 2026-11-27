@@ -19,6 +19,8 @@ Use health routes and metrics that expose no business data. Alert authorized ope
 
 Staff CRM and inbox detail endpoints require a valid staff session and record a redacted view event. Writes also require CSRF and the current version. Customer archive requires ADMIN. Public support requests are rate-limited and idempotent, and return only a receipt. Contract matching happens in the staff workflow after customer verification.
 
+Private B8 PDFs use an authenticated UUID endpoint, an integrity digest and a private directory. Quote emails use the frozen, verified customer email. Development PDF issuance and the loopback-only delivery path are gated from production. [PDF and delivery](23-PDF-AND-DELIVERY-IMPLEMENTATION.md)
+
 ## Privacy before launch
 
 - Assign a controller and an approved privacy contact. Review data categories, lawful basis, rights and records with the agency's privacy adviser. The acknowledgement fields record the published notice and timestamp. The owner must confirm where a separate consent record and controls are required. [CNDP website compliance](https://www.cndp.ma/conformite-des-sites-web/)

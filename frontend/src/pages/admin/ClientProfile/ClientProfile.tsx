@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from 'react-router-dom'
 import { ActivityList } from '../../../components/admin/ActivityList'
 import { AdminHeading, Facts, LocalFeedback, NoRecord, RecordStatus } from '../../../components/admin/AdminContent'
 import { useAdminSession } from '../../../components/admin/auth/AdminSession'
+import { IssuedQuoteList } from '../../../components/admin/IssuedQuoteList'
 import { RequestList } from '../../../components/admin/RequestList'
 import { ActionLink, Button } from '../../../components/ui/Button'
 import { Dialog } from '../../../components/ui/Dialog'
@@ -58,6 +59,13 @@ export default function ClientProfile() {
           </div>}
         </section>
         <section className="grid gap-3"><h2 className="text-lg font-semibold">Demandes de devis liées</h2><RequestList rows={client.recentRequests} label="Demandes de devis liées" /></section>
+        <section className="grid gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">Devis associés</h2>
+            <Link className="text-link text-sm" to={`/admin/devis?clientId=${client.id}`}>Voir tous les devis</Link>
+          </div>
+          <IssuedQuoteList rows={client.recentQuotes} label="Devis associés" />
+        </section>
         <div className="grid gap-4 lg:grid-cols-2">
           <section className="panel p-4 sm:p-5">
             <h2 className="mb-3 text-lg font-semibold">Demandes d’assistance liées</h2>

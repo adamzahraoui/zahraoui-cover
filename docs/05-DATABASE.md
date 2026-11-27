@@ -16,11 +16,11 @@ This logical schema is implemented by the [Prisma model](../backend/prisma/schem
 | assistance_priority | NORMAL, URGENT |
 | message_status | UNREAD, READ, PROCESSED |
 | intake_action | QUOTE_REQUEST, ASSISTANCE, CONTACT |
-| quote_status | DRAFT, ISSUED, ACCEPTED, DECLINED |
+| quote_status | DRAFT, ISSUED, SENT, ACCEPTED, DECLINED, EXPIRED, CANCELLED |
 | contract_status | DRAFT, ACTIVE, CANCELLED, EXPIRED |
 | document_kind | QUOTE_PDF, CONTRACT_PDF |
 | document_status | QUEUED, READY, FAILED |
-| job_kind | REQUEST_ALERT, REQUEST_ACK, ASSISTANCE_ALERT, CONTACT_ALERT, CONTACT_ACK, RESET_EMAIL; V2 adds GENERATE_PDF, RENEWAL_ALERT |
+| job_kind | REQUEST_ALERT, REQUEST_ACK, ASSISTANCE_ALERT, CONTACT_ALERT, CONTACT_ACK, RESET_EMAIL; B8 uses GENERATE_PDF and QUOTE_DELIVERY; V2 reserves RENEWAL_ALERT |
 | job_status | PENDING, RUNNING, SUCCEEDED, FAILED |
 
 Localize UI labels in French. Keep insurer offer lifecycle distinct from intake status. Immutable policy and quote snapshots are allowlisted, with customer display name and approved business terms only as needed to reproduce the document. Amounts stay numeric in PostgreSQL and decimal strings in JSON.
@@ -285,7 +285,7 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 
 **Additional indexes.** Unique lower(name); (is_active, name, id).
 
-### quotes · V2
+### quotes · B8
 
 | Column | PostgreSQL type and modifiers |
 | --- | --- |
@@ -299,15 +299,26 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 | product_id | uuid FK insurance_products.id |
 | partner_id | uuid FK partners.id |
 | created_by | uuid nullable FK staff_users.id SET NULL |
+| revision | integer default 1 |
+| previous_id | uuid nullable UK FK quotes.id RESTRICT |
 | annual_premium_mad | numeric(12,2) |
+| fees_mad, taxes_mad | numeric(12,2) default 0 |
+| total_mad | numeric(12,2) nullable on legacy rows |
 | currency | char(3) default MAD |
+| coverage | varchar(3000) nullable |
+| coverage_limits, deductibles, customer_notes, internal_notes | varchar(2000) nullable |
 | conditions | varchar(2000) nullable |
 | status | quote_status default DRAFT |
+| valid_until | date nullable |
+| sent_at | timestamptz nullable |
+| decided_by | uuid nullable FK staff_users.id SET NULL |
+| decision_method | varchar(16) nullable |
+| decision_evidence | varchar(1000) nullable |
 | issued_at | timestamptz nullable |
 | decided_at | timestamptz nullable |
 | issued_snapshot | jsonb nullable |
 
-**Rules.** Positive finite premium, currency MAD. If linked, request must match client/product. Issued snapshot freezes approved document data and is subject to the same retention.
+**Rules.** Positive finite premium, nonnegative fees and taxes, and fixed-point total equal to their sum in MAD. The optional request matches the client and product. Issuance freezes the offer snapshot. A revision has a separate ID and refers to its predecessor. SENT requires a transport acceptance timestamp. Legacy records retain their values.
 
 **Additional indexes.** (status, created_at, id), (client_id, created_at), (request_id), (product_id), (partner_id), (created_by).
 
@@ -336,7 +347,7 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 
 **Additional indexes.** Unique (partner_id, policy_number); (status, expires_on, id), (client_id, expires_on), (product_id), (created_by).
 
-### documents · V2
+### documents · B8 quote PDF, V2 contract PDF
 
 | Column | PostgreSQL type and modifiers |
 | --- | --- |
@@ -346,6 +357,8 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 | contract_id | uuid nullable FK contracts.id |
 | kind | document_kind |
 | revision | integer |
+| quote_version | integer nullable (quote version after issuance) |
+| mime_type | varchar(32) nullable, application/pdf for B8 |
 | status | document_status default QUEUED |
 | storage_key | text nullable UK |
 | sha256 | bytea nullable |
@@ -621,12 +634,27 @@ erDiagram
         uuid product_id FK
         uuid partner_id FK
         uuid created_by FK
+        integer revision
+        uuid previous_id FK, UK
         numeric_12_2 annual_premium_mad
+        numeric_12_2 fees_mad
+        numeric_12_2 taxes_mad
+        numeric_12_2 total_mad
         char_3 currency
+        varchar_3000 coverage
+        varchar_2000 coverage_limits
+        varchar_2000 deductibles
+        varchar_2000 customer_notes
+        varchar_2000 internal_notes
         varchar_2000 conditions
         quote_status status
         timestamptz issued_at
+        date valid_until
+        timestamptz sent_at
         timestamptz decided_at
+        uuid decided_by FK
+        varchar_16 decision_method
+        varchar_1000 decision_evidence
         jsonb issued_snapshot
     }
     contracts {
@@ -654,6 +682,8 @@ erDiagram
         uuid contract_id FK
         document_kind kind
         integer revision
+        integer quote_version
+        varchar_32 mime_type
         document_status status
         text storage_key UK
         bytea sha256

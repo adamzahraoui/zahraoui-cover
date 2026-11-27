@@ -9,8 +9,8 @@ The implemented operator command, API and frontend behavior are described in [16
 | Public catalog, intake, login and recovery | Yes | Yes | Yes |
 | Staff dashboard, request read/update/assign/link/notes, client read/create/update/verify, assistance read/update/notes/link, contact read/update/archive | — | Yes | Yes |
 | Client archive, catalog or partner writes, agency settings | — | — | Yes |
-| V2 quote/contract read, draft create/update, document access | — | Yes | Yes |
-| V2 quote issue and decision, contract lifecycle transitions | — | — | Yes |
+| B8 quote read, draft create/update and private PDF access | — | Yes | Yes |
+| B8 quote issue, delivery, cancellation, revision and decisions | — | — | Yes |
 
 ADVISOR and ADMIN are individually authorized back-office staff. The proposal assumes one brokerage team with shared caseload and assignment for routing. Review this before granting access. Resolve active account and permission on each request. A missing or expired session yields 401 and an authenticated user lacking permission receives 403. Check the target record and its scope on reads and downloads.
 

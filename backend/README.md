@@ -40,6 +40,8 @@ Use Node.js 22.12 or later, npm and Docker Compose.
 
 7. For local contact and assistance, add separate synthetic `CONTACT_NOTICE_TEXT` and `ASSISTANCE_NOTICE_TEXT` values under the same `PRIVACY_NOTICE_VERSION`. Set `CONTACT_ACK_EMAIL=true` to test contact acknowledgements. The configured `INTAKE_NOTIFY_EMAIL` receives internal alerts from all enabled forms.
 
+8. For B8 quote testing, create a private directory outside the repository, set its absolute path in `QUOTE_PDF_DIR` and run the existing worker. Add an approved provider through the agency's database administration process. In a disposable local test database, an operator can add a synthetic provider using `INSERT INTO partners (name) VALUES ('Compagnie fictive de vérification');` in `psql`. The seed leaves the partner list empty. Keep test PDF delivery on loopback Mailpit and verify the synthetic CRM email before sending. [Issued quotes](../docs/22-ISSUED-QUOTES-IMPLEMENTATION.md) · [PDF and delivery](../docs/23-PDF-AND-DELIVERY-IMPLEMENTATION.md)
+
 The public probe is `GET /api/health`. From the API machine, check database readiness using `GET /api/health/ready`. The first-admin command operates once per database. For a missing or expired setup link, request a new one from the password recovery page.
 
 ## Checks and production build

@@ -50,6 +50,7 @@ async function detail(database: Prisma.TransactionClient, id: string) {
       product: { select: { slug: true, title: true } },
       client: { select: clientSelect },
       assignee: { select: { id: true, displayName: true } },
+      quotes: { where: { sentAt: { not: null } }, select: { id: true }, take: 1 },
       notes: {
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         include: { author: { select: { displayName: true } } },
@@ -63,7 +64,7 @@ async function detail(database: Prisma.TransactionClient, id: string) {
     desiredStartOn: row.desiredStartOn?.toISOString().slice(0, 10), needs: row.needs,
     noticeVersion: row.noticeVersion, acknowledgedAt: row.acknowledgedAt, updatedAt: row.updatedAt,
     clientId: row.clientId ?? undefined, client: row.client, assignee: row.assignee,
-    allowedStatuses: transitions[row.status],
+    allowedStatuses: transitions[row.status].filter(status => !row.quotes.length || status !== 'ACCEPTED' && status !== 'DECLINED'),
     notes: row.notes.map(entry => ({ id: entry.id, body: entry.body, authorName: entry.author?.displayName ?? '—', createdAt: entry.createdAt })),
   }
 }
@@ -103,7 +104,20 @@ export function quoteAdminRoutes(database: PrismaClient) {
     const id = parseQuery(z.uuid(), request.params.id)
     const input = jsonBody(request, patch)
     const data = await database.$transaction(async transaction => {
+      await transaction.$queryRaw`SELECT id FROM quote_requests WHERE id = ${id}::uuid FOR UPDATE`
       const current = await transaction.quoteRequest.findUnique({ where: { id }, select: { status: true, version: true, clientId: true } })
+      if (current && ((input.status && input.status !== current.status) || (input.clientId && input.clientId !== current.clientId))) {
+        const quote = { requestId: id }
+        if (await transaction.outboxJob.count({ where: {
+          kind: 'QUOTE_DELIVERY', state: { in: ['PENDING', 'RUNNING'] }, document: { quote },
+        } })) throw new ApiError(409, 'QUOTE_DELIVERY_PENDING', 'Attendez la fin de l’envoi avant de modifier le statut ou le client.')
+        if ((input.status === 'ACCEPTED' || input.status === 'DECLINED') && await transaction.quote.count({ where: { ...quote, sentAt: { not: null } } })) {
+          throw new ApiError(409, 'QUOTE_DECISION_REQUIRED', 'Enregistrez la décision sur le devis envoyé.')
+        }
+        if (input.clientId && input.clientId !== current.clientId && await transaction.quote.count({
+          where: { ...quote, status: { in: ['DRAFT', 'ISSUED', 'SENT', 'ACCEPTED'] } },
+        })) throw new ApiError(409, 'QUOTE_LINK_IN_USE', 'Le client est lié à un devis actif.')
+      }
       if (!current) throw notFound()
       if (current.version !== input.version) throw stale()
       if (input.status && input.status !== current.status && !transitions[current.status].includes(input.status)) {

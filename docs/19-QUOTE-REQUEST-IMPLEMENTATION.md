@@ -25,7 +25,7 @@ The provisional record is the change from the original staff-only linking rule. 
 | `GET /api/admin/clients` | Staff | Detail client selector. Paged minimum display fields, with no email in the list. |
 | `GET /api/admin/dashboard` | Staff | [Dashboard](../frontend/src/pages/admin/Dashboard/Dashboard.tsx). Live totals, new and in-review counts, per-category breakdown, up to ten recent requests, recent request audit activity and six months of request activity. |
 
-[The staff router](../backend/src/modules/quote-requests/admin.ts) checks the version on every mutation and records an audit event in the same transaction. A stale edit returns 409 so the interface can reload the current record. A new request can move to `IN_REVIEW` or `CLOSED`. An in-review request can be closed. The send transition requires a completed delivery workflow and is unavailable in this phase. Historical `QUOTE_SENT` rows can still move to `ACCEPTED`, `DECLINED` or `CLOSED`. React renders submitted and administrative content as text, including HTML-looking input.
+[The staff router](../backend/src/modules/quote-requests/admin.ts) checks the version on every mutation and records an audit event in the same transaction. A stale edit returns 409 so the interface can reload the current record. A new request can move to `IN_REVIEW` or `CLOSED`. An in-review request can be closed. The linked request moves to QUOTE_SENT after SMTP acceptance through the [issued quote workflow](22-ISSUED-QUOTES-IMPLEMENTATION.md). Historical `QUOTE_SENT` rows can still move to `ACCEPTED`, `DECLINED` or `CLOSED`. React renders submitted and administrative content as text, including HTML-looking input.
 
 ## Local test settings
 

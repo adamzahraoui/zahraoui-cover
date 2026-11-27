@@ -6,6 +6,7 @@ import { jsonBody } from '../../middleware/request.js'
 import { emailField } from '../auth/contracts.js'
 import { requireCsrf, requireRole } from '../auth/session.js'
 import { normalizePhone, pageBounds, pagination, parseQuery, phoneField, profile, searchPrefix, versionField } from '../business-inputs.js'
+import { quoteRow, quoteRowSelect } from '../quotes/model.js'
 import { requestRow, requestRowSelect } from '../quote-requests/admin.js'
 import { recordHistory, staffAudit, staleRecord } from '../staff-records.js'
 
@@ -92,15 +93,16 @@ export function clientRoutes(database: PrismaClient) {
     const data = await database.$transaction(async transaction => {
       const client = await transaction.client.findUnique({
         where: { id }, include: {
+          quotes: { take: 10, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: quoteRowSelect },
           requests: { take: 10, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: requestRowSelect },
           assistance: { take: 10, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: { id: true, reference: true, status: true, createdAt: true } },
         },
       })
       if (!client) throw notFound()
-      const { requests, assistance, ...fields } = client
+      const { requests, assistance, quotes, ...fields } = client
       const activity = await recordHistory(transaction, 'client', id)
       await staffAudit(transaction, response, 'client', id, 'RECORD_VIEWED')
-      return { ...fields, recentRequests: requests.map(requestRow), recentAssistance: assistance, activity }
+      return { ...fields, recentRequests: requests.map(requestRow), recentQuotes: quotes.map(quoteRow), recentAssistance: assistance, activity }
     })
     response.json({ data })
   })
@@ -109,12 +111,16 @@ export function clientRoutes(database: PrismaClient) {
     const id = parseQuery(z.uuid(), request.params.id)
     const { version, verify, confirmDuplicate, ...changes } = jsonBody(request, edit)
     const data = await database.$transaction(async transaction => {
+      await transaction.$queryRaw`SELECT id FROM clients WHERE id = ${id}::uuid FOR UPDATE`
       const client = await transaction.client.findUnique({ where: { id } })
       if (!client) throw notFound()
       if (client.version !== version) throw staleRecord()
       if (client.archivedAt) throw new ApiError(409, 'CLIENT_ARCHIVED', 'Cette fiche est archivée.')
       const phone = changes.phone ?? client.phone
       const email = changes.email === undefined ? client.email : changes.email
+      if (email !== client.email && await transaction.outboxJob.count({
+        where: { kind: 'QUOTE_DELIVERY', state: { in: ['PENDING', 'RUNNING'] }, document: { quote: { clientId: id } } },
+      })) throw new ApiError(409, 'QUOTE_DELIVERY_PENDING', 'Attendez la fin de l’envoi avant de modifier l’adresse email.')
       if (verify || phone !== client.phone || email !== client.email) {
         const candidates = await duplicates(transaction, phone, email, id, true)
         if (candidates.length && !confirmDuplicate) throw new ApiError(409, 'CLIENT_DUPLICATES', 'Des fiches utilisent ces coordonnées. Vérifiez les correspondances.')
@@ -139,12 +145,13 @@ export function clientRoutes(database: PrismaClient) {
       const [locked] = await transaction.$queryRaw<{ id: string }[]>`SELECT id FROM clients WHERE id = ${id}::uuid FOR UPDATE`
       if (!locked) throw notFound()
       const client = await transaction.client.findUniqueOrThrow({ where: { id }, select: {
-        version: true, archivedAt: true, requests: { where: openRequest, take: 1, select: { id: true } },
+        version: true, archivedAt: true, quotes: { where: { documents: { some: { outboxJobs: { some: { kind: 'QUOTE_DELIVERY', state: { in: ['PENDING', 'RUNNING'] } } } } } }, take: 1, select: { id: true } },
+        requests: { where: openRequest, take: 1, select: { id: true } },
         assistance: { where: { status: { not: 'RESOLVED' } }, take: 1, select: { id: true } },
         contracts: { where: { status: 'ACTIVE' }, take: 1, select: { id: true } },
       } })
       if (client.version !== version) throw staleRecord()
-      if (client.archivedAt || client.requests.length || client.assistance.length || client.contracts.length) {
+      if (client.archivedAt || client.requests.length || client.quotes.length || client.assistance.length || client.contracts.length) {
         throw new ApiError(409, 'CLIENT_ARCHIVE_BLOCKED', 'La fiche est déjà archivée ou liée à un dossier en cours.')
       }
       const archived = await transaction.client.update({ where: { id }, data: { archivedAt: new Date(), version: { increment: 1 } } })
