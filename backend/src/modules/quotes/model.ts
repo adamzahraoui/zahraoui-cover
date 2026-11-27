@@ -26,7 +26,7 @@ export const quoteInput = z.strictObject({
 export const quoteRowSelect = {
   id: true, reference: true, clientId: true, requestId: true, partnerId: true, version: true,
   revision: true, status: true, annualPremiumMad: true, totalMad: true, currency: true, createdAt: true,
-  validUntil: true, issuedAt: true, sentAt: true,
+  validUntil: true, issuedAt: true, sentAt: true, issuedSnapshot: true,
   client: { select: { displayName: true } },
   product: { select: { slug: true, title: true } },
   partner: { select: { name: true } },
@@ -44,9 +44,11 @@ export function effectiveStatus(status: QuoteStatus, validUntil: Date | null, to
 }
 
 export function quoteRow(row: Prisma.QuoteGetPayload<{ select: typeof quoteRowSelect }>) {
+  const issued = row.issuedSnapshot
+  const frozenCarrier = issued && typeof issued === 'object' && !Array.isArray(issued) && typeof issued.carrier === 'string' ? issued.carrier : undefined
   return {
     id: row.id, reference: row.reference, clientId: row.clientId, requestId: row.requestId, partnerId: row.partnerId,
-    clientName: row.client.displayName, productSlug: fromProductSlug(row.product.slug), productTitle: row.product.title, partnerName: row.partner.name,
+    clientName: row.client.displayName, productSlug: fromProductSlug(row.product.slug), productTitle: row.product.title, partnerName: frozenCarrier ?? row.partner.name,
     status: effectiveStatus(row.status, row.validUntil), version: row.version, revision: row.revision,
     annualPremiumMad: row.annualPremiumMad.toFixed(2), totalMad: (row.totalMad ?? row.annualPremiumMad).toFixed(2), currency: row.currency,
     createdAt: row.createdAt, issuedAt: row.issuedAt, sentAt: row.sentAt, validUntil: row.validUntil?.toISOString().slice(0, 10) ?? null,

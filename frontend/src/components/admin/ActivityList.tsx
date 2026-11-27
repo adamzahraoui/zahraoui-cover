@@ -1,6 +1,10 @@
 import type { ActivityEntry } from '../../types/api'
 
 export const activityNames: Record<string, string> = {
+  PARTNER_CREATED: 'Fiche partenaire créée',
+  PARTNER_VERIFIED: 'Compagnie vérifiée',
+  PARTNER_UPDATED: 'Fiche partenaire mise à jour',
+  PARTNER_REVIEW_REQUIRED: 'Nouvelle vérification requise',
   CONTRACT_CREATED_FROM_QUOTE: 'Contrat préparé depuis un devis',
   CONTRACT_EXTERNAL_DRAFT_CREATED: 'Police externe enregistrée en brouillon',
   CONTRACT_UPDATED: 'Brouillon de contrat modifié',

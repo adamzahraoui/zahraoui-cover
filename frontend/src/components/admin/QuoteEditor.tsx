@@ -17,7 +17,10 @@ export function QuoteEditor({ record, request, onSaved }: {
   record?: IssuedQuote; request?: RequestDetail; onSaved?: (record: IssuedQuote) => void
 }) {
   const { state } = useAdminSession()
-  const partners = useApiData(api.quotePartners)
+  const [category, setCategory] = useState<ReturnType<typeof parseProduct>>(record?.productSlug ?? request?.productSlug ?? '')
+  const loadPartners = useCallback((signal: AbortSignal) => category ? api.quotePartners(category, signal) : Promise.resolve(undefined), [category])
+  const partners = useApiData(loadPartners)
+  const options = partners.loading ? [] : partners.data ?? []
   const [search, setSearch] = useState('')
   const [clientId, setClientId] = useState('')
   const [clientName, setClientName] = useState('')
@@ -44,6 +47,7 @@ export function QuoteEditor({ record, request, onSaved }: {
     const client = knownClient ?? clientId
     const product = record?.productSlug ?? request?.productSlug ?? parseProduct(text('product'))
     if (!client || !product) { setError('Sélectionnez un client et une catégorie.'); return }
+    if (!options.some(option => option.id === text('partner'))) { setError('Sélectionnez une compagnie admissible pour cette catégorie.'); return }
     const body: IssuedQuoteInput = {
       clientId: client, requestId: record?.requestId ?? request?.id, productSlug: product, partnerId: text('partner'),
       annualPremiumMad: money('premium'), feesMad: money('fees'), taxesMad: money('taxes'), validUntil: text('validUntil') || null,
@@ -70,7 +74,7 @@ export function QuoteEditor({ record, request, onSaved }: {
       <p className="text-sm text-muted">Saisissez les conditions et les prix vérifiés auprès de la compagnie. Le serveur calcule le total à l’enregistrement.</p>
       {partners.loading && <LoadingState />}
       {partners.error && <ErrorState>{businessError(partners.error)} <Button variant="secondary" onClick={partners.reload}>Réessayer</Button></ErrorState>}
-      {partners.data?.length === 0 && <ErrorState>Aucune compagnie active. Demandez à l’agence de renseigner une compagnie approuvée.</ErrorState>}
+      {category && !partners.loading && partners.data?.length === 0 && <ErrorState>Aucune compagnie vérifiée et active pour cette catégorie.</ErrorState>}
       {(record || request) && <Facts items={[
         ['Client', record?.clientName ?? request?.client?.displayName],
         ['Catégorie', record?.productTitle ?? request?.productTitle],
@@ -83,13 +87,11 @@ export function QuoteEditor({ record, request, onSaved }: {
             <Select label="Client" name="client" value={clientId} required placeholder="Choisir un client" options={customerOptions}
               onChange={event => { setClientId(event.target.value); setClientName(customerOptions.find(item => item.value === event.target.value)?.label ?? '') }} />
             {clients.error && <ErrorState>{businessError(clients.error)}</ErrorState>}
-            <Select label="Catégorie d’assurance" name="product" required defaultValue="" placeholder="Choisir une catégorie" options={productOptions} />
+            <Select label="Catégorie d’assurance" name="product" required value={category} placeholder="Choisir une catégorie" options={productOptions} onChange={event => setCategory(parseProduct(event.target.value))} />
           </>}
-          <Select label="Compagnie approuvée" name="partner" required defaultValue={record?.partnerId ?? ''} placeholder="Choisir une compagnie"
-            options={[
-              ...(record && !partners.data?.some(partner => partner.id === record.partnerId) ? [{ value: record.partnerId, label: record.partnerName }] : []),
-              ...(partners.data ?? []).map(partner => ({ value: partner.id, label: partner.name })),
-            ]} />
+          <Select key={category + ':' + String(partners.loading)} label="Compagnie approuvée" name="partner" required defaultValue={record?.partnerId ?? ''}
+            placeholder={category ? 'Choisir une compagnie' : 'Sélectionner d’abord une catégorie'} disabled={!category || partners.loading}
+            options={options.map(partner => ({ value: partner.id, label: partner.name }))} />
           <Input label="Validité jusqu’au" name="validUntil" type="date" min={casablancaToday()} defaultValue={record?.validUntil ?? ''} />
           <Input label="Prime annuelle (MAD)" name="premium" inputMode="decimal" required maxLength={13} pattern="[0-9]{1,10}([.,][0-9]{1,2})?" defaultValue={record?.annualPremiumMad} />
           <Input label="Frais (MAD)" name="fees" inputMode="decimal" maxLength={13} pattern="[0-9]{1,10}([.,][0-9]{1,2})?" defaultValue={record?.feesMad ?? '0.00'} />
@@ -105,7 +107,7 @@ export function QuoteEditor({ record, request, onSaved }: {
       </fieldset>
       {error && <ErrorState>{error}</ErrorState>}
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={busy || !partners.data?.length}>{busy ? 'Enregistrement…' : 'Enregistrer le brouillon'}</Button>
+        <Button type="submit" disabled={busy || !options.length}>{busy ? 'Enregistrement…' : 'Enregistrer le brouillon'}</Button>
         {!record && <ActionLink to={request ? `/admin/demandes/${request.id}` : '/admin/devis'} variant="secondary">Annuler</ActionLink>}
       </div>
     </form>

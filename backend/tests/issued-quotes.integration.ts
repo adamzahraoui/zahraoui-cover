@@ -93,7 +93,7 @@ before(async () => {
       audiences: ['INDIVIDUAL'], eligibilityText: '', potentialCoverages: [], documentHints: [], faqs: [], relatedSlugs: [] },
   })
   clientId = (await db.client.create({ data: { displayName: 'Client synthétique', phone: '+212600000010', email, profile: 'INDIVIDUAL' } })).id
-  partnerId = (await db.partner.create({ data: { name: 'Compagnie de test ' + randomUUID() } })).id
+  partnerId = (await db.partner.create({ data: { name: 'Compagnie de test ' + randomUUID(), categories: ['voyage'], verifiedAt: new Date(), verificationReference: 'Fixture historique vérifiée', isActive: true } })).id
   requestId = (await db.quoteRequest.create({ data: {
     clientId, productId: product.id, reference: 'DEV-' + randomBytes(12).toString('hex').toUpperCase(), profile: 'INDIVIDUAL',
     firstName: 'Client', lastName: 'Synthétique', phone: '+212600000010', email, city: 'Rabat', needs: 'Besoin de test sans données réelles.',

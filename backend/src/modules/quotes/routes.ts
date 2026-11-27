@@ -9,6 +9,7 @@ import { jsonBody } from '../../middleware/request.js'
 import { currentSession, requireCsrf, requireRole } from '../auth/session.js'
 import { casablancaDate, pageBounds, pagination, parseQuery, productSlug, searchPrefix, toProductSlug, versionField } from '../business-inputs.js'
 import { dateRange, lockActiveClient, staffAudit, staleRecord } from '../staff-records.js'
+import { eligiblePartner, lockEligiblePartner } from '../partners/model.js'
 import { privateDirectory, quotePdfEnabled, readPdf } from './files.js'
 import { calculateTotal, decisionMethod, deliveryJobKey, effectiveStatus, lockLinkedRequest, pdfJobKey, quoteInput, quoteRow, quoteRowSelect, quoteStatus, snapshotSchema } from './model.js'
 import type { QuoteSnapshot } from './model.js'
@@ -38,9 +39,9 @@ async function validateLinks(db: Prisma.TransactionClient, quote: Pick<Quote, 'r
     throw invalid('La demande doit être ouverte et correspondre au client et à l’assurance.')
   }
   await lockActiveClient(db, quote.clientId)
-  const [partner] = await db.$queryRaw<{ id: string }[]>`SELECT id FROM partners WHERE id = ${quote.partnerId}::uuid AND is_active FOR SHARE`
-  if (!partner) throw invalid('Sélectionnez une compagnie active approuvée par l’agence.')
-  return request
+  const partner = await lockEligiblePartner(db, quote.partnerId, quote.productId)
+  if (!partner) throw invalid('Sélectionnez une compagnie vérifiée et active pour cette assurance.')
+  return partner
 }
 
 async function draftFields(db: Prisma.TransactionClient, input: Partial<z.infer<typeof quoteInput>>, prior?: Quote) {
@@ -71,7 +72,7 @@ async function lockedQuote(db: Prisma.TransactionClient, id: string, version: nu
   if (!lock) throw missing()
   const row = await db.quote.findUniqueOrThrow({ where: { id }, include: {
     client: { select: { displayName: true, city: true, email: true, archivedAt: true, intakeProvisional: true } },
-    product: { select: { title: true } }, partner: { select: { name: true } }, next: { select: { id: true } },
+    product: { select: { title: true } }, next: { select: { id: true } },
     documents: { where: { kind: 'QUOTE_PDF' }, orderBy: { revision: 'desc' }, take: 1 },
   } })
   if (row.version !== version) throw staleRecord()
@@ -156,10 +157,13 @@ export function issuedQuoteRoutes(db: PrismaClient, config: Config) {
     ], { isolationLevel: 'RepeatableRead' })
     response.json({ data: rows.map(quoteRow), meta: { page, limit, total } })
   })
-  routes.get('/partner-options', async (_request, response) => {
-    const data = await db.partner.findMany({ where: { isActive: true }, take: 100,
-      orderBy: [{ name: 'asc' }, { id: 'asc' }], select: { id: true, name: true } })
-    response.json({ data })
+  routes.get('/partner-options', async (request, response) => {
+    const { productSlug: category } = parseQuery(z.strictObject({ productSlug: productSlug.optional() }), request.query)
+    const data = await db.partner.findMany({
+      where: { ...eligiblePartner, categories: category ? { has: toProductSlug(category) } : undefined }, take: 100,
+      orderBy: [{ name: 'asc' }, { id: 'asc' }], select: { id: true, name: true, displayName: true },
+    })
+    response.json({ data: data.map(row => ({ id: row.id, name: row.displayName ?? row.name })) })
   })
   routes.get('/:id', async (request, response) => {
     const id = parseQuery(z.uuid(), request.params.id)
@@ -208,10 +212,10 @@ export function issuedQuoteRoutes(db: PrismaClient, config: Config) {
       if (row.status !== 'DRAFT' || !validUntil || validUntil < today || !row.coverage || !row.coverageLimits || !row.conditions || !row.totalMad) {
         throw invalid('Complétez les garanties, les limites, les conditions, le prix et la date de validité du brouillon.')
       }
-      await validateLinks(transaction, row)
+      const partner = await validateLinks(transaction, row)
       const snapshot: QuoteSnapshot = {
         reference: row.reference, revision: row.revision, issuedOn: today, validUntil, clientName: row.client.displayName, city: row.client.city,
-        email: row.client.email, product: row.product.title, carrier: row.partner.name,
+        email: row.client.email, product: row.product.title, carrier: partner.name,
         coverage: row.coverage, limits: row.coverageLimits, deductibles: row.deductibles, conditions: row.conditions, customerNotes: row.customerNotes,
         premium: row.annualPremiumMad.toFixed(2), fees: row.feesMad.toFixed(2), taxes: row.taxesMad.toFixed(2), total: row.totalMad.toFixed(2), development: true,
       }

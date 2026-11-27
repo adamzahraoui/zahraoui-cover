@@ -11,10 +11,12 @@ import { useApiData } from '../../../hooks/useApiData'
 import { api, businessError } from '../../../services/api'
 import { statusOptions } from '../../../utils/admin'
 
+const loadInsurers = (signal: AbortSignal) => api.partners('limit=100', signal)
+
 export default function Contracts() {
   const [params, setParams] = useSearchParams()
   const [search, setSearch] = useState('')
-  const partners = useApiData(api.quotePartners)
+  const partners = useApiData(loadInsurers)
   const from = params.get('expiresFrom') ?? ''
   const to = params.get('expiresTo') ?? ''
   const invalid = Boolean(from && to && from > to)
@@ -45,7 +47,7 @@ export default function Contracts() {
         options={statusOptions(['DRAFT', 'SCHEDULED', 'ACTIVE', 'EXPIRED', 'CANCELLED', 'UNVERIFIED'])} onChange={event => change('status', event.target.value)} />
       <Select label="Catégorie" value={params.get('productSlug') ?? ''} placeholder="Toutes les assurances" options={productOptions} onChange={event => change('productSlug', event.target.value)} />
       <Select label="Compagnie" value={params.get('partnerId') ?? ''} placeholder="Toutes les compagnies"
-        options={(partners.data ?? []).map(partner => ({ value: partner.id, label: partner.name }))} onChange={event => change('partnerId', event.target.value)} />
+        options={(partners.data?.data ?? []).map(partner => ({ value: partner.id, label: partner.name }))} onChange={event => change('partnerId', event.target.value)} />
       <Input label="Échéance à partir du" type="date" value={from} onChange={event => change('expiresFrom', event.target.value)} />
       <Input label="Échéance jusqu’au" type="date" value={to} onChange={event => change('expiresTo', event.target.value)}
         error={invalid ? 'Choisissez une période d’échéance valide.' : undefined} />

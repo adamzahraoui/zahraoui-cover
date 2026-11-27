@@ -23,6 +23,8 @@ Private B8 PDFs use an authenticated UUID endpoint, an integrity digest and a pr
 
 B9 adds attachment-only insurer PDF retrieval and local PDF uploads with size, MIME and signature validation. Production uploads remain disabled while malware scanning and the approved policy are pending. Insurer confirmation and cancellation require ADMIN, CSRF and the current version. [Contract document security](24-CONTRACTS-IMPLEMENTATION.md)
 
+B10 partner details and audit history require staff authentication. Only administrators can create, edit, verify, activate or publish partners. The server checks CSRF and the last-read version on updates. The public API sends an approved name and optional HTTPS website only. Logo uploads are deferred pending approved image validation. [Partner management](26-PARTNER-MANAGEMENT-IMPLEMENTATION.md)
+
 ## Privacy before launch
 
 - Assign a controller and an approved privacy contact. Review data categories, lawful basis, rights and records with the agency's privacy adviser. The acknowledgement fields record the published notice and timestamp. The owner must confirm where a separate consent record and controls are required. [CNDP website compliance](https://www.cndp.ma/conformite-des-sites-web/)

@@ -21,6 +21,8 @@ B8 extends the existing outbox worker to generate quote PDFs and deliver their e
 
 B9 registers insurer-confirmed policies and renewal drafts in the existing Contract table. The worker uses the PostgreSQL outbox for reminder leases and expiration updates. Insurer PDFs use the existing private volume and staff download route, with local-only uploads. [Contracts](24-CONTRACTS-IMPLEMENTATION.md) · [Renewals](25-RENEWALS-AND-REMINDERS-IMPLEMENTATION.md)
 
+B10 adds live partner administration and a minimal public partner feed in the same Express application. Quote and contract services share the category eligibility check and continue to read issued documents from immutable snapshots and private storage. [Partner management](26-PARTNER-MANAGEMENT-IMPLEMENTATION.md)
+
 ## Proposed implementation tree
 
 ```text

@@ -39,7 +39,7 @@ Same-origin JSON API under /api. Health, authentication, catalog, quote intake a
 | Message | MessageRow plus phone, email, message, noticeVersion, acknowledgedAt, updatedAt |
 | Dashboard | counts {totalRequests, newRequests, inReviewRequests, openRequests, activeClients, totalClients, provisionalClients, openAssistance, newAssistance, inReviewAssistance, unreadMessages}, recentRequests (up to 10 RequestRow), byProduct[{slug,title,count}], activity[{id,action,targetType,targetId,createdAt}], months[{month,count}], quoteCounts by status, recentQuotes (up to 8 QuoteRow), contractCounts, recentContracts (up to 8 ContractRow) |
 | Trends | from, to, monthly[{month, requests}], byProduct[{productSlug, requests}], counts {draftQuotes, activeContracts, dueRenewals} |
-| PartnerIn / Partner | name, website? (HTTPS only, max 300), logoKey? (approved manifest), isActive; read adds id, version. No publishable partner defaults. |
+| PartnerIn / Partner | Legal name, optional display name, private contacts, address and notes, optional HTTPS website, and category slugs. Reads add UUID, version and lifecycle state. Detail adds verification metadata and recent history. |
 | QuoteIn | clientId, requestId?, productSlug, partnerId, annualPremiumMad, feesMad?, taxesMad?, validUntil?, coverage?, coverageLimits?, deductibles?, conditions?, customerNotes?, internalNotes?. Money fields are fixed-point decimal strings. |
 | QuoteRow / Quote | id, reference, clientId, clientName, requestId?, partnerId, partnerName, productSlug, productTitle, status, annualPremiumMad, totalMad, currency, createdAt, issuedAt?, sentAt?, validUntil?, revision, version. Detail adds offer fields, decision metadata, revision history, PDF and delivery states. |
 | ContractIn | effectiveOn, expiresOn (exclusive), policyNumber?, coverage?, premiumMad?, internalNotes?, renewalReminders?. Quote conversion requires quoteId and quoteVersion. External registration requires clientId, productSlug and partnerId. |
@@ -108,8 +108,8 @@ The catalog returns an unpaginated bounded array. Health responses use bare prob
 | Method and URL | Purpose / permission | Request and validation | Success body | Other errors | Pages |
 | --- | --- | --- | --- | --- | --- |
 | GET /api/admin/quotes | List issued quote records and drafts / Staff | page, limit, q?, status?, productSlug?, clientId?, requestId?, from?, to? | 200 QuoteRow list | — | A08, A10 |
-| GET /api/admin/quotes/partner-options | List active partners / Staff | no input | 200 IDs and names | — | A11 |
-| POST /api/admin/quotes | Create draft / Staff | QuoteIn, active client/partner, product exists, request if supplied linked to same client and product | 201 Quote | 409 incompatible link | A11 |
+| GET /api/admin/quotes/partner-options | List verified, active partners / Staff | productSlug? limits choices to the matching category | 200 IDs and names | 400 invalid filter | A11, A14 |
+| POST /api/admin/quotes | Create draft / Staff | QuoteIn, active client, verified active partner for category, product exists, request if supplied linked to same client and product | 201 Quote | 409 incompatible link | A11 |
 | GET /api/admin/quotes/:id | Read quote / Staff | UUID | 200 Quote | 404 | A12 |
 | PATCH /api/admin/quotes/:id | Edit draft / Staff | {version,...partial QuoteIn}, draft only and links consistent | 200 Quote | 404, 409 stale/state/link | A11, A12 |
 | POST /api/admin/quotes/:id/issue | Lock and queue PDF / Admin | {version}, complete draft, valid business links | 202 Quote with queued DocumentRef | 404, 409 stale/state/link | A11, A12 |
@@ -134,13 +134,21 @@ The catalog returns an unpaginated bounded array. Health responses use bare prob
 | POST /api/admin/contracts/:id/documents | Attach PDF / Staff | version query, raw application/pdf body <=4 MiB | 201 Contract | 403 access, 409 state/stale, 413 size, 415 type, 422 format, 503 disabled | A14 |
 | GET /api/admin/documents/:id/download | Retrieve insurer PDF / Staff | UUID and ready private record, attachment only | 200 application/pdf, no-store | 404, 409 not ready, 503 storage | A14 |
 
-## Version 2 administration
+## Partner management · B10
 
 | Method and URL | Purpose / permission | Request and validation | Success body | Other errors | Pages |
 | --- | --- | --- | --- | --- | --- |
-| GET /api/admin/partners | List carriers / Staff | page, limit, q?, active? | 200 Partner list | — | A11, A14, A17 |
-| POST /api/admin/partners | Create carrier / Admin | PartnerIn, unique case-insensitive name | 201 Partner | 409 duplicate | A17 |
-| PATCH /api/admin/partners/:id | Edit or deactivate / Admin | {version,...partial PartnerIn} with same rules | 200 Partner | 404, 409 stale/duplicate | A17 |
+| GET /api/partners | List published carriers / Public | No input, returns verified and active records with explicit publication | 200 name and optional website | — | P01 |
+| GET /api/admin/partners | List carriers / Staff | page, limit, q?, status?, active?, productSlug? | 200 paginated list | 400 invalid filters | A13, A17 |
+| GET /api/admin/partners/:id | Read carrier / Staff | Partner UUID | 200 details, activity and recent quotes/contracts | 404 missing | A17 |
+| POST /api/admin/partners | Create carrier draft / Admin | PartnerIn, unique case-insensitive legal name | 201 Partner detail | 409 duplicate, 422 validation | A17 |
+| PATCH /api/admin/partners/:id | Edit or change state / Admin | Current version, partial PartnerIn, isActive?, isPublished? | 200 Partner detail | 404 missing, 409 state/stale/duplicate, 422 validation | A17 |
+| POST /api/admin/partners/:id/verify | Verify carrier / Admin | Current version, reference, stored category scope | 200 Partner detail | 404 missing, 409 state/stale, 422 validation | A17 |
+
+## Proposed settings administration
+
+| Method and URL | Purpose / permission | Request and validation | Success body | Other errors | Pages |
+| --- | --- | --- | --- | --- | --- |
 | GET /api/admin/settings | Read settings / Admin | no body | 200 Settings | — | A19 |
 | PATCH /api/admin/settings | Save approved values / Admin | {version,email?,address?,hours?}, approved values only, nullable, at least one change | 200 Settings | 409 stale | A19 |
 

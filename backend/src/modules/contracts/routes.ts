@@ -10,6 +10,7 @@ import { currentSession, requireCsrf, requireRole } from '../auth/session.js'
 import { casablancaDate, pageBounds, pagination, parseQuery, productSlug, searchPrefix, toProductSlug, versionField } from '../business-inputs.js'
 import { lockActiveClient, recordHistory, staffAudit, staleRecord } from '../staff-records.js'
 import { maxPdfBytes, pdfDigest, privateDirectory, publishPdf, quotePdfEnabled, removePdf } from '../quotes/files.js'
+import { lockEligiblePartner } from '../partners/model.js'
 import { snapshotSchema } from '../quotes/model.js'
 import { addDays, contractConflict, contractFilter, contractRow, contractRowSelect, coverageStatus, dateOnly, lockContract, onDate, policyFields, validatePeriod } from './model.js'
 import { obsoleteReminders, scheduleReminders } from './reminders.js'
@@ -37,11 +38,12 @@ function missing() {
   return new ApiError(404, 'NOT_FOUND', 'Contrat introuvable.')
 }
 
-async function validateLinks(db: Prisma.TransactionClient, input: Pick<Contract, 'clientId' | 'partnerId'>, verified = false) {
+async function validateLinks(db: Prisma.TransactionClient, input: Pick<Contract, 'clientId' | 'partnerId' | 'productId'>, verified = false) {
   const client = await lockActiveClient(db, input.clientId)
   if (verified && client.provisional) throw contractConflict('Vérifiez l’identité du client avant l’activation.')
-  const [provider] = await db.$queryRaw<{ id: string }[]>`SELECT id FROM partners WHERE id=${input.partnerId}::uuid AND is_active FOR SHARE`
-  if (!provider) throw contractConflict('La compagnie doit être active et approuvée.')
+  const provider = await lockEligiblePartner(db, input.partnerId, input.productId)
+  if (!provider) throw contractConflict('La compagnie doit être vérifiée et active pour cette assurance.')
+  return provider
 }
 
 function draftValues(input: Partial<z.infer<typeof external>>, existing?: Contract) {
@@ -187,9 +189,9 @@ export function contractRoutes(db: PrismaClient, config: Config) {
     const input = jsonBody(request, external)
     try {
       const data = await db.$transaction(async transaction => {
-        await validateLinks(transaction, input)
         const product = await transaction.insuranceProduct.findUnique({ where: { slug: toProductSlug(input.productSlug) }, select: { id: true } })
         if (!product) throw contractConflict('Assurance introuvable.')
+        await validateLinks(transaction, { ...input, productId: product.id })
         const record = await transaction.contract.create({ data: {
           ...draftValues(input), clientId: input.clientId, partnerId: input.partnerId, productId: product.id,
           reference: reference(), createdBy: currentSession(response).user.id,
@@ -231,7 +233,7 @@ export function contractRoutes(db: PrismaClient, config: Config) {
             !input.confirmationOn || !input.confirmationReference || input.confirmationOn > casablancaDate(now)) {
           throw contractConflict('Une référence de police, les garanties, la prime, une période valide et une confirmation vérifiée sont obligatoires.')
         }
-        await validateLinks(transaction, row, true)
+        const provider = await validateLinks(transaction, row, true)
         if (row.previousId) {
           await lockContract(transaction, row.previousId)
           const previous = await transaction.contract.findUniqueOrThrow({ where: { id: row.previousId } })
@@ -241,7 +243,7 @@ export function contractRoutes(db: PrismaClient, config: Config) {
         const snapshot = {
           policyNumber: row.policyNumber, clientId: row.clientId, partnerId: row.partnerId, productId: row.productId,
           effectiveOn: dateOnly(row.effectiveOn), expiresOn: dateOnly(row.expiresOn), premiumMad: row.premiumMad.toFixed(2), currency: row.currency,
-          coverage: row.coverage, confirmationReference: input.confirmationReference, confirmationOn: input.confirmationOn,
+          carrier: provider.name, coverage: row.coverage, confirmationReference: input.confirmationReference, confirmationOn: input.confirmationOn,
         }
         await transaction.contract.update({ where: { id }, data: {
           status: 'ACTIVE', activatedAt: now, confirmationOn: onDate(input.confirmationOn), confirmationReference: input.confirmationReference,

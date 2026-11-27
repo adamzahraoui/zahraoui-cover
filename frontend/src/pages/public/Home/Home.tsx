@@ -4,6 +4,8 @@ import { CatalogCards, usePublicCatalog } from '../../../components/public/Publi
 import { Accordion, ActionBand, ContentCard, MediaPlaceholder } from '../../../components/public/PublicSections'
 import { ActionLink } from '../../../components/ui/Button'
 import { company } from '../../../config/company'
+import { useApiData } from '../../../hooks/useApiData'
+import { api } from '../../../services/api'
 import { faqs } from '../../../data/faq'
 
 const audiences = [
@@ -27,6 +29,7 @@ const steps = [
 
 export default function Home() {
   const { data: products = [] } = usePublicCatalog()
+  const { data: partners = [] } = useApiData(api.publicPartners)
   return (
     <>
       <section className="border-b border-line bg-white">
@@ -87,6 +90,14 @@ export default function Home() {
           <div className="grid gap-3">{faqs.map(({ question, answer }, index) => <div key={question} className={index >= 3 ? 'hidden lg:block' : ''}><Accordion question={question}>{answer}</Accordion></div>)}</div>
         </div>
       </section>
+      {partners.length > 0 && <section className="site-container section-space" aria-labelledby="compagnies-partenaires">
+        <h2 id="compagnies-partenaires" className="section-title mb-6">Nos compagnies partenaires</h2>
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{partners.map(({ name, website }, index) => (
+          <li key={name + index} className="panel p-4 font-semibold wrap-anywhere">
+            {website ? <a className="text-link" href={website} target="_blank" rel="noopener noreferrer">{name}<span className="sr-only"> (nouvel onglet)</span></a> : name}
+          </li>
+        ))}</ul>
+      </section>}
       <ActionBand title="Parlons de votre protection.">Décrivez votre besoin à un conseiller {company.name}.</ActionBand>
     </>
   )

@@ -36,7 +36,7 @@ Orient visitors to product, audience and quote paths.
 - **Responsive.** Stack cards and editorial features. The mobile export has a shorter FAQ and omits several desktop blocks.
 - **Interactions.** Open dropdown/drawer and FAQs, follow audience/product/service links, request quote or use official numbers.
 - **Fields and validation.** None.
-- **API data.** GET /api/catalog → ProductCard[] for product cards.
+- **API data.** GET /api/catalog → published product cards. GET /api/partners → approved public names and optional HTTPS links.
 - **States.** Render hero and navigation immediately. Show card skeletons, then visible products or an empty catalog message. Retry only the product section on failure.
 
 **Frontend implementation**
@@ -44,7 +44,7 @@ Orient visitors to product, audience and quote paths.
 - **File.** [Home.tsx](../frontend/src/pages/public/Home/Home.tsx).
 - **Component, props and state.** InsuranceCard, MediaPlaceholder, ContentCard, Accordion, ActionBand; no props or local state.
 - **Interactions and styling.** Open links and native FAQ disclosures; desktop editorial blocks collapse on mobile. Tailwind grid and white/neutral section bands.
-- **Data and API handoff.** Live category cards from the shared catalog provider, with loading and error states. FAQ content is bundled.
+- **Data and API handoff.** Live category cards from the shared catalog provider, with loading and error states. FAQ content is bundled. The partner section appears only when at least one verified, active, explicitly published carrier is available.
 
 ### P02 · Nos assurances
 
@@ -618,7 +618,7 @@ Draft a proposal from a request or an existing customer. An administrator can fi
 - **Content and components.** Client, product and partner selectors, premium, conditions and draft/issue actions.
 - **Responsive.** Missing mobile prototype. Adapt existing form primitives and review layout before implementation.
 - **Interactions.** Preselect linked request, save draft, authorized Admin can confirm issuance after draft creation.
-- **Fields and validation.** QuoteIn; require active client and partner, positive MAD, conditions limit and compatible request. Issue requires version.
+- **Fields and validation.** QuoteIn; require an active client, verified active partner for the category, positive MAD, conditions limit and compatible request. Issue requires version.
 - **API data.** GET /api/admin/clients and /api/admin/quotes/partner-options → selector data. POST /api/admin/quotes → Quote; POST its issue subroute → 202 Quote.
 - **States.** Load selectors, unavailable eligibility state, save draft success, issuance shows queued PDF, API errors preserve input.
 
@@ -627,7 +627,7 @@ Draft a proposal from a request or an existing customer. An administrator can fi
 - **File.** [QuoteCreate.tsx](../frontend/src/pages/admin/QuoteCreate/QuoteCreate.tsx).
 - **Component, props and state.** Reads demande param; QuoteEditor receives optional linked request and holds amount error.
 - **Interactions and styling.** Prefill the linked client/category and save the persisted draft. Staff enter premium, fees, taxes, validity and actual offer terms. Uses stacked fields for missing mobile reference.
-- **Data and API handoff.** Loads the live source request and existing active partner options. The server validates and sums monetary strings.
+- **Data and API handoff.** Loads the live source request and verified active partners for the request’s category. The server validates and sums monetary strings.
 
 ### A12 · Détails d’un devis
 
@@ -733,21 +733,20 @@ Maintain the six fixed product pages in V2.
 
 **Route** `/admin/partenaires`
 
-Manage verified insurer records in V2.
+Manage the insurers reviewed by the agency.
 
-- **Content and components.** Carrier cards, add/edit controls, status, approved logo if available.
-- **Responsive.** Stack cards and reuse the shared edit form.
-- **Interactions.** Create, edit or deactivate. Preserve historical links.
-- **Fields and validation.** PartnerIn, case-insensitive unique name and approved logo/HTTPS website when supplied.
-- **API data.** GET /api/admin/partners → Partner page, POST or PATCH carrier → Partner.
-- **States.** Shared list/form states. Show empty carrier list and disable issue where no eligible carrier exists.
+- **Content and components.** Search and filters above the live card grid, pagination and a shared dialog for partner details. The dialog shows categories, verification, private contact fields, recent quotes and contracts and audit history.
+- **Responsive.** The card grid uses one column on phones, two on tablets and three on wide displays. The shared dialog stacks its fields on mobile.
+- **Interactions.** Advisors read records. Administrators can create, edit, verify, activate, deactivate and control publication. Material changes to the identity, website or categories require a new review.
+- **Fields and validation.** Unique legal name, optional display name and contact details, HTTPS website, catalog categories and a verification reference. The editor submits the current version with changes.
+- **API data.** GET /api/admin/partners loads the page. GET its record route loads details. POST creates a draft or verifies an existing record through its verify subroute. PATCH updates the record and lifecycle.
+- **States.** Show loading, empty, error and success feedback. When no eligible insurer exists for a category, the quote and external-policy forms explain why the selector is empty.
 
 **Frontend implementation**
 
-- **File.** [Partners.tsx](../frontend/src/pages/admin/Partners/Partners.tsx).
-- **Component, props and state.** Partner editor Dialog and card/empty state; local editing, validation and feedback.
-- **Interactions and styling.** Create/edit/deactivate a fictitious example. Grid stacks on mobile. Initial list is empty.
-- **Data and API handoff.** No seeded companies. Wire V2 GET/POST/PATCH with uniqueness/version and approved website/logo inputs.
+- **Files.** [Partners.tsx](../frontend/src/pages/admin/Partners/Partners.tsx) and [PartnerEditor.tsx](../frontend/src/pages/admin/Partners/PartnerEditor.tsx).
+- **Component, props and state.** The page owns the filters, chosen record and feedback. The editor receives the record and reports saved changes to the page. After a successful change, the page refreshes the list.
+- **Data and API handoff.** The API supplies all partner records and public visibility. See the [partner management guide](26-PARTNER-MANAGEMENT-IMPLEMENTATION.md).
 
 ### A18 · Messages reçus
 

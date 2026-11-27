@@ -2,6 +2,7 @@ import type { OutboxJob, PrismaClient } from '@prisma/client'
 import type { Config } from '../../config/env.js'
 import { claimJob, maxAttempts, retryTime } from '../notifications/outbox.js'
 import type { Mailer } from '../notifications/mail-jobs.js'
+import { lockEligiblePartner } from '../partners/model.js'
 import { effectiveStatus, lockLinkedRequest, snapshotSchema } from './model.js'
 import { pdfDigest, privateDirectory, publishPdf, quotePdfEnabled, readPdf } from './files.js'
 import { renderQuotePdf } from './pdf.js'
@@ -72,7 +73,6 @@ export async function deliverNextQuote(db: PrismaClient, config: Config, mailer:
   if (!claimed) return false
   const job = await db.outboxJob.findFirst({ where: claimed, include: { document: { include: { quote: { include: {
     client: { select: { email: true, intakeProvisional: true, archivedAt: true } },
-    partner: { select: { isActive: true } },
     request: { select: { status: true, clientId: true, productId: true } },
   } } } } } })
   if (!job) return true
@@ -81,9 +81,13 @@ export async function deliverNextQuote(db: PrismaClient, config: Config, mailer:
   const snapshot = snapshotSchema.safeParse(quote?.issuedSnapshot)
   if (!quote || effectiveStatus(quote.status, quote.validUntil) !== 'ISSUED' || doc?.kind !== 'QUOTE_PDF' || doc.status !== 'READY' ||
       !doc.storageKey || !doc.sha256 || !doc.sizeBytes || !snapshot.success || !quote.client.email || quote.client.email !== snapshot.data.email ||
-      quote.client.archivedAt || quote.client.intakeProvisional || !quote.partner.isActive ||
+      quote.client.archivedAt || quote.client.intakeProvisional ||
       (quote.request && (['CLOSED', 'ACCEPTED'].includes(quote.request.status) || quote.request.clientId !== quote.clientId || quote.request.productId !== quote.productId))) {
     await failJob(db, job, 'QUOTE_DELIVERY_INVALID', false)
+    return true
+  }
+  if (!await db.$transaction(transaction => lockEligiblePartner(transaction, quote.partnerId, quote.productId))) {
+    await failJob(db, job, 'QUOTE_PARTNER_UNAVAILABLE', false)
     return true
   }
   try {

@@ -15,6 +15,7 @@ import { assistanceAdminRoutes, messageAdminRoutes } from './modules/support/adm
 import { supportIntakeRoutes } from './modules/support/intake.js'
 import { issuedQuoteRoutes, privateDocumentRoutes } from './modules/quotes/routes.js'
 import { contractRoutes } from './modules/contracts/routes.js'
+import { partnerAdminRoutes, publicPartnerRoutes } from './modules/partners/routes.js'
 import { dashboardRoutes } from './modules/dashboard/routes.js'
 import { hashPassword, randomToken } from './utils/crypto.js'
 
@@ -46,7 +47,7 @@ export async function createApp(database: PrismaClient, config: Config) {
       const [migration] = await database.$queryRaw<{ ready: boolean }[]>`
         SELECT EXISTS (
           SELECT 1 FROM "_prisma_migrations"
-          WHERE migration_name = '20261127040000_contracts_renewals' AND finished_at IS NOT NULL AND rolled_back_at IS NULL
+          WHERE migration_name = '20261127050000_partner_management' AND finished_at IS NOT NULL AND rolled_back_at IS NULL
         ) AS ready
       `
       if (!migration?.ready) { response.status(503).json({ status: 'unavailable' }); return }
@@ -61,6 +62,7 @@ export async function createApp(database: PrismaClient, config: Config) {
   app.use('/api/quotes', quoteIntakeRoutes(database, config))
   app.use('/api/contact', supportIntakeRoutes(database, config, 'CONTACT'))
   app.use('/api/assistance', supportIntakeRoutes(database, config, 'ASSISTANCE'))
+  app.use('/api/partners', publicPartnerRoutes(database))
   app.use('/api/admin', requireSession(database, config))
   app.use('/api/admin/catalog', adminCatalogRoutes(database))
   app.use('/api/admin/quote-requests', quoteAdminRoutes(database))
@@ -68,6 +70,7 @@ export async function createApp(database: PrismaClient, config: Config) {
   app.use('/api/admin/assistance', assistanceAdminRoutes(database))
   app.use('/api/admin/messages', messageAdminRoutes(database))
   app.use('/api/admin/quotes', issuedQuoteRoutes(database, config))
+  app.use('/api/admin/partners', partnerAdminRoutes(database))
   app.use('/api/admin/contracts', contractRoutes(database, config))
   app.use('/api/admin/documents', privateDocumentRoutes(database, config))
   app.use('/api/admin/dashboard', dashboardRoutes(database))

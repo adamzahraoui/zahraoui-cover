@@ -8,7 +8,8 @@ The implemented operator command, API and frontend behavior are described in [16
 | --- | --- | --- | --- |
 | Public catalog, intake, login and recovery | Yes | Yes | Yes |
 | Staff dashboard, request read/update/assign/link/notes, client read/create/update/verify, assistance read/update/notes/link, contact read/update/archive | — | Yes | Yes |
-| Client archive, catalog or partner writes, agency settings | — | — | Yes |
+| Partner list and detail | — | Yes | Yes |
+| Client archive, catalog or partner writes (including verification and publication), agency settings | — | — | Yes |
 | B8 quote read, draft create/update and private PDF access | — | Yes | Yes |
 | B8 quote issue, delivery, cancellation, revision and decisions | — | — | Yes |
 | Contract read, draft preparation, renewal preparation and supporting PDF handling | — | Yes | Yes |

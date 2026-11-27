@@ -21,7 +21,8 @@ export function ContractEditor({ record, quote, saved }: {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const manual = !record && !quote
-  const loadPartners = useCallback((signal: AbortSignal) => manual ? api.quotePartners(signal) : Promise.resolve(undefined), [manual])
+  const [category, setCategory] = useState<ReturnType<typeof parseProduct>>('')
+  const loadPartners = useCallback((signal: AbortSignal) => manual && category ? api.quotePartners(category, signal) : Promise.resolve(undefined), [manual, category])
   const loadClients = useCallback((signal: AbortSignal) => manual && search.trim().length >= 2
     ? api.clientOptions(new URLSearchParams({ q: search.trim() }).toString(), signal) : Promise.resolve(undefined), [manual, search])
   const partners = useApiData(loadPartners)
@@ -42,7 +43,7 @@ export function ContractEditor({ record, quote, saved }: {
     }
     const productSlug = parseProduct(text('productSlug'))
     if (payload.expiresOn <= payload.effectiveOn) { setError('L’échéance doit être postérieure à la date d’effet.'); return }
-    if (manual && (!client || !productSlug)) { setError('Sélectionnez un client et une catégorie.'); return }
+    if (manual && (!client || !productSlug || partners.loading || !partners.data?.some(item => item.id === text('partnerId')))) { setError('Sélectionnez un client, une catégorie et une compagnie admissible.'); return }
     setBusy(true)
     setError('')
     const csrf = state.user.csrfToken
@@ -65,9 +66,9 @@ export function ContractEditor({ record, quote, saved }: {
       ['Client', record?.clientName ?? quote?.clientName], ['Catégorie', record?.productTitle ?? quote?.productTitle],
       ['Compagnie', record?.partnerName ?? quote?.partnerName], ['Devis source', record?.quoteReference ?? quote?.reference],
     ]} />}
-    {manual && partners.loading && <LoadingState />}
+    {manual && category && partners.loading && <LoadingState />}
     {(partners.error || clients.error) && <ErrorState>{businessError(partners.error ?? clients.error)}</ErrorState>}
-    {manual && partners.data?.length === 0 && <ErrorState>Aucune compagnie approuvée n’est disponible.</ErrorState>}
+    {manual && category && !partners.loading && partners.data?.length === 0 && <ErrorState>Aucune compagnie approuvée n’est disponible.</ErrorState>}
     <fieldset disabled={busy} className="grid min-w-0 gap-4">
       <div className="grid min-w-0 gap-4 sm:grid-cols-2">
         {manual && <>
@@ -77,8 +78,8 @@ export function ContractEditor({ record, quote, saved }: {
               const chosen = clientOptions.find(entry => entry.value === event.target.value)
               setClient(chosen && { id: chosen.value, label: chosen.label })
             }} />
-          <Select label="Catégorie" name="productSlug" required defaultValue="" placeholder="Choisir une catégorie" options={productOptions} />
-          <Select label="Compagnie" name="partnerId" required defaultValue="" placeholder="Choisir une compagnie" options={(partners.data ?? []).map(entry => ({ value: entry.id, label: entry.name }))} />
+          <Select label="Catégorie" name="productSlug" required value={category} placeholder="Choisir une catégorie" options={productOptions} onChange={event => setCategory(parseProduct(event.target.value))} />
+          <Select key={category} label="Compagnie" name="partnerId" required defaultValue="" placeholder={category ? "Choisir une compagnie" : "Sélectionner d’abord une catégorie"} disabled={!category || partners.loading} options={(partners.loading ? [] : partners.data ?? []).map(entry => ({ value: entry.id, label: entry.name }))} />
         </>}
         <Input label="Numéro de police de l’assureur" name="policyNumber" minLength={2} maxLength={64} defaultValue={record?.policyNumber ?? ''} />
         <Input label="Prime (MAD)" name="premiumMad" inputMode="decimal" pattern="[0-9]{1,10}([.,][0-9]{1,2})?" maxLength={13}
@@ -92,7 +93,7 @@ export function ContractEditor({ record, quote, saved }: {
     </fieldset>
     {error && <ErrorState>{error}</ErrorState>}
     <div className="flex flex-wrap gap-2">
-      <Button type="submit" disabled={busy || (manual && !partners.data?.length)}>{busy ? 'Enregistrement…' : 'Enregistrer le brouillon'}</Button>
+      <Button type="submit" disabled={busy || (manual && (!category || partners.loading || !partners.data?.length))}>{busy ? 'Enregistrement…' : 'Enregistrer le brouillon'}</Button>
       {!record && <ActionLink to="/admin/contrats" variant="secondary">Retour aux contrats</ActionLink>}
     </div>
   </form>

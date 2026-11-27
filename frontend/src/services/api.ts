@@ -1,4 +1,4 @@
-import type { ContractDetail, ContractRow, PolicyFields, DecisionMethod, IssuedQuote, IssuedQuoteInput, IssuedQuoteRow, AssistanceCase, AssistanceIn, AssistancePatch, AssistanceRow, Client, ClientDetail, ClientIn, ContractOption, DuplicateClient, Message, MessageRow, MessageStatus, Auth, CatalogItem, CatalogWrite, ClientOption, ContactIn, Dashboard, Page, Product, ProductCard, QuoteNotice, QuoteRequestIn, QuoteRequestPatch, Receipt, RequestDetail, RequestRow, StaffOption } from '../types/api'
+import type { PartnerDetail, PartnerInput, PartnerRow, PublicPartner, ContractDetail, ContractRow, PolicyFields, DecisionMethod, IssuedQuote, IssuedQuoteInput, IssuedQuoteRow, AssistanceCase, AssistanceIn, AssistancePatch, AssistanceRow, Client, ClientDetail, ClientIn, ContractOption, DuplicateClient, Message, MessageRow, MessageStatus, Auth, CatalogItem, CatalogWrite, ClientOption, ContactIn, Dashboard, Page, Product, ProductCard, QuoteNotice, QuoteRequestIn, QuoteRequestPatch, Receipt, RequestDetail, RequestRow, StaffOption } from '../types/api'
 import type { ProductSlug } from '../config/navigation'
 
 export class ApiError extends Error {
@@ -89,7 +89,16 @@ export const api = {
   contractOptions: (id: string, query: string, signal?: AbortSignal) => list<ContractOption>('/admin/assistance/' + encodeURIComponent(id) + '/contract-options', query, signal),
   issuedQuotes: (query: string, signal?: AbortSignal) => list<IssuedQuoteRow>('/admin/quotes', query, signal),
   issuedQuote: (id: string, signal?: AbortSignal) => request<IssuedQuote>('/admin/quotes/' + encodeURIComponent(id), { signal }),
-  quotePartners: (signal?: AbortSignal) => request<{ id: string; name: string }[]>('/admin/quotes/partner-options', { signal }),
+  publicPartners: (signal?: AbortSignal) => request<PublicPartner[]>('/partners', { signal }),
+  partners: (query: string, signal?: AbortSignal) => list<PartnerRow>('/admin/partners', query, signal),
+  partner: (id: string, signal?: AbortSignal) => request<PartnerDetail>('/admin/partners/' + encodeURIComponent(id), { signal }),
+  createPartner: (body: PartnerInput, csrf: string) => post<PartnerDetail>('/admin/partners', body, { 'X-CSRF-Token': csrf }),
+  updatePartner: (id: string, body: Partial<PartnerInput> & { version: number; isActive?: boolean; isPublished?: boolean }, csrf: string) =>
+    patch<PartnerDetail>('/admin/partners/' + encodeURIComponent(id), body, csrf),
+  verifyPartner: (id: string, body: { version: number; reference: string }, csrf: string) =>
+    post<PartnerDetail>('/admin/partners/' + encodeURIComponent(id) + '/verify', body, { 'X-CSRF-Token': csrf }),
+  quotePartners: (category: ProductSlug, signal?: AbortSignal) =>
+    request<{ id: string; name: string }[]>('/admin/quotes/partner-options?productSlug=' + encodeURIComponent(category), { signal }),
   createIssuedQuote: (body: IssuedQuoteInput, csrf: string) => post<IssuedQuote>('/admin/quotes', body, { 'X-CSRF-Token': csrf }),
   updateIssuedQuote: (id: string, body: Partial<IssuedQuoteInput> & { version: number }, csrf: string) =>
     patch<IssuedQuote>('/admin/quotes/' + encodeURIComponent(id), body, csrf),

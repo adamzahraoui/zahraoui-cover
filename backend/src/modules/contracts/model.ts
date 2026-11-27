@@ -17,7 +17,7 @@ export const policyFields = {
 export const contractRowSelect = {
   id: true, clientId: true, quoteId: true, partnerId: true, reference: true, policyNumber: true, version: true,
   previousId: true, status: true, effectiveOn: true, expiresOn: true, confirmationOn: true, activatedAt: true, createdAt: true,
-  premiumMad: true, currency: true, renewalReminders: true,
+  premiumMad: true, currency: true, renewalReminders: true, activationSnapshot: true, sourceQuoteSnapshot: true,
   client: { select: { displayName: true } },
   quote: { select: { reference: true } },
   product: { select: { slug: true, title: true } },
@@ -50,9 +50,11 @@ export function coverageStatus(row: { status: ContractStatus; effectiveOn: Date;
 export function contractRow(row: Prisma.ContractGetPayload<{ select: typeof contractRowSelect }>) {
   const status = coverageStatus(row)
   const successor = row.successors[0]
+  const snapshot = row.activationSnapshot ?? row.sourceQuoteSnapshot
+  const frozenCarrier = snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot) && typeof snapshot.carrier === 'string' ? snapshot.carrier : undefined
   return {
     id: row.id, clientId: row.clientId, quoteId: row.quoteId, quoteReference: row.quote?.reference ?? null,
-    partnerId: row.partnerId, partnerName: row.partner.name, clientName: row.client.displayName,
+    partnerId: row.partnerId, partnerName: frozenCarrier ?? row.partner.name, clientName: row.client.displayName,
     productSlug: fromProductSlug(row.product.slug), productTitle: row.product.title, reference: row.reference, policyNumber: row.policyNumber,
     version: row.version, status, effectiveOn: dateOnly(row.effectiveOn), expiresOn: dateOnly(row.expiresOn),
     premiumMad: row.premiumMad?.toFixed(2) ?? null, currency: row.currency, createdAt: row.createdAt,

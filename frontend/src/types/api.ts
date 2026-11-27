@@ -140,3 +140,17 @@ export type ContractDetail = ContractRow & PolicyFields & {
   activity: ActivityEntry[]
   reminders: { id: string; days: number | null; expiresOn: string | null; status: 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'OBSOLETE'; nextAttemptAt: string; finishedAt: string | null }[]
 }
+
+export type PartnerRow = {
+  id: string; name: string; displayName: string | null; categories: ProductSlug[];
+  isActive: boolean; isPublished: boolean; verifiedAt: string | null; version: number
+}
+export type PartnerInput = {
+  name: string; displayName: string | null; contactPerson: string | null; phone: string | null; email: string | null;
+  website: string | null; address: string | null; internalNotes: string | null; categories: ProductSlug[]
+}
+export type PartnerDetail = PartnerRow & Omit<PartnerInput, 'name' | 'displayName' | 'categories'> & {
+  verificationReference: string | null; verifier: { displayName: string } | null
+  recentQuotes: IssuedQuoteRow[]; recentContracts: ContractRow[]; activity: ActivityEntry[]
+}
+export type PublicPartner = { name: string; website: string | null }

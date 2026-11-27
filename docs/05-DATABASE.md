@@ -268,7 +268,7 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 
 **Additional indexes.** (created_at), (actor_id, created_at), (target_type, target_id, created_at).
 
-### partners · V2
+### partners · B10
 
 | Column | PostgreSQL type and modifiers |
 | --- | --- |
@@ -276,14 +276,21 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 | created_at | timestamptz default now() |
 | updated_at | timestamptz default now() |
 | version | integer default 1 |
-| name | varchar(120) |
-| website | varchar(300) nullable |
-| logo_key | text nullable |
-| is_active | boolean default true |
+| name | varchar(120), legal name |
+| display_name | varchar(120) nullable |
+| contact_person, phone, email | varchar(120), varchar(16), varchar(254), all nullable |
+| address, internal_notes | varchar(300), varchar(2000), both nullable |
+| website | varchar(300) nullable, HTTPS |
+| logo_key | text nullable, legacy only |
+| categories | product_slug[] default empty |
+| verified_at | timestamptz nullable |
+| verified_by | uuid nullable FK staff_users.id, on delete set null |
+| verification_reference | varchar(160) nullable |
+| is_active, is_published | boolean default false |
 
-**Rules.** Unique index on lower(name), HTTPS website and approved logo key. Deactivation preserves history.
+**Rules.** Unique lower(name). The API validates that categories exist in the catalog. Verification requires a reference and a category. Activation requires verification, and publication requires activation. Deactivation preserves linked records, snapshots and documents. The migration marks previously active partners inactive pending review.
 
-**Additional indexes.** Unique lower(name); (is_active, name, id).
+**Additional indexes.** Unique lower(name), (is_active, name, id), (is_published, name, id), (verified_by). [Migration and workflow](26-PARTNER-MANAGEMENT-IMPLEMENTATION.md)
 
 ### quotes · B8
 
@@ -455,6 +462,7 @@ erDiagram
     clients ||..o{ quotes : "client_id"
     quote_requests |o..o{ quotes : "request_id"
     insurance_products ||..o{ quotes : "product_id"
+    staff_users |o..o{ partners : "verified_by"
     partners ||..o{ quotes : "partner_id"
     staff_users |o..o{ quotes : "created_by"
     clients ||..o{ contracts : "client_id"
@@ -634,9 +642,20 @@ erDiagram
         timestamptz updated_at
         integer version
         varchar_120 name
+        varchar_120 display_name
+        varchar_120 contact_person
+        varchar_16 phone
+        varchar_254 email
+        varchar_300 address
+        varchar_2000 internal_notes
         varchar_300 website
         text logo_key
+        product_slug_array categories
+        timestamptz verified_at
+        uuid verified_by FK
+        varchar_160 verification_reference
         boolean is_active
+        boolean is_published
     }
     quotes {
         uuid id PK

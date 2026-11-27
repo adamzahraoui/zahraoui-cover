@@ -114,7 +114,7 @@ before(async () => {
   })).id
   const customer = await db.client.create({ data: { displayName: snapshot.clientName, profile: 'INDIVIDUAL', phone: '+212600002599' } })
   customerId = customer.id
-  partnerId = (await db.partner.create({ data: { name: 'Compagnie synthétique ' + marker } })).id
+  partnerId = (await db.partner.create({ data: { name: 'Compagnie synthétique ' + marker, categories: ['habitation'], verifiedAt: new Date(), verificationReference: 'Fixture historique vérifiée', isActive: true } })).id
   quoteId = (await db.quote.create({ data: {
     clientId: customerId, productId, partnerId, reference: snapshot.reference, annualPremiumMad: snapshot.premium,
     feesMad: snapshot.fees, taxesMad: snapshot.taxes, totalMad: snapshot.total,

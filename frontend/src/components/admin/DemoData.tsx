@@ -1,11 +1,10 @@
 import { createContext, useContext, useState } from 'react'
 import type { Dispatch, ReactNode, SetStateAction } from 'react'
-import type { DemoPartner, DemoSettings } from '../../data/demo'
+import type { DemoSettings } from '../../data/demo'
 
-type DemoData = { partners: DemoPartner[]; settings: DemoSettings }
+type DemoData = { settings: DemoSettings }
 
 const initialData: DemoData = {
-  partners: [],
   settings: { email: '', address: '', hours: '' },
 }
 

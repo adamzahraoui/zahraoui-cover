@@ -176,6 +176,8 @@ model StaffUser {
   contracts      Contract[]           @relation("ContractAuthor")
   confirmations  Contract[]           @relation("ContractConfirmation")
 
+  partnerVerifications Partner[]
+
   @@index([isActive, displayName, id])
   @@map("staff_users")
 }
@@ -432,18 +434,32 @@ model AuditEvent {
 }
 
 model Partner {
-  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  version   Int        @default(1)
-  name      String     @db.VarChar(120)
-  website   String?    @db.VarChar(300)
-  logoKey   String?    @map("logo_key")
-  isActive  Boolean    @default(true) @map("is_active")
-  quotes    Quote[]
-  contracts Contract[]
+  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version               Int           @default(1)
+  name                  String        @db.VarChar(120)
+  website               String?       @db.VarChar(300)
+  logoKey               String?       @map("logo_key")
+  isActive              Boolean       @default(false) @map("is_active")
+  displayName           String?       @map("display_name") @db.VarChar(120)
+  contactPerson         String?       @map("contact_person") @db.VarChar(120)
+  phone                 String?       @db.VarChar(16)
+  email                 String?       @db.VarChar(254)
+  address               String?       @db.VarChar(300)
+  internalNotes         String?       @map("internal_notes") @db.VarChar(2000)
+  categories            ProductSlug[] @default([])
+  verifiedAt            DateTime?     @map("verified_at") @db.Timestamptz(6)
+  verifiedBy            String?       @map("verified_by") @db.Uuid
+  verificationReference String?       @map("verification_reference") @db.VarChar(160)
+  isPublished           Boolean       @default(false) @map("is_published")
+  verifier              StaffUser?    @relation(fields: [verifiedBy], references: [id], onDelete: SetNull)
+  quotes                Quote[]
+  contracts             Contract[]
 
   @@index([isActive, name, id])
+  @@index([isPublished, name, id])
+  @@index([verifiedBy])
   @@map("partners")
 }
 
