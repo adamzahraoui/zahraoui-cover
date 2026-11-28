@@ -38,7 +38,9 @@ jobs:
       - name: Generate disposable keys and directories
         run: |
           for key in RATE_KEY_SECRET CSRF_SECRET RESET_JOB_KEY IDEMPOTENCY_KEY_SECRET; do
-            printf '%s=%s\n' "$key" "$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+            value="$(openssl rand -hex 32)"
+            printf '::add-mask::%s\n' "$value"
+            printf '%s=%s\n' "$key" "$value" >> "$GITHUB_ENV"
           done
           printf 'FRONTEND_DIST_DIR=%s\n' "$GITHUB_WORKSPACE/frontend/dist" >> "$GITHUB_ENV"
           printf 'QUOTE_PDF_DIR=%s\n' "$(mktemp -d "$RUNNER_TEMP/zahraoui-pdf.XXXXXX")" >> "$GITHUB_ENV"
@@ -46,8 +48,12 @@ jobs:
         run: docker compose -p zahraoui-browser --profile mail up -d --wait --wait-timeout 60
       - run: npm ci && npm run db:validate && npm run db:migrate && npm run db:seed && npm run build
         working-directory: backend
-      - run: npm ci && npm run build
+      - run: npm ci
         working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+        env:
+          NODE_ENV: production
       - run: npm ci && npx --no-install playwright install --with-deps chromium
         working-directory: e2e
       - run: npm --prefix e2e test

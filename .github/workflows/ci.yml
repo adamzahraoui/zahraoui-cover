@@ -49,7 +49,9 @@ jobs:
       - name: Generate disposable keys
         run: |
           for key in RATE_KEY_SECRET CSRF_SECRET RESET_JOB_KEY; do
-            printf '%s=%s\n' "$key" "$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+            value="$(openssl rand -hex 32)"
+            printf '::add-mask::%s\n' "$value"
+            printf '%s=%s\n' "$key" "$value" >> "$GITHUB_ENV"
           done
       - name: Start loopback services
         run: docker compose -p zahraoui-ci --profile mail up -d --wait --wait-timeout 60
@@ -64,7 +66,9 @@ jobs:
         working-directory: backend
       - run: npm run typecheck && npm run lint
         working-directory: backend
-      - run: npm test && npm run test:integration
+      - run: npm test
+        working-directory: backend
+      - run: npm run test:integration
         working-directory: backend
       - name: Stop disposable services
         if: always()

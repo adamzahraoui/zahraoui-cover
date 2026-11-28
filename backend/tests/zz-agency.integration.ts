@@ -25,6 +25,7 @@ if (process.env.NODE_ENV !== 'test' || !['127.0.0.1', 'localhost', '[::1]'].incl
 const db = connectPrisma(url)
 const dir = await mkdtemp(join(tmpdir(), 'zc-agency-'))
 const config = loadConfig({ ...process.env, DATABASE_URL: url, QUOTE_PDF_DIR: dir, RATE_KEY_SECRET: randomBytes(32).toString('hex'),
+  IDEMPOTENCY_KEY_SECRET: randomBytes(32).toString('hex'),
   SMTP_MODE: 'local', SMTP_HOST: '127.0.0.1', SMTP_PORT: '1025', SMTP_FROM: 'fixture@example.invalid' })
 let origin: string
 let close: () => Promise<void>

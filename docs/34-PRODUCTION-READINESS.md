@@ -46,6 +46,6 @@ The current Compose file is a local harness. B14 deployed no external environmen
 | Legacy workbook and migration | Review a private approved sample, mappings, duplicates, validations and rollback. B14 inspected no real workbooks. |
 | Backup and recovery | Approve a recovery operator, hosting/storage, encryption and offsite retention, then repeat the drill at an appropriate scale. |
 | HTTPS and proxy | Verify public origin, forwarding, TLS, cookie behavior, redirects and headers in controlled staging. |
-| Prisma advisories | Remediate or obtain explicit risk approval with a migration plan and runtime image evidence. |
+| Runtime dependency inventory | The Prisma advisories were resolved in the locked npm install. Verify the assembled production image against that lockfile and rerun audits before release. |
 
 Public API outputs are field-limited and intake avoids document uploads and confidential medical details. Agree who may export records and how long downstream extracts may be stored before allowing any production data migration.
