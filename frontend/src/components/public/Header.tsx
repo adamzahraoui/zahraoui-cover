@@ -20,7 +20,7 @@ export function Header({ compact = false }: { compact?: boolean }) {
           <a href={company.office.href} aria-label={`${company.office.label} : ${company.office.number}`} className="inline-flex items-center gap-1.5 hover:underline">
             <Phone size={13} className="hidden lg:block" aria-hidden /><span><span className="hidden lg:inline">{company.office.label} : </span>{company.office.number}</span>
           </a>
-          <a href={company.assistance.href} aria-label={`${company.assistance.label} : ${company.assistance.number}`} className="inline-flex items-center gap-1.5 hover:underline">
+          <a href={company.assistance.href} className="inline-flex items-center gap-1.5 hover:underline">
             <Headset size={14} className="hidden lg:block" aria-hidden /><span><span className="lg:hidden">Assist. </span><span className="hidden lg:inline">{company.assistance.label} : </span>{company.assistance.number}</span>
           </a>
           <span className="ml-auto hidden text-sm font-normal text-blue-100 lg:inline">{compact ? 'Sans création de compte' : `${company.descriptor} — Maroc`}</span>
@@ -47,8 +47,8 @@ export function Header({ compact = false }: { compact?: boolean }) {
                 ) : <NavLink to={to} key={to} end={to === '/'} className="rounded py-3 hover:text-primary aria-[current=page]:text-primary">{label}</NavLink>
               ))}
             </nav>
-            <div className="flex items-center gap-2">
-              <ActionLink to="/devis" className="hidden sm:inline-flex">Demander un devis</ActionLink>
+            <div className="flex shrink-0 items-center gap-2">
+              <div className="hidden sm:block"><ActionLink to="/devis">Demander un devis</ActionLink></div>
               <a href={company.office.href} aria-label={'Appeler ' + company.name} className="grid size-11 place-items-center rounded bg-primary-tint text-primary sm:hidden"><Phone size={19} aria-hidden /></a>
               <button type="button" aria-label="Ouvrir le menu" onClick={() => mobileNav.current?.showModal()} className="rounded border border-line p-2.5 text-primary lg:hidden"><Menu size={22} /></button>
             </div>

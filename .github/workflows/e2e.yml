@@ -1,0 +1,56 @@
+name: Browser regression
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  chrome:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    env:
+      NODE_ENV: test
+      HOST: 127.0.0.1
+      PORT: 3000
+      PUBLIC_ORIGIN: http://127.0.0.1:3000
+      POSTGRES_DB: zahraoui_e2e_test
+      POSTGRES_USER: zahraoui_e2e
+      POSTGRES_PASSWORD: synthetic-e2e-postgres
+      DATABASE_URL: postgresql://zahraoui_e2e:synthetic-e2e-postgres@127.0.0.1:5432/zahraoui_e2e_test
+      SMTP_MODE: local
+      SMTP_HOST: 127.0.0.1
+      SMTP_PORT: 1025
+      SMTP_FROM: browser@example.invalid
+      MAILPIT_ORIGIN: http://127.0.0.1:8025
+      PRIVACY_NOTICE_VERSION: browser-test
+      QUOTE_NOTICE_TEXT: Notice synthétique réservée au test des demandes de devis.
+      CONTACT_NOTICE_TEXT: Notice synthétique réservée au test du formulaire de contact.
+      ASSISTANCE_NOTICE_TEXT: Notice synthétique réservée au test des demandes d’assistance.
+      PUBLIC_INDEXING_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: '24.18.0'
+      - name: Generate disposable keys and directories
+        run: |
+          for key in RATE_KEY_SECRET CSRF_SECRET RESET_JOB_KEY IDEMPOTENCY_KEY_SECRET; do
+            printf '%s=%s\n' "$key" "$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          done
+          printf 'FRONTEND_DIST_DIR=%s\n' "$GITHUB_WORKSPACE/frontend/dist" >> "$GITHUB_ENV"
+          printf 'QUOTE_PDF_DIR=%s\n' "$(mktemp -d "$RUNNER_TEMP/zahraoui-pdf.XXXXXX")" >> "$GITHUB_ENV"
+      - name: Start loopback services
+        run: docker compose -p zahraoui-browser --profile mail up -d --wait --wait-timeout 60
+      - run: npm ci && npm run db:validate && npm run db:migrate && npm run db:seed && npm run build
+        working-directory: backend
+      - run: npm ci && npm run build
+        working-directory: frontend
+      - run: npm ci && npx --no-install playwright install --with-deps chromium
+        working-directory: e2e
+      - run: npm --prefix e2e test
+      - name: Stop disposable services
+        if: always()
+        run: docker compose -p zahraoui-browser --profile mail down --volumes

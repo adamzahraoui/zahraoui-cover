@@ -138,7 +138,10 @@ export async function cleanAuthRecords(database: PrismaClient, now = new Date())
     where: {
       kind: { in: ['RESET_EMAIL', 'REQUEST_ACK', 'REQUEST_ALERT', 'CONTACT_ACK', 'CONTACT_ALERT', 'ASSISTANCE_ALERT'] },
       state: { in: ['RUNNING', 'PENDING'] },
-      OR: [{ reset: { expiresAt: { lte: now } } }, { attemptCount: { gte: maxAttempts }, leaseUntil: { lte: now } }],
+      OR: [
+        { reset: { expiresAt: { lte: now } } },
+        { attemptCount: { gte: maxAttempts }, OR: [{ state: 'PENDING' }, { leaseUntil: { lte: now } }] },
+      ],
     },
     data: {
       state: 'FAILED', encryptedSecret: null, leaseToken: null, leaseUntil: null,

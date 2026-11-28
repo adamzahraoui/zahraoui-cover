@@ -11,6 +11,8 @@ const schema = z.object({
     const url = new URL(value)
     return ['http:', 'https:'].includes(url.protocol) && url.origin === value
   })),
+  FRONTEND_DIST_DIR: z.preprocess(optional, z.string().min(1).optional()),
+  PUBLIC_INDEXING_ENABLED: z.enum(['true', 'false']).default('false').transform(value => value === 'true'),
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(4).default(0),
   DATABASE_URL: z.string().url().pipe(z.string().refine(value => ['postgresql:', 'postgres:'].includes(new URL(value).protocol))),
   RATE_KEY_SECRET: secret,

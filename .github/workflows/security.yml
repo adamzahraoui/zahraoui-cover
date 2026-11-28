@@ -1,0 +1,54 @@
+name: Security
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '22 5 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  dependencies:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [frontend, backend, e2e]
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        with:
+          node-version: '24.18.0'
+      - name: Audit locked dependencies
+        working-directory: ${{ matrix.project }}
+        run: npm audit --audit-level=high
+
+  secrets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Scan Git history
+        run: |
+          docker run --rm --network none --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:/repo:ro" \
+            zricethezav/gitleaks@sha256:691af3c7c5a48b16f187ce3446d5f194838f91238f27270ed36eef6359a574d9 \
+            git /repo --log-opts=--all --redact=100 --no-banner
+      - name: Scan checked-out tracked files
+        run: |
+          scan_dir="$(mktemp -d)"
+          trap 'rm -r -- "$scan_dir"' EXIT
+          git archive HEAD | tar -x -C "$scan_dir"
+          docker run --rm --network none --user "$(id -u):$(id -g)" \
+            -v "$scan_dir:/repo:ro" \
+            zricethezav/gitleaks@sha256:691af3c7c5a48b16f187ce3446d5f194838f91238f27270ed36eef6359a574d9 \
+            dir /repo --redact=100 --no-banner

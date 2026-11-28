@@ -1,0 +1,12 @@
+{
+  "name": "zahraoui-cover-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "node browser.cjs"
+  },
+  "devDependencies": {
+    "axe-core": "4.11.1",
+    "playwright": "1.64.1"
+  }
+}

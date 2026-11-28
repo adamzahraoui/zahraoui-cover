@@ -1,3 +1,4 @@
+import { lazy } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AdminSessionProvider, RequireAdminRole, RequireAdminSession } from '../../components/admin/auth/AdminSession'
 import { NoRecord } from '../../components/admin/AdminContent'
@@ -5,24 +6,25 @@ import { AdminLayout } from '../../layouts/AdminLayout'
 import Login from './Login/Login'
 import ForgotPassword from './ForgotPassword/ForgotPassword'
 import ResetPassword from './ResetPassword/ResetPassword'
-import Dashboard from './Dashboard/Dashboard'
-import QuoteRequests from './QuoteRequests/QuoteRequests'
-import QuoteRequestDetail from './QuoteRequestDetail/QuoteRequestDetail'
-import Clients from './Clients/Clients'
-import ClientProfile from './ClientProfile/ClientProfile'
-import ClientForm from './ClientForm/ClientForm'
-import Quotes from './Quotes/Quotes'
-import QuoteCreate from './QuoteCreate/QuoteCreate'
-import QuoteDetail from './QuoteDetail/QuoteDetail'
-import Contracts from './Contracts/Contracts'
-import ImportExport from './ImportExport/ImportExport'
-import Documents from './Documents/Documents'
-import ContractForm from './ContractForm/ContractForm'
-import AssistanceInbox from './AssistanceInbox/AssistanceInbox'
-import InsuranceManagement from './InsuranceManagement/InsuranceManagement'
-import Partners from './Partners/Partners'
-import Messages from './Messages/Messages'
-import Settings from './Settings/Settings'
+
+const Dashboard = lazy(() => import('./Dashboard/Dashboard'))
+const QuoteRequests = lazy(() => import('./QuoteRequests/QuoteRequests'))
+const QuoteRequestDetail = lazy(() => import('./QuoteRequestDetail/QuoteRequestDetail'))
+const Clients = lazy(() => import('./Clients/Clients'))
+const ClientProfile = lazy(() => import('./ClientProfile/ClientProfile'))
+const ClientForm = lazy(() => import('./ClientForm/ClientForm'))
+const Quotes = lazy(() => import('./Quotes/Quotes'))
+const QuoteCreate = lazy(() => import('./QuoteCreate/QuoteCreate'))
+const QuoteDetail = lazy(() => import('./QuoteDetail/QuoteDetail'))
+const Contracts = lazy(() => import('./Contracts/Contracts'))
+const ImportExport = lazy(() => import('./ImportExport/ImportExport'))
+const Documents = lazy(() => import('./Documents/Documents'))
+const ContractForm = lazy(() => import('./ContractForm/ContractForm'))
+const AssistanceInbox = lazy(() => import('./AssistanceInbox/AssistanceInbox'))
+const InsuranceManagement = lazy(() => import('./InsuranceManagement/InsuranceManagement'))
+const Partners = lazy(() => import('./Partners/Partners'))
+const Messages = lazy(() => import('./Messages/Messages'))
+const Settings = lazy(() => import('./Settings/Settings'))
 
 export default function AdminRoutes() {
   return (

@@ -70,7 +70,7 @@ Same-origin JSON API under /api. Health, authentication, catalog, quote intake a
 | GET /api/health/ready | Migration and DB probe / Internal | no inputs | 200 {status:"ready"} | 503 {status:"unavailable"} | — |
 | GET /api/admin/access | Permission probe / Admin | session cookie | 200 {role:"ADMIN"} | 401 UNAUTHENTICATED, 403 FORBIDDEN | — |
 
-The catalog returns an unpaginated bounded array. Health responses use bare probe bodies. The deployment proxy should keep `/api/health/live` and `/api/health/ready` internal. `Auth.expiresAt` is the earlier of the current idle and absolute deadlines.
+The catalog returns an unpaginated bounded array. Health responses use bare probe bodies. The application permits unauthenticated probes. The deployment proxy should restrict all three health paths to private monitoring. `Auth.expiresAt` is the earlier of the current idle and absolute deadlines.
 
 ## Operational admin
 
@@ -189,3 +189,8 @@ These routes require ADMIN. POST routes require CSRF. See [headers, limits and e
 | POST /api/admin/staff/:id/revoke-sessions | Admin versioned session revocation. |
 
 Every administrative mutation requires CSRF. See [settings payloads](30-AGENCY-SETTINGS-IMPLEMENTATION.md) and [staff permissions](31-STAFF-ADMINISTRATION-GUIDE.md).
+
+
+## B14 web hosting
+
+When `FRONTEND_DIST_DIR` is set, the same-origin HTML host serves public routes, admin routes, `/assets/*`, `/robots.txt` and `/sitemap.xml`. These are web responses. API endpoints continue to return JSON or documented download formats. Unpublished public details and unknown public routes return HTTP 404 with the branded app shell. The sitemap returns 404 until the full indexing approval gate is satisfied. See the [API permission matrix and control review](32-FINAL-SECURITY-AUDIT.md).

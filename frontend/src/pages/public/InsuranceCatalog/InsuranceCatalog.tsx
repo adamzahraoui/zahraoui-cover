@@ -25,7 +25,7 @@ export default function InsuranceCatalog() {
             </div>
             <div className="grid grid-cols-3 rounded-md border border-line bg-background p-1 lg:flex" role="group" aria-label="Filtrer par profil">
               {filters.map(({ value, label }) => (
-                <button key={value} type="button" aria-label={label} aria-pressed={audience === value} className="rounded px-1 py-2.5 text-sm font-semibold text-muted hover:bg-primary-tint aria-pressed:bg-primary aria-pressed:text-white lg:px-4" onClick={() => setAudience(value)}>
+                <button key={value} type="button" aria-pressed={audience === value} className="rounded px-1 py-2.5 text-sm font-semibold text-muted hover:bg-primary-tint aria-pressed:bg-primary aria-pressed:text-white lg:px-4" onClick={() => setAudience(value)}>
                   {value === 'BUSINESS' ? <><span className="lg:hidden">Pro</span><span className="hidden lg:inline">Professionnels</span></> : label}
                 </button>
               ))}
@@ -33,7 +33,7 @@ export default function InsuranceCatalog() {
           </div>
         </div>
       </section>
-      <section className="site-container py-6 lg:py-12">
+      <section className="site-container min-h-[65svh] py-6 lg:py-12">
         <p className="sr-only" role="status">{products.length} catégories affichées.</p>
         <CatalogCards products={products} illustrated className="grid gap-4 md:grid-cols-2 lg:grid-cols-3" />
       </section>

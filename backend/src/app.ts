@@ -22,6 +22,7 @@ import { partnerAdminRoutes, publicPartnerRoutes } from './modules/partners/rout
 import { dashboardRoutes } from './modules/dashboard/routes.js'
 import { agencyAdminRoutes, publicAgencyRoutes } from './modules/agency/routes.js'
 import { staffAdminRoutes } from './modules/agency/staff.js'
+import { permissionsPolicy, webPages } from './modules/web/pages.js'
 import { hashPassword, randomToken } from './utils/crypto.js'
 
 export async function createApp(database: PrismaClient, config: Config) {
@@ -35,12 +36,16 @@ export async function createApp(database: PrismaClient, config: Config) {
     contentSecurityPolicy: { directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"], baseUri: ["'none'"] } },
     referrerPolicy: { policy: 'no-referrer' },
   }))
+  app.use((_request, response, next) => {
+    response.set('Permissions-Policy', permissionsPolicy())
+    next()
+  })
   app.use('/api', (_request, response, next) => {
     response.set('Cache-Control', 'no-store')
     next()
   })
   app.use('/api', sameOrigin(config.PUBLIC_ORIGIN))
-  app.use('/api', express.json({ limit: '32kb', strict: true }))
+  app.use('/api', express.json({ limit: '32kb', strict: true, inflate: false }))
 
   const liveness: RequestHandler = (_request, response) => {
     response.json({ status: 'ok' })
@@ -88,6 +93,7 @@ export async function createApp(database: PrismaClient, config: Config) {
   app.get('/api/admin/access', requireRole('ADMIN'), (_request, response) => {
     response.json({ data: { role: currentSession(response).user.role } })
   })
+  if (config.FRONTEND_DIST_DIR) app.use(await webPages(database, config))
   app.use((_request, _response, next) => next(new ApiError(404, 'NOT_FOUND', 'Ressource introuvable.')))
   app.use(handleError)
   return app

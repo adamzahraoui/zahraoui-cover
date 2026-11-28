@@ -1,3 +1,4 @@
+import { lazy } from 'react'
 import { Route } from 'react-router-dom'
 import { PublicLayout } from '../../layouts/PublicLayout'
 import Home from './Home/Home'
@@ -8,17 +9,20 @@ import HealthInsurance from './HealthInsurance/HealthInsurance'
 import TravelInsurance from './TravelInsurance/TravelInsurance'
 import BusinessInsurance from './BusinessInsurance/BusinessInsurance'
 import LiabilityInsurance from './LiabilityInsurance/LiabilityInsurance'
-import QuoteRequest from './QuoteRequest/QuoteRequest'
 import Individuals from './Individuals/Individuals'
 import Professionals from './Professionals/Professionals'
 import About from './About/About'
-import Contact from './Contact/Contact'
-import Assistance from './Assistance/Assistance'
 import Faq from './Faq/Faq'
 import LegalNotice from './LegalNotice/LegalNotice'
 import PrivacyPolicy from './PrivacyPolicy/PrivacyPolicy'
 import CookiePolicy from './CookiePolicy/CookiePolicy'
 import NotFound from './NotFound/NotFound'
+
+const QuoteRequest = lazy(() => import('./QuoteRequest/QuoteRequest'))
+
+const Contact = lazy(() => import('./Contact/Contact'))
+
+const Assistance = lazy(() => import('./Assistance/Assistance'))
 
 export const publicRoutes = (
   <Route element={<PublicLayout />}>

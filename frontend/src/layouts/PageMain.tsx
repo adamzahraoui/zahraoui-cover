@@ -7,21 +7,26 @@ export function PageMain({ children, className }: { children: ReactNode; classNa
   const company = useCompany()
   const main = useRef<HTMLElement>(null)
   const { pathname } = useLocation()
+  const previousPath = useRef(pathname)
 
   useEffect(() => {
     const element = main.current
     if (!element) return
-    const updateTitle = () => {
+    let shouldFocus = previousPath.current !== pathname
+    previousPath.current = pathname
+    const updateHeading = () => {
       const heading = element.querySelector('h1')?.innerText.trim()
-      if (heading) document.title = `${heading} | ${company.name}`
+      if (!heading) return
+      document.title = `${heading} | ${company.name}`
+      if (shouldFocus) {
+        shouldFocus = false
+        window.scrollTo(0, 0)
+        element.focus({ preventScroll: true })
+      }
     }
-    updateTitle()
-    const headingObserver = new MutationObserver(updateTitle)
+    updateHeading()
+    const headingObserver = new MutationObserver(updateHeading)
     headingObserver.observe(element, { childList: true, subtree: true, characterData: true })
-    if (element.querySelector('h1')) {
-      window.scrollTo(0, 0)
-      element.focus({ preventScroll: true })
-    }
     return () => headingObserver.disconnect()
   }, [pathname, company.name])
 

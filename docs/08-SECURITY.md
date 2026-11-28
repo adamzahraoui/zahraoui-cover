@@ -41,3 +41,5 @@ B13 separates approved public fields from internal settings using an explicit pr
 ## Backup and recovery
 
 Encrypt snapshots in transit and at rest with keys held separately. Scope restore access to operators, rotate snapshots and track retention. Match V2 file and database backups, test isolated restores, validate integrity and reapply verified post-snapshot removals. Disable worker outbound mail and real notifications during recovery tests. Document triage, containment, session revocation, credential rotation and the owner-approved notification process. The [deployment plan](11-DEPLOYMENT.md) defines proposed recovery targets.
+
+B14 adds a same-origin page CSP, Permissions-Policy and default-off indexing gate to the optional compiled frontend host. Application JSON requests use a 32 KiB bound and disallow compression. Read the [findings register and permission matrix](32-FINAL-SECURITY-AUDIT.md), including unresolved Prisma dependencies and private hosting safeguards.
