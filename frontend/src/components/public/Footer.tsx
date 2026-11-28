@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { company } from '../../config/company'
+import { useCompany } from '../../config/CompanyProvider'
 import { policyNavigation } from '../../config/navigation'
 import { usePublicCatalog } from './PublicCatalog'
 import { Brand } from './Brand'
@@ -13,6 +13,7 @@ const links = [
 ]
 
 export function Footer() {
+  const company = useCompany()
   const { data: products = [] } = usePublicCatalog()
   return (
     <footer className="bg-primary-dark text-white">
@@ -30,6 +31,11 @@ export function Footer() {
           <h2 className="mb-3 font-semibold">Contact</h2>
           <ul className="space-y-2 text-sm text-blue-100">
             {[company.office, company.assistance].map(item => <li key={item.href}><a className="hover:underline" href={item.href}>{item.label} : {item.number}</a></li>)}
+            {company.publicAgency?.email && <li><a className="hover:underline wrap-anywhere" href={'mailto:' + company.publicAgency.email}>{company.publicAgency.email}</a></li>}
+            {company.publicAgency?.website && <li><a className="hover:underline" href={company.publicAgency.website}>Site officiel</a></li>}
+            {company.publicAgency && Object.entries(company.publicAgency.socialLinks).map(([name, url]) => url &&
+              <li key={name}><a className="capitalize hover:underline" href={url}>{name}</a></li>)}
+
             <li><Link className="hover:underline" to="/contact">Nous contacter</Link></li>
             <li><Link className="hover:underline" to="/assistance">Service d’assistance</Link></li>
           </ul>

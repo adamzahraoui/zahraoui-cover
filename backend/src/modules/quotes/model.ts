@@ -61,6 +61,12 @@ export const snapshotSchema = z.strictObject({
   coverage: z.string(), limits: z.string(), deductibles: z.string().nullable(), conditions: z.string(),
   customerNotes: z.string().nullable(), premium: z.string(), fees: z.string(), taxes: z.string(), total: z.string(),
   development: z.literal(true),
+  agency: z.strictObject({
+    agencyName: z.string(), officePhone: z.string(), assistancePhone: z.string(),
+    legalName: z.string().nullable(), email: z.string().nullable(), address: z.string().nullable(), city: z.string().nullable(),
+    registration: z.string().nullable(), authorization: z.string().nullable(),
+  }).optional(),
+  quoteWording: z.strictObject({ id: z.uuid(), body: z.string() }).optional(),
 })
 export type QuoteSnapshot = z.infer<typeof snapshotSchema>
 

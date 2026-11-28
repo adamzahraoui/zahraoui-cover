@@ -11,9 +11,10 @@ import { recordHistory, staffAudit, staleRecord } from '../staff-records.js'
 import { quotePdfEnabled } from '../quotes/files.js'
 import { attachPdf, limitUpload, pdfBody, uploadVersion } from '../documents/uploads.js'
 import { createExternalPolicy, draftValues, externalPolicyInput, reference, validateLinks } from './external-policy.js'
+import { agencySettings, localMail, notificationPolicy } from '../agency/model.js'
 import { snapshotSchema } from '../quotes/model.js'
 import { addDays, contractConflict, contractFilter, contractRow, contractRowSelect, coverageStatus, dateOnly, lockContract, onDate, policyFields } from './model.js'
-import { obsoleteReminders, scheduleReminders } from './reminders.js'
+import { lockRenewalConfiguration, obsoleteReminders, scheduleReminders } from './reminders.js'
 
 const conversion = z.strictObject({ ...policyFields, quoteId: z.uuid(), quoteVersion: versionField })
 const edit = z.strictObject(policyFields).partial().extend({ version: versionField }).refine(body => Object.keys(body).length > 1)
@@ -66,6 +67,7 @@ async function detail(db: Prisma.TransactionClient, id: string, config: Config) 
     )
     SELECT id,reference,status,activated_at AS "activatedAt" FROM family ORDER BY created_at DESC,id LIMIT 100
   `
+  const mail = notificationPolicy(await agencySettings(db), config).delivery.renewal
   return {
     ...contractRow(row), coverage: row.coverage, internalNotes: row.internalNotes,
     confirmationReference: row.confirmationReference, confirmationOn: row.confirmationOn && dateOnly(row.confirmationOn),
@@ -77,7 +79,7 @@ async function detail(db: Prisma.TransactionClient, id: string, config: Config) 
       status: job.lastErrorCode === 'RENEWAL_OBSOLETE' ? 'OBSOLETE' : job.state, nextAttemptAt: job.nextAttemptAt, finishedAt: job.finishedAt,
     })),
     uploadEnabled: quotePdfEnabled(config),
-    reminderDeliveryEnabled: config.NODE_ENV !== 'production' && config.SMTP_MODE === 'local' && Boolean(config.RENEWAL_NOTIFY_EMAIL),
+    reminderDeliveryEnabled: localMail(config) && mail.enabled && Boolean(mail.recipient),
     activity: await recordHistory(db, 'contract', id),
   }
 }
@@ -201,6 +203,7 @@ export function contractRoutes(db: PrismaClient, config: Config) {
     const id = parseQuery(z.uuid(), request.params.id)
     const input = jsonBody(request, statusInput)
     const data = await db.$transaction(async transaction => {
+      await lockRenewalConfiguration(transaction)
       const row = await lockVersion(transaction, id, input.version)
       const now = new Date()
       const actor = currentSession(response).user.id
@@ -225,7 +228,8 @@ export function contractRoutes(db: PrismaClient, config: Config) {
           status: 'ACTIVE', activatedAt: now, confirmationOn: onDate(input.confirmationOn), confirmationReference: input.confirmationReference,
           confirmedBy: actor, activationSnapshot: snapshot, version: { increment: 1 },
         } })
-        await scheduleReminders(transaction, row, config, now)
+        const policy = notificationPolicy(await agencySettings(transaction), config)
+        if (policy.scheduleRenewals) await scheduleReminders(transaction, row, { ...config, RENEWAL_REMINDER_DAYS: policy.offsets }, now)
         await staffAudit(transaction, response, 'contract', id, 'CONTRACT_CONFIRMED')
       } else {
         if (!['DRAFT', 'ACTIVE', 'SCHEDULED', 'UNVERIFIED'].includes(coverageStatus(row))) throw contractConflict('Ce contrat ne peut pas être annulé.')

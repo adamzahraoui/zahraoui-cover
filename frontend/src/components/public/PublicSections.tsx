@@ -1,7 +1,7 @@
 import { ChevronDown, Headset, Phone } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { company } from '../../config/company'
+import { useCompany } from '../../config/CompanyProvider'
 import { ActionLink } from '../ui/Button'
 import { Breadcrumb } from '../ui/Breadcrumb'
 
@@ -28,6 +28,7 @@ export function MediaPlaceholder({ icon: Icon, className = '' }: { icon: LucideI
 }
 
 export function ActionBand({ title, children, assistance = false }: { title: string; children: ReactNode; assistance?: boolean }) {
+  const company = useCompany()
   return (
     <section className="bg-primary text-white">
       <div className="site-container flex flex-col gap-5 py-9 lg:flex-row lg:items-center lg:justify-between lg:py-12">

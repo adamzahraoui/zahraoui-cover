@@ -1,7 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AdminSessionProvider, RequireAdminRole, RequireAdminSession } from '../../components/admin/auth/AdminSession'
 import { NoRecord } from '../../components/admin/AdminContent'
-import { DemoDataProvider } from '../../components/admin/DemoData'
 import { AdminLayout } from '../../layouts/AdminLayout'
 import Login from './Login/Login'
 import ForgotPassword from './ForgotPassword/ForgotPassword'
@@ -34,7 +33,7 @@ export default function AdminRoutes() {
         <Route path="mot-de-passe-oublie" element={<ForgotPassword />} />
         <Route path="reinitialiser-mot-de-passe" element={<ResetPassword />} />
         <Route element={<RequireAdminSession />}>
-          <Route element={<DemoDataProvider><AdminLayout /></DemoDataProvider>}>
+          <Route element={<AdminLayout />}>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="demandes" element={<QuoteRequests />} />
             <Route path="demandes/:id" element={<QuoteRequestDetail />} />

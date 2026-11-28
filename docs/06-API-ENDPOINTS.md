@@ -172,11 +172,20 @@ The shared uploader also serves the existing contract endpoint. It returns 409 f
 
 These routes require ADMIN. POST routes require CSRF. See [headers, limits and errors](28-EXCEL-IMPORT-EXPORT-IMPLEMENTATION.md).
 
-## Proposed settings administration
+## Agency and staff administration · B13
 
-| Method and URL | Purpose / permission | Request and validation | Success body | Other errors | Pages |
-| --- | --- | --- | --- | --- | --- |
-| GET /api/admin/settings | Read settings / Admin | no body | 200 Settings | — | A19 |
-| PATCH /api/admin/settings | Save approved values / Admin | {version,email?,address?,hours?}, approved values only, nullable, at least one change | 200 Settings | 409 stale | A19 |
+| Endpoint | Permission and purpose |
+| --- | --- |
+| GET /api/agency | Public approved identity, contact details and published legal text. |
+| GET or PATCH /api/admin/settings | Admin settings and activity. PATCH requires current version and explicit approval. |
+| PATCH /api/admin/settings/notifications | Admin, versioned internal recipients, switches and reminder intervals. |
+| GET or POST /api/admin/settings/content | Admin paginated content history or creation of a new draft. |
+| PATCH /api/admin/settings/content/:id | Admin versioned draft update. |
+| POST /api/admin/settings/content/:id/publish | Admin explicit publication. The resulting version is immutable. |
+| GET /api/admin/settings/readiness | Admin read-only environment and approval indicators. |
+| GET or POST /api/admin/staff | Admin account list or local test invitation. |
+| GET or PATCH /api/admin/staff/:id | Admin account activity and metadata or versioned edit. |
+| POST /api/admin/staff/:id/invite | Admin versioned local resend for an account awaiting setup. |
+| POST /api/admin/staff/:id/revoke-sessions | Admin versioned session revocation. |
 
-Status rules and coupling between staff actions are in [User flows](09-USER-FLOWS.md). No hard-delete customer API is proposed. Retention runs through restricted maintenance workflows. Contact and assistance have no public status or document endpoints.
+Every administrative mutation requires CSRF. See [settings payloads](30-AGENCY-SETTINGS-IMPLEMENTATION.md) and [staff permissions](31-STAFF-ADMINISTRATION-GUIDE.md).

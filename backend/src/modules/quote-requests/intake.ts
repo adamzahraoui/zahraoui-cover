@@ -7,6 +7,7 @@ import type { Config } from '../../config/env.js'
 import { ApiError } from '../../middleware/errors.js'
 import { jsonBody } from '../../middleware/request.js'
 import { keyedDigest } from '../../utils/crypto.js'
+import { agencySettings, intakeNotice, notificationPolicy } from '../agency/model.js'
 import { emailField } from '../auth/contracts.js'
 import { requireAttempt, takeAttempt } from '../auth/limits.js'
 import { casablancaDate, phoneField, productSlug, profile } from '../business-inputs.js'
@@ -55,8 +56,8 @@ function unavailable() {
 
 export function quoteIntakeRoutes(database: PrismaClient, config: Config) {
   const routes = Router()
-  routes.get('/notice', (_request, response) => {
-    response.json({ data: { noticeVersion: config.QUOTE_NOTICE_TEXT ? config.PRIVACY_NOTICE_VERSION : null, text: config.QUOTE_NOTICE_TEXT ?? null } })
+  routes.get('/notice', async (_request, response) => {
+    response.json({ data: await intakeNotice(database, config, 'quote') })
   })
 
   routes.post('/', async (request, response) => {
@@ -88,10 +89,12 @@ export function quoteIntakeRoutes(database: PrismaClient, config: Config) {
         }
         if (prior) await transaction.submissionKey.deleteMany({ where: { action: prior.action, key: prior.key } })
 
-        if (!config.PRIVACY_NOTICE_VERSION || !config.QUOTE_NOTICE_TEXT) {
+        await transaction.$executeRaw`SELECT pg_advisory_xact_lock_shared(381972, 3)`
+        const notice = await intakeNotice(transaction, config, 'quote')
+        if (!notice.noticeVersion || !notice.text) {
           throw new ApiError(503, 'SERVICE_UNAVAILABLE', 'Le formulaire est temporairement indisponible.')
         }
-        if (input.noticeVersion !== config.PRIVACY_NOTICE_VERSION) throw new ApiError(409, 'NOTICE_CHANGED', 'La notice de confidentialité a changé.')
+        if (input.noticeVersion !== notice.noticeVersion) throw new ApiError(409, 'NOTICE_CHANGED', 'La notice de confidentialité a changé.')
         if (input.desiredStartOn && input.desiredStartOn < casablancaDate(now)) {
           throw new ApiError(422, 'VALIDATION_FAILED', 'La date d’effet doit être aujourd’hui ou plus tard.', { desiredStartOn: 'Date passée.' })
         }
@@ -115,7 +118,7 @@ export function quoteIntakeRoutes(database: PrismaClient, config: Config) {
             firstName: input.firstName, lastName: input.lastName, phone: input.phone, email: input.email, city: input.city,
             preferredContact: input.preferredContact, situation: input.situation,
             desiredStartOn: input.desiredStartOn ? new Date(input.desiredStartOn + 'T00:00:00.000Z') : undefined,
-            needs: mergedNeeds(input.needs, input.context), noticeVersion: input.noticeVersion, acknowledgedAt: now,
+            needs: mergedNeeds(input.needs, input.context), noticeVersion: input.noticeVersion, noticeText: notice.text, acknowledgedAt: now,
           },
           select: { id: true, reference: true, createdAt: true },
         })
@@ -124,10 +127,11 @@ export function quoteIntakeRoutes(database: PrismaClient, config: Config) {
           expiresAt: new Date(now.getTime() + ttl),
         } })
         if (config.SMTP_MODE !== 'disabled') {
-          if (config.QUOTE_ACK_EMAIL) await transaction.outboxJob.create({ data: {
+          const preferences = notificationPolicy(await agencySettings(transaction), config).delivery
+          if (preferences.quoteAcknowledgement) await transaction.outboxJob.create({ data: {
             kind: 'REQUEST_ACK', requestId: saved.id, dedupeKey: `request-ack:${saved.id}`, nextAttemptAt: now,
           } })
-          if (config.INTAKE_NOTIFY_EMAIL) await transaction.outboxJob.create({ data: {
+          if (preferences.quote.enabled && preferences.quote.recipient) await transaction.outboxJob.create({ data: {
             kind: 'REQUEST_ALERT', requestId: saved.id, dedupeKey: `request-alert:${saved.id}`, nextAttemptAt: now,
           } })
         }

@@ -16,6 +16,8 @@ The foundation, staff authentication, catalog, anonymous quote intake, customer 
 | Settings | Proposed approved agency profile and audit. |
 | Documents | Staff inventory and history, generated quote previews, private checksummed downloads, local contract PDF uploads and restricted archival. |
 
+B13 adds agency publication, staff administration and worker preference lookups. Intake and quote issuance record immutable text and identity snapshots. The existing environment gates continue to control production operations. [B13 agency settings](30-AGENCY-SETTINGS-IMPLEMENTATION.md)
+
 ## Validation and persistence
 
 B12 previews bounded XLSX and CSV files in memory and confirms them in a single PostgreSQL transaction. Imports share the existing validators and creation services. Spreadsheet bytes are never stored in private PDF storage. [Import and export](28-EXCEL-IMPORT-EXPORT-IMPLEMENTATION.md)

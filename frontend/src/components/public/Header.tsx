@@ -1,7 +1,7 @@
 import { ChevronDown, Headset, Menu, Phone } from 'lucide-react'
 import { useRef } from 'react'
 import { Link, NavLink } from 'react-router-dom'
-import { company } from '../../config/company'
+import { useCompany } from '../../config/CompanyProvider'
 import { publicNavigation } from '../../config/navigation'
 import { ActionLink } from '../ui/Button'
 import { Dialog } from '../ui/Dialog'
@@ -9,6 +9,7 @@ import { usePublicCatalog } from './PublicCatalog'
 import { Brand } from './Brand'
 
 export function Header({ compact = false }: { compact?: boolean }) {
+  const company = useCompany()
   const { data: products = [] } = usePublicCatalog()
   const mobileNav = useRef<HTMLDialogElement>(null)
   const categories = useRef<HTMLDetailsElement>(null)
@@ -48,7 +49,7 @@ export function Header({ compact = false }: { compact?: boolean }) {
             </nav>
             <div className="flex items-center gap-2">
               <ActionLink to="/devis" className="hidden sm:inline-flex">Demander un devis</ActionLink>
-              <a href={company.office.href} aria-label="Appeler Zahraoui Cover" className="grid size-11 place-items-center rounded bg-primary-tint text-primary sm:hidden"><Phone size={19} aria-hidden /></a>
+              <a href={company.office.href} aria-label={'Appeler ' + company.name} className="grid size-11 place-items-center rounded bg-primary-tint text-primary sm:hidden"><Phone size={19} aria-hidden /></a>
               <button type="button" aria-label="Ouvrir le menu" onClick={() => mobileNav.current?.showModal()} className="rounded border border-line p-2.5 text-primary lg:hidden"><Menu size={22} /></button>
             </div>
           </>

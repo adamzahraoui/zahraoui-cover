@@ -6,6 +6,7 @@ import type { Config } from '../../config/env.js'
 import { ApiError } from '../../middleware/errors.js'
 import { jsonBody } from '../../middleware/request.js'
 import { keyedDigest } from '../../utils/crypto.js'
+import { agencySettings, intakeNotice, notificationPolicy } from '../agency/model.js'
 import { emailField } from '../auth/contracts.js'
 import { requireAttempt, takeAttempt } from '../auth/limits.js'
 import { phoneField, productSlug } from '../business-inputs.js'
@@ -23,9 +24,9 @@ const assistanceBody = z.strictObject({ ...fields, productSlug, contractReferenc
 export function supportIntakeRoutes(database: PrismaClient, config: Config, action: 'CONTACT' | 'ASSISTANCE') {
   const routes = Router()
   const contact = action === 'CONTACT'
-  const text = contact ? config.CONTACT_NOTICE_TEXT : config.ASSISTANCE_NOTICE_TEXT
-  routes.get('/notice', (_request, response) => {
-    response.json({ data: { noticeVersion: text ? config.PRIVACY_NOTICE_VERSION : null, text: text ?? null } })
+  const form = contact ? 'contact' : 'assistance'
+  routes.get('/notice', async (_request, response) => {
+    response.json({ data: await intakeNotice(database, config, form) })
   })
 
   routes.post('/', async (request, response) => {
@@ -51,10 +52,12 @@ export function supportIntakeRoutes(database: PrismaClient, config: Config, acti
         if (!Buffer.from(prior.bodyFingerprint).equals(fingerprint)) throw new ApiError(409, 'IDEMPOTENCY_CONFLICT', 'Cette clé correspond à un autre envoi.')
         return original
       }
-      if (!text || !config.PRIVACY_NOTICE_VERSION) throw new ApiError(503, 'SERVICE_UNAVAILABLE', 'Le formulaire est temporairement indisponible.')
-      if (input.noticeVersion !== config.PRIVACY_NOTICE_VERSION) throw new ApiError(409, 'NOTICE_CHANGED', 'La notice de confidentialité a changé.')
+      await transaction.$executeRaw`SELECT pg_advisory_xact_lock_shared(381972, 3)`
+      const notice = await intakeNotice(transaction, config, form)
+      if (!notice.text || !notice.noticeVersion) throw new ApiError(503, 'SERVICE_UNAVAILABLE', 'Le formulaire est temporairement indisponible.')
+      if (input.noticeVersion !== notice.noticeVersion) throw new ApiError(409, 'NOTICE_CHANGED', 'La notice de confidentialité a changé.')
       if (prior) await transaction.submissionKey.deleteMany({ where: { action, key } })
-      const snapshot = { fullName: input.fullName, phone: input.phone, noticeVersion: input.noticeVersion, acknowledgedAt: now }
+      const snapshot = { fullName: input.fullName, phone: input.phone, noticeVersion: input.noticeVersion, noticeText: notice.text, acknowledgedAt: now }
       const reference = (contact ? 'MSG-' : 'ASS-') + randomBytes(12).toString('hex').toUpperCase()
       let saved: { id: string; reference: string; createdAt: Date }
       if ('message' in input) {
@@ -76,11 +79,12 @@ export function supportIntakeRoutes(database: PrismaClient, config: Config, acti
         data: { ...link, action, key, bodyFingerprint: fingerprint, expiresAt: new Date(now.getTime() + 86_400_000) },
       })
       if (config.SMTP_MODE !== 'disabled') {
-        if (config.INTAKE_NOTIFY_EMAIL) {
+        const preferences = notificationPolicy(await agencySettings(transaction), config).delivery
+        if (preferences[form].enabled && preferences[form].recipient) {
           const kind = contact ? 'CONTACT_ALERT' : 'ASSISTANCE_ALERT'
           await transaction.outboxJob.create({ data: { ...link, kind, dedupeKey: kind + ':' + saved.id, nextAttemptAt: now } })
         }
-        if (contact && config.CONTACT_ACK_EMAIL) {
+        if (contact && preferences.contactAcknowledgement) {
           await transaction.outboxJob.create({
             data: { messageId: saved.id, kind: 'CONTACT_ACK', dedupeKey: 'CONTACT_ACK:' + saved.id, nextAttemptAt: now },
           })

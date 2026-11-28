@@ -3,6 +3,7 @@ import nodemailer from 'nodemailer'
 import type { Config } from '../../config/env.js'
 import { openResetToken, tokenFormat } from '../../utils/crypto.js'
 
+import { agencySettings, localMail, notificationPolicy, publicCompany, published } from '../agency/model.js'
 import { claimJob, maxAttempts, retryTime } from './outbox.js'
 
 export function smtpMailer(config: Config) {
@@ -51,6 +52,9 @@ export async function deliverNextMail(database: PrismaClient, config: Config, ma
     if (code && changed.count) console.warn(JSON.stringify({ event: 'mail_job_failed', jobId: job.id, code }))
   }
 
+  const settings = job.kind === 'RESET_EMAIL' ? null : await agencySettings(database)
+  const agency = publicCompany(settings).agencyName
+  const preferences = notificationPolicy(settings, config).delivery
   let delivery: { to: string; subject: string; text: string; expiresAt?: Date }
   if (job.kind === 'RESET_EMAIL') {
     const reset = job.reset
@@ -78,38 +82,41 @@ export async function deliverNextMail(database: PrismaClient, config: Config, ma
     }
   } else if (job.kind === 'REQUEST_ACK' || job.kind === 'REQUEST_ALERT') {
     const request = job.request
-    const to = job.kind === 'REQUEST_ACK' ? (config.QUOTE_ACK_EMAIL ? request?.email : undefined) : config.INTAKE_NOTIFY_EMAIL
+    const to = job.kind === 'REQUEST_ACK' ? (preferences.quoteAcknowledgement ? request?.email : undefined) : preferences.quote.enabled ? preferences.quote.recipient : undefined
     if (!request || !to) {
       await finish('RECIPIENT_UNAVAILABLE')
       return true
     }
     delivery = job.kind === 'REQUEST_ACK'
-      ? { to, subject: 'Zahraoui Cover · Demande de devis reçue', text: `Votre demande de devis a bien été reçue. Référence : ${request.reference}. Conservez cette référence pour vos échanges avec l’agence.` }
-      : { to, subject: 'Zahraoui Cover · Nouvelle demande de devis', text: `Référence : ${request.reference}\nConsultez la demande dans l’espace sécurisé : ${new URL('/admin/demandes/' + request.id, config.PUBLIC_ORIGIN).href}` }
+      ? { to, subject: agency + ' · Demande de devis reçue', text: `Votre demande de devis a bien été reçue. Référence : ${request.reference}. Conservez cette référence pour vos échanges avec l’agence.` }
+      : { to, subject: agency + ' · Nouvelle demande de devis', text: `Référence : ${request.reference}\nConsultez la demande dans l’espace sécurisé : ${new URL('/admin/demandes/' + request.id, config.PUBLIC_ORIGIN).href}` }
   } else {
     const record = job.message ?? job.case
-    const to = job.kind === 'CONTACT_ACK' ? (config.CONTACT_ACK_EMAIL ? job.message?.email : undefined) : config.INTAKE_NOTIFY_EMAIL
+    const to = job.kind === 'CONTACT_ACK' ? (preferences.contactAcknowledgement ? job.message?.email : undefined)
+      : job.kind === 'CONTACT_ALERT' ? (preferences.contact.enabled ? preferences.contact.recipient : null)
+        : preferences.assistance.enabled ? preferences.assistance.recipient : null
     if (!record || !to) {
       await finish('RECIPIENT_UNAVAILABLE')
       return true
     }
     if (job.kind === 'CONTACT_ACK') {
-      delivery = { to, subject: 'Zahraoui Cover · Message reçu', text: `Votre message a bien été reçu. Référence : ${record.reference}.` }
+      delivery = { to, subject: agency + ' · Message reçu', text: `Votre message a bien été reçu. Référence : ${record.reference}.` }
     } else {
       const path = job.kind === 'CONTACT_ALERT' ? '/admin/messages' : '/admin/assistance'
       const link = new URL(path, config.PUBLIC_ORIGIN)
       link.searchParams.set('id', record.id)
-      delivery = { to, subject: job.kind === 'CONTACT_ALERT' ? 'Zahraoui Cover · Nouveau message' : 'Zahraoui Cover · Nouvelle demande d’assistance',
+      delivery = { to, subject: job.kind === 'CONTACT_ALERT' ? agency + ' · Nouveau message' : agency + ' · Nouvelle demande d’assistance',
         text: `Référence : ${record.reference}\nConsultez le dossier dans l’espace sécurisé : ${link.href}` }
     }
   }
+  const wording = job.kind !== 'RESET_EMAIL' && localMail(config) ? await published(database, 'EMAIL') : null
   try {
     await mailer.sendMail({
       from: config.SMTP_FROM,
       to: delivery.to,
       messageId: `<zc-${job.kind.toLowerCase()}-${job.id}@${config.SMTP_FROM?.split('@')[1]}>`,
       subject: delivery.subject,
-      text: delivery.text,
+      text: wording ? delivery.text + '\n\n' + wording.body : delivery.text,
     })
   } catch {
     const retryAt = retryTime(job.attemptCount)

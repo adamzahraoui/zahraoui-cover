@@ -24,3 +24,5 @@ For a local test, start Mailpit, configure a synthetic internal recipient such a
 ## Verification
 
 The [contract integration suite](../backend/tests/contracts.integration.ts) covers confirmation, reminder creation and idempotency, downtime recovery, retries, cancellation, changed-term cleanup and preserved original documents. The [date unit test](../backend/tests/contract-dates.test.ts) covers date-only math, the exclusive boundary and Casablanca offset changes. [Implementation status](15-IMPLEMENTATION-STATUS.md) records the browser and Mailpit results.
+
+B13 adds managed recipients and intervals. Changes retire obsolete queued jobs and preserve delivered windows. The first configuration falls back to environment defaults and delivery remains loopback-only. [Agency settings](30-AGENCY-SETTINGS-IMPLEMENTATION.md)

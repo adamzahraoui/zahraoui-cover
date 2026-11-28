@@ -11,7 +11,7 @@ The implementation notes under each page describe the React app. Staff authentic
 3. Look for `useState` when a value changes on screen. The catalog keeps the selected audience in state and computes the visible cards from the local list. The quote wizard keeps the current step and the visitor’s draft in state. Admin pages share a fixture provider so edits remain visible while navigating within the demo.
 4. Use the API handoff under each page when connecting it to data. The service functions are prepared for same-origin requests. Form previews and fixture edits currently run in the browser.
 
-[PageMain](../frontend/src/layouts/PageMain.tsx) sets the browser-tab title from the visible page heading and focuses the main content after the route or its session check becomes visible. Every layout shares the `contenu` landmark. AdminSession restores the server session, redirects unauthenticated visits, and keeps the CSRF value in memory. Agency settings still use the fixture provider.
+[PageMain](../frontend/src/layouts/PageMain.tsx) sets the browser-tab title from the visible page heading and focuses the main content after the route or its session check becomes visible. Every layout shares the `contenu` landmark. AdminSession restores the server session, redirects unauthenticated visits, and keeps the CSRF value in memory. Agency settings load from the authenticated API. The public company provider supplies approved contact details across the public site.
 
 ## Shared layout, behavior and states
 
@@ -772,21 +772,11 @@ Review and close general enquiries. Basic access in MVP, dedicated inbox styling
 
 **Route** `/admin/parametres`
 
-Maintain confirmed agency details in V2.
-
-- **Content and components.** Office and assistance phones, agency name, optional official email, address and hours. Shared fields and status banner.
-- **Responsive.** Stack all fields, including hours which are absent in the mobile export.
-- **Interactions.** Admin views locked identity and updates approved optional fields.
-- **Fields and validation.** Email syntax, address/hours length, optional nullable fields and required version.
-- **API data.** GET/PATCH /api/admin/settings → Settings.
-- **States.** Shared detail/form states. Render unconfigured values as blank, show saved outcome and preserve edits on failure.
-
-**Frontend implementation**
-
-- **File.** [Settings.tsx](../frontend/src/pages/admin/Settings/Settings.tsx).
-- **Component, props and state.** Sectioned Input/Textarea form. Uses official values in company configuration; saved flag in component.
-- **Interactions and styling.** View locked identity and phones, edit demo contact fields and see local acknowledgement.
-- **Data and API handoff.** Optional fields initially blank. Wire Admin-only V2 GET/PATCH settings when official facts are approved.
+- **Access and layout.** Only administrators see and open this page. The existing console shell arranges the company, legal, notification, renewal, staff, security and readiness sections as responsive panels.
+- **Company information.** Load actual settings, validate contact fields, and confirm publication. Changes to a stale version are rejected. The public provider uses the approved company identity and omits missing details.
+- **Legal and notifications.** Save and review separate drafts, publish immutable versions, configure local test recipients and acknowledgement preferences, and reconcile reminder intervals.
+- **Staff and security.** Search staff, queue local test invitations, set roles and active state, revoke sessions and review relevant activity. The production indicators are read-only.
+- **Files.** [Settings.tsx](../frontend/src/pages/admin/Settings/Settings.tsx), [AgencyForms.tsx](../frontend/src/pages/admin/Settings/AgencyForms.tsx), [LegalContents.tsx](../frontend/src/pages/admin/Settings/LegalContents.tsx) and [StaffManagement.tsx](../frontend/src/pages/admin/Settings/StaffManagement.tsx). [Agency settings](30-AGENCY-SETTINGS-IMPLEMENTATION.md)
 
 ### A20 · Documents
 

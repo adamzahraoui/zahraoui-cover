@@ -3,9 +3,10 @@ import { IntakeForm } from '../../../components/public/IntakeForm'
 import { ContentCard } from '../../../components/public/PublicSections'
 import { ActionLink } from '../../../components/ui/Button'
 import { Breadcrumb } from '../../../components/ui/Breadcrumb'
-import { company } from '../../../config/company'
+import { useCompany } from '../../../config/CompanyProvider'
 
 export default function Assistance() {
+  const company = useCompany()
   return (
     <>
       <section className="bg-primary text-white">

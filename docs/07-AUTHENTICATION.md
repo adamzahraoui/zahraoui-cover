@@ -20,6 +20,8 @@ The implemented operator command, API and frontend behavior are described in [16
 
 ADVISOR and ADMIN are individually authorized back-office staff. The proposal assumes one brokerage team with shared caseload and assignment for routing. Review this before granting access. Resolve active account and permission on each request. A missing or expired session yields 401 and an authenticated user lacking permission receives 403. Check the target record and its scope on reads and downloads.
 
+B13 staff administration reuses single-use recovery links and the database revocation trigger. A version check and an in-transaction session and role check protect staff changes. Administrator removal or deactivation requires another active administrator with completed password setup. [Staff guide](31-STAFF-ADMINISTRATION-GUIDE.md)
+
 ## Session
 
 Generate a random 32-byte opaque token, store its hash in PostgreSQL and set `__Host-zc_session` with `Secure; HttpOnly; SameSite=Lax; Path=/` and no Domain. Rotate after login and privilege changes. Start with 30 minutes idle and 12 hours absolute expiry. Throttle last-seen writes while enforcing both limits. Logout revokes the session and clears the cookie. Account disablement, role and password changes revoke existing sessions. Use no-store on auth and personal-data responses. [OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)

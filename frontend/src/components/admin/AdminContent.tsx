@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Check, Info } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { ActionLink } from '../ui/Button'
 import { Breadcrumb } from '../ui/Breadcrumb'
 import { EmptyState } from '../ui/States'
@@ -44,8 +44,4 @@ export function NoRecord({ title, back }: { title: string; back: string }) {
 
 export function LocalFeedback({ children }: { children: ReactNode }) {
   return <p role="status" className="flex items-start gap-2 rounded border border-blue-200 bg-primary-tint p-3 text-sm leading-6 text-primary"><Check size={17} className="mt-0.5 shrink-0" aria-hidden />{children}</p>
-}
-
-export function DemoNote({ children }: { children: ReactNode }) {
-  return <p className="flex items-start gap-2 rounded bg-background p-3 text-sm leading-6 text-muted"><Info size={17} className="mt-0.5 shrink-0" aria-hidden />{children}</p>
 }

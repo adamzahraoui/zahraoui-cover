@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
-import { company } from '../config/company'
+import { useCompany } from '../config/CompanyProvider'
 
 export function PageMain({ children, className }: { children: ReactNode; className: string }) {
+  const company = useCompany()
   const main = useRef<HTMLElement>(null)
   const { pathname } = useLocation()
 
@@ -22,7 +23,7 @@ export function PageMain({ children, className }: { children: ReactNode; classNa
       element.focus({ preventScroll: true })
     }
     return () => headingObserver.disconnect()
-  }, [pathname])
+  }, [pathname, company.name])
 
   return <main ref={main} id="contenu" tabIndex={-1} className={className}>{children}</main>
 }

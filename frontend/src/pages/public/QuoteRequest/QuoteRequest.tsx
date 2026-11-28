@@ -9,12 +9,13 @@ import { ApiError, api, businessError } from '../../../services/api'
 import type { QuoteRequestIn, Receipt } from '../../../types/api'
 import { ContentCard } from '../../../components/public/PublicSections'
 import { ActionLink, Button } from '../../../components/ui/Button'
-import { company } from '../../../config/company'
+import { useCompany } from '../../../config/CompanyProvider'
 import { QuoteFields } from './QuoteFields'
 import { initialDraft, steps, validateStep } from './quoteForm'
 import type { QuoteDraft, QuoteErrors } from './quoteForm'
 
 function QuoteWizard({ query }: { query: URLSearchParams }) {
+  const company = useCompany()
   const [draft, setDraft] = useState(() => initialDraft(query))
   const [step, setStep] = useState(0)
   const [errors, setErrors] = useState<QuoteErrors>({})
@@ -172,6 +173,7 @@ function QuoteWizard({ query }: { query: URLSearchParams }) {
 }
 
 export default function QuoteRequest() {
+  const company = useCompany()
   const [query] = useSearchParams()
   return (
     <div className="site-container grid items-start gap-6 py-8 lg:grid-cols-[minmax(0,2.08fr)_minmax(0,1fr)] lg:gap-8 lg:py-12">

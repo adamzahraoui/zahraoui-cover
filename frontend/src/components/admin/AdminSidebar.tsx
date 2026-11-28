@@ -15,7 +15,7 @@ const items = [
   { to: '/admin/partenaires', label: 'Partenaires', Icon: Handshake },
   { to: '/admin/messages', label: 'Messages', Icon: Mail },
   { to: '/admin/import-export', label: 'Import / Export', Icon: FileSpreadsheet, adminOnly: true },
-  { to: '/admin/parametres', label: 'Paramètres', Icon: Settings },
+  { to: '/admin/parametres', label: 'Paramètres', Icon: Settings, adminOnly: true },
 ]
 
 export function AdminNavigation({ onNavigate }: { onNavigate?: () => void }) {

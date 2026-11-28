@@ -1,6 +1,6 @@
 # 05 — PostgreSQL data model
 
-This logical schema is implemented by the [Prisma model](../backend/prisma/schema.prisma) and the [foundation migration](../backend/prisma/migrations/20261127000000_foundation/migration.sql). Subsequent migrations extend the foundation through B12. Columns are required unless marked nullable. FK deletion defaults to RESTRICT. UK denotes a unique constraint with PostgreSQL's default distinct NULL behavior. UUID PKs use generated random UUIDs. All mutable records use positive versions, advanced with updated_at on successful writes. Store dates without a time and timestamps in UTC. Named CHECK constraints and expression/partial indexes live in the SQL migration. Primary and unique keys create their own indexes.
+This logical schema is implemented by the [Prisma model](../backend/prisma/schema.prisma) and the [foundation migration](../backend/prisma/migrations/20261127000000_foundation/migration.sql). Subsequent migrations extend the foundation through B13. Columns are required unless marked nullable. FK deletion defaults to RESTRICT. UK denotes a unique constraint with PostgreSQL's default distinct NULL behavior. UUID PKs use generated random UUIDs. All mutable records use positive versions, advanced with updated_at on successful writes. Store dates without a time and timestamps in UTC. Named CHECK constraints and expression/partial indexes live in the SQL migration. Primary and unique keys create their own indexes.
 
 ## Status enums and fixed values
 
@@ -18,6 +18,7 @@ This logical schema is implemented by the [Prisma model](../backend/prisma/schem
 | intake_action | QUOTE_REQUEST, ASSISTANCE, CONTACT |
 | quote_status | DRAFT, ISSUED, SENT, ACCEPTED, DECLINED, EXPIRED, CANCELLED |
 | contract_status | DRAFT, ACTIVE, CANCELLED, EXPIRED |
+| agency_content_kind | LEGAL, PRIVACY, COOKIES, QUOTE, EMAIL |
 | import_kind | CLIENTS, PARTNERS, CONTRACTS |
 | import_status | UPLOADED, VALIDATED, COMPLETED, EXPIRED |
 | document_kind | QUOTE_PDF, CONTRACT_PDF, CONTRACT_SUPPORT, BUSINESS_PDF |
@@ -394,23 +395,24 @@ Localize UI labels in French. Keep insurer offer lifecycle distinct from intake 
 
 **Additional indexes.** Unique partial (quote_id, revision) where quote_id is present and (contract_id, revision) where contract_id is present; (status, created_at), (kind, created_at, id), (archived_at, created_at, id), (contract_id, kind, revision), (quote_id), (uploaded_by). [Document management](27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md)
 
-### agency_settings · V2
+### agency_settings · B13
 
-| Column | PostgreSQL type and modifiers |
+The singleton has ID 1, version and updated time, the agency name and two official phone numbers. Optional public fields include legal name, email, address, city, hours, WhatsApp, website, social links, registration and authorization references. The controlled brand asset key is optional. The first explicit publication sets `public_approved_at`. Historical singleton values are retained for admin review and the known brand and phones are displayed while approval is pending.
+
+`notification_preferences` stores the managed internal recipients and switches as JSON. `reminder_days` stores explicit offsets as an integer array. Empty offsets use the established environment fallback.
+
+### agency_contents · B13
+
+| Column | PostgreSQL type and purpose |
 | --- | --- |
-| id | smallint PK default 1 |
-| updated_at | timestamptz |
-| version | integer default 1 |
-| agency_name | varchar(120) |
-| office_phone | varchar(16) |
-| assistance_phone | varchar(16) |
-| email | varchar(254) nullable |
-| address | varchar(300) nullable |
-| hours | varchar(300) nullable |
+| id | UUID, stable version reference |
+| kind | agency_content_kind |
+| body | text, 20–8,000 characters |
+| version | positive optimistic write version |
+| created_at, published_at | creation time and nullable publication time |
+| publisher_id | nullable staff user FK with restricted deletion |
 
-**Rules.** Single row id 1, approved identity and primary/assistance numbers fixed by configuration and seeded settings.
-
-**Additional indexes.** PK only.
+An index supports latest publication lookup and a database trigger prevents edits or deletion of previously published rows. The intake tables preserve their original `notice_version` and add nullable `notice_text` for acknowledgements after B13. The migration cannot reconstruct historical text. [Agency settings](30-AGENCY-SETTINGS-IMPLEMENTATION.md)
 
 ### outbox_jobs · MVP with V2 extensions
 
@@ -502,6 +504,7 @@ erDiagram
     staff_users |o..o{ documents : "uploaded_by"
     documents |o..o{ outbox_jobs : "document_id"
     staff_users ||..o{ import_jobs : "administrator_id"
+    staff_users |o..o{ agency_contents : "publisher_id"
     contracts |o..o{ outbox_jobs : "contract_id"
     staff_users {
         uuid id PK
@@ -782,6 +785,15 @@ erDiagram
         jsonb counts
         jsonb diagnostics
         jsonb created_records
+    }
+    agency_contents {
+        uuid id PK
+        agency_content_kind kind
+        text body
+        integer version
+        timestamptz created_at
+        timestamptz published_at
+        uuid publisher_id FK
     }
     agency_settings {
         smallint id PK

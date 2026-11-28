@@ -186,3 +186,31 @@ export type ImportUpload = ImportJob & {
   fields: { key: string; label: string; required?: boolean }[]
   sheets: { name: string; headers: string[]; suggested: (string | null)[] }[]
 }
+
+export type AgencyCompany = {
+  agencyName: string; officePhone: string; assistancePhone: string; legalName: string | null; email: string | null
+  address: string | null; city: string | null; hours: string | null; whatsappPhone: string | null; website: string | null
+  registration: string | null; authorization: string | null; logoUrl: string | null
+  socialLinks: { facebook: string | null; instagram: string | null; linkedin: string | null }
+}
+export type PublicAgency = AgencyCompany & { content: { legal: string | null; privacy: string | null; cookies: string | null } }
+export type AgencyNotifications = {
+  quote: { enabled: boolean; recipient: string | null }; contact: { enabled: boolean; recipient: string | null }
+  assistance: { enabled: boolean; recipient: string | null }; renewal: { enabled: boolean; recipient: string | null }
+  quoteAcknowledgement: boolean; contactAcknowledgement: boolean
+}
+export type AgencySettings = AgencyCompany & {
+  version: number; publicApprovedAt: string | null; brandAsset: string | null; notifications: AgencyNotifications; reminderDays: number[]
+  localMail: boolean; activity: ActivityEntry[]
+}
+export type AgencyContentKind = 'LEGAL' | 'PRIVACY' | 'COOKIES' | 'QUOTE' | 'EMAIL'
+export type AgencyContent = {
+  id: string; kind: AgencyContentKind; body: string; version: number; createdAt: string; publishedAt: string | null
+  publisher: { displayName: string } | null
+}
+export type ReadinessItem = { id: string; state: 'VERIFIED' | 'PENDING' | 'CONFIGURED'; detail?: string }
+export type StaffAccount = {
+  id: string; email: string; displayName: string; role: 'ADMIN' | 'ADVISOR'; isActive: boolean
+  version: number; setupComplete: boolean; createdAt: string
+}
+export type StaffAccountDetail = StaffAccount & { activeSessions: number; activity: ActivityEntry[] }

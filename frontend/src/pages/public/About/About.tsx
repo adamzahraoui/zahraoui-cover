@@ -1,7 +1,7 @@
 import { Handshake, HeartHandshake, Search, Target } from 'lucide-react'
 import { ActionBand, ContentCard, MediaPlaceholder, PageHeading } from '../../../components/public/PublicSections'
 import { ActionLink } from '../../../components/ui/Button'
-import { company } from '../../../config/company'
+import { useCompany } from '../../../config/CompanyProvider'
 
 const principles = [
   { title: 'Notre mission', icon: Target, copy: 'Écouter vos besoins pour vous aider à comparer les solutions d’assurance.' },
@@ -10,9 +10,12 @@ const principles = [
 ]
 
 export default function About() {
+  const company = useCompany()
   return (
     <>
       <PageHeading title={`À propos de ${company.name}`} description={`${company.descriptor} au Maroc pour les particuliers et les professionnels.`} />
+      {company.publicAgency?.legalName && <p className="site-container mt-4 text-sm text-muted">{company.publicAgency.legalName}</p>}
+
       <section className="site-container section-space grid items-center gap-6 lg:grid-cols-2 lg:gap-10">
         <MediaPlaceholder icon={Handshake} className="aspect-[1.9]" />
         <div className="grid justify-items-start gap-4">

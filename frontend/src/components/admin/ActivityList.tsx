@@ -1,6 +1,19 @@
 import type { ActivityEntry } from '../../types/api'
 
 export const activityNames: Record<string, string> = {
+  AGENCY_PUBLIC_UPDATED: 'Informations publiques mises à jour',
+  AGENCY_NOTIFICATIONS_UPDATED: 'Préférences et rappels mis à jour',
+  AGENCY_CONTENT_DRAFTED: 'Brouillon de contenu créé',
+  AGENCY_CONTENT_UPDATED: 'Brouillon de contenu modifié',
+  AGENCY_CONTENT_PUBLISHED: 'Version de contenu publiée',
+  STAFF_INVITED: 'Invitation mise en file',
+  STAFF_REINVITED: 'Invitation renouvelée',
+  STAFF_UPDATED: 'Compte modifié',
+  STAFF_SESSIONS_REVOKED: 'Sessions révoquées',
+  AUTH_LOGIN: 'Tentative de connexion',
+  AUTH_LOGOUT: 'Déconnexion',
+  AUTH_PASSWORD_RESET: 'Mot de passe configuré ou réinitialisé',
+  AUTH_PASSWORD_CHANGE: 'Mot de passe modifié',
   RECORD_IMPORTED: 'Dossier créé par import',
   DOCUMENT_UPLOADED: 'PDF déposé',
   DOCUMENT_ARCHIVED: 'Document archivé',

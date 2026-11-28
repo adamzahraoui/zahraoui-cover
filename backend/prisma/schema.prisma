@@ -158,6 +158,7 @@ enum JobStatus {
 }
 
 model StaffUser {
+  publishedContents AgencyContent[]
   importJobs        ImportJob[]
   id                String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -275,6 +276,7 @@ model QuoteRequest {
   updatedAt        DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   version          Int              @default(1)
   noticeVersion    String           @map("notice_version") @db.VarChar(32)
+  noticeText       String?          @map("notice_text")
   acknowledgedAt   DateTime         @map("acknowledged_at") @db.Timestamptz(6)
   reference        String           @unique @db.VarChar(32)
   productId        String           @map("product_id") @db.Uuid
@@ -333,6 +335,7 @@ model AssistanceCase {
   updatedAt         DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   version           Int                @default(1)
   noticeVersion     String             @map("notice_version") @db.VarChar(32)
+  noticeText        String?            @map("notice_text")
   acknowledgedAt    DateTime           @map("acknowledged_at") @db.Timestamptz(6)
   reference         String             @unique @db.VarChar(32)
   assignedTo        String?            @map("assigned_to") @db.Uuid
@@ -370,6 +373,7 @@ model ContactMessage {
   updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   version        Int             @default(1)
   noticeVersion  String          @map("notice_version") @db.VarChar(32)
+  noticeText     String?         @map("notice_text")
   acknowledgedAt DateTime        @map("acknowledged_at") @db.Timestamptz(6)
   reference      String          @unique @db.VarChar(32)
   fullName       String          @map("full_name") @db.VarChar(120)
@@ -610,15 +614,27 @@ model Document {
 }
 
 model AgencySettings {
-  id              Int      @id @default(1) @db.SmallInt
-  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  version         Int      @default(1)
-  agencyName      String   @map("agency_name") @db.VarChar(120)
-  officePhone     String   @map("office_phone") @db.VarChar(16)
-  assistancePhone String   @map("assistance_phone") @db.VarChar(16)
-  email           String?  @db.VarChar(254)
-  address         String?  @db.VarChar(300)
-  hours           String?  @db.VarChar(300)
+  publicApprovedAt DateTime? @map("public_approved_at") @db.Timestamptz(6)
+  id               Int       @id @default(1) @db.SmallInt
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version          Int       @default(1)
+  agencyName       String    @map("agency_name") @db.VarChar(120)
+  officePhone      String    @map("office_phone") @db.VarChar(16)
+  assistancePhone  String    @map("assistance_phone") @db.VarChar(16)
+  email            String?   @db.VarChar(254)
+  address          String?   @db.VarChar(300)
+  hours            String?   @db.VarChar(300)
+
+  legalName               String? @map("legal_name") @db.VarChar(180)
+  city                    String? @db.VarChar(100)
+  whatsappPhone           String? @map("whatsapp_phone") @db.VarChar(16)
+  website                 String? @db.VarChar(300)
+  socialLinks             Json?   @map("social_links")
+  registration            String? @db.VarChar(300)
+  authorization           String? @map("authorization_reference") @db.VarChar(300)
+  brandAsset              String? @map("brand_asset") @db.VarChar(100)
+  notificationPreferences Json?   @map("notification_preferences")
+  reminderDays            Int[]   @default([]) @map("reminder_days")
 
   @@map("agency_settings")
 }
@@ -701,4 +717,29 @@ model ImportJob {
   @@index([administratorId, createdAt, id])
   @@index([expiresAt])
   @@map("import_jobs")
+}
+
+enum AgencyContentKind {
+  LEGAL
+  PRIVACY
+  COOKIES
+  QUOTE
+  EMAIL
+
+  @@map("agency_content_kind")
+}
+
+model AgencyContent {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind        AgencyContentKind
+  body        String
+  version     Int               @default(1)
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  publishedAt DateTime?         @map("published_at") @db.Timestamptz(6)
+  publisherId String?           @map("publisher_id") @db.Uuid
+  publisher   StaffUser?        @relation(fields: [publisherId], references: [id], onDelete: Restrict)
+
+  @@index([kind, publishedAt, id])
+  @@index([publisherId])
+  @@map("agency_contents")
 }

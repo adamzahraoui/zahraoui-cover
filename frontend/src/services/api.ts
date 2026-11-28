@@ -1,3 +1,4 @@
+import type { AgencyCompany, AgencyContent, AgencyContentKind, AgencyNotifications, AgencySettings, PublicAgency, ReadinessItem, StaffAccount, StaffAccountDetail } from '../types/api'
 import type { PartnerDetail, PartnerInput, PartnerRow, PublicPartner, ContractDetail, ContractRow, PolicyFields, DecisionMethod, IssuedQuote, IssuedQuoteInput, IssuedQuoteRow, AssistanceCase, AssistanceIn, AssistancePatch, AssistanceRow, Client, ClientDetail, ClientIn, ContractOption, DuplicateClient, Message, MessageRow, MessageStatus, Auth, CatalogItem, CatalogWrite, ClientOption, ContactIn, Dashboard, Page, Product, ProductCard, QuoteNotice, QuoteRequestIn, QuoteRequestPatch, Receipt, RequestDetail, RequestRow, StaffOption } from '../types/api'
 import type { DocumentDetail, DocumentKind, DocumentPage, ExportKind, ImportJob, ImportKind, ImportUpload, SpreadsheetFormat } from '../types/api'
 import type { ProductSlug } from '../config/navigation'
@@ -168,6 +169,27 @@ export const api = {
     request<ImportJob>('/admin/imports/' + encodeURIComponent(job.id) + '/confirm?confirmed=true&version=' + job.version,
       spreadsheetBody(file, job.format, { 'X-CSRF-Token': csrf })),
   downloadExport,
+  agency: (signal?: AbortSignal) => request<PublicAgency>('/agency', { signal }),
+  settings: (signal?: AbortSignal) => request<AgencySettings>('/admin/settings', { signal }),
+  updateAgency: (body: Partial<Omit<AgencyCompany, 'logoUrl'>> & { version: number; approved: true }, csrf: string) =>
+    patch<AgencySettings>('/admin/settings', body, csrf),
+  updateNotifications: (body: { version: number; notifications: AgencyNotifications; reminderDays: number[] }, csrf: string) =>
+    patch<AgencySettings>('/admin/settings/notifications', body, csrf),
+  agencyContent: (kind: AgencyContentKind, page: number, signal?: AbortSignal) => list<AgencyContent>('/admin/settings/content', new URLSearchParams({ kind, page: String(page), limit: '8' }).toString(), signal),
+  createContent: (kind: AgencyContentKind, body: string, csrf: string) => post<AgencyContent>('/admin/settings/content', { kind, body }, { 'X-CSRF-Token': csrf }),
+  updateContent: (id: string, body: string, version: number, csrf: string) =>
+    patch<AgencyContent>('/admin/settings/content/' + encodeURIComponent(id), { body, version }, csrf),
+  publishContent: (id: string, version: number, csrf: string) =>
+    post<AgencyContent>('/admin/settings/content/' + encodeURIComponent(id) + '/publish', { version, approved: true }, { 'X-CSRF-Token': csrf }),
+  readiness: (signal?: AbortSignal) => request<ReadinessItem[]>('/admin/settings/readiness', { signal }),
+  staff: (query: string, signal?: AbortSignal) => fetchJson<Page<StaffAccount> & { inviteEnabled: boolean }>('/admin/staff?' + query, { signal }),
+  staffAccount: (id: string, signal?: AbortSignal) => request<StaffAccountDetail>('/admin/staff/' + encodeURIComponent(id), { signal }),
+  inviteStaff: (body: Pick<StaffAccount, 'displayName' | 'email' | 'role'>, csrf: string) =>
+    post<StaffAccount>('/admin/staff', body, { 'X-CSRF-Token': csrf }),
+  updateStaff: (id: string, body: Partial<Pick<StaffAccount, 'displayName' | 'role' | 'isActive'>> & { version: number }, csrf: string) =>
+    patch<StaffAccount>('/admin/staff/' + encodeURIComponent(id), body, csrf),
+  staffAction: (id: string, action: 'invite' | 'revoke-sessions', version: number, csrf: string) =>
+    post<StaffAccountDetail>('/admin/staff/' + encodeURIComponent(id) + '/' + action, { version }, { 'X-CSRF-Token': csrf }),
   dashboard: (signal?: AbortSignal) => request<Dashboard>('/admin/dashboard', { signal }),
   submitQuote: (input: QuoteRequestIn, key: string) => post<Receipt>('/quotes', input, { 'Idempotency-Key': key }),
   submitContact: (input: ContactIn, key: string) => post<Receipt>('/contact', input, { 'Idempotency-Key': key }),

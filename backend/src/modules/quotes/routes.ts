@@ -9,6 +9,7 @@ import { jsonBody } from '../../middleware/request.js'
 import { currentSession, requireCsrf, requireRole } from '../auth/session.js'
 import { casablancaDate, pageBounds, pagination, parseQuery, productSlug, searchPrefix, toProductSlug, versionField } from '../business-inputs.js'
 import { dateRange, lockActiveClient, staffAudit, staleRecord } from '../staff-records.js'
+import { agencySettings, publicCompany, published } from '../agency/model.js'
 import { eligiblePartner, lockEligiblePartner } from '../partners/model.js'
 import { privateDirectory, quotePdfEnabled } from './files.js'
 import { calculateTotal, decisionMethod, deliveryJobKey, effectiveStatus, lockLinkedRequest, pdfJobKey, quoteInput, quoteRow, quoteRowSelect, quoteStatus, snapshotSchema } from './model.js'
@@ -218,7 +219,12 @@ export function issuedQuoteRoutes(db: PrismaClient, config: Config) {
         throw invalid('Complétez les garanties, les limites, les conditions, le prix et la date de validité du brouillon.')
       }
       const partner = await validateLinks(transaction, row)
+      await transaction.$executeRaw`SELECT pg_advisory_xact_lock_shared(381972, 3)`
+      const { agencyName, officePhone, assistancePhone, legalName, email, address, city, registration, authorization } = publicCompany(await agencySettings(transaction))
+      const wording = await published(transaction, 'QUOTE')
       const snapshot: QuoteSnapshot = {
+        agency: { agencyName, officePhone, assistancePhone, legalName, email, address, city, registration, authorization },
+        ...(wording ? { quoteWording: { id: wording.id, body: wording.body } } : {}),
         reference: row.reference, revision: row.revision, issuedOn: today, validUntil, clientName: row.client.displayName, city: row.client.city,
         email: row.client.email, product: row.product.title, carrier: partner.name,
         coverage: row.coverage, limits: row.coverageLimits, deductibles: row.deductibles, conditions: row.conditions, customerNotes: row.customerNotes,

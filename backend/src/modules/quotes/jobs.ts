@@ -1,4 +1,5 @@
 import type { OutboxJob, PrismaClient } from '@prisma/client'
+import { published } from '../agency/model.js'
 import type { Config } from '../../config/env.js'
 import { claimJob, maxAttempts, retryTime } from '../notifications/outbox.js'
 import type { Mailer } from '../notifications/mail-jobs.js'
@@ -95,10 +96,11 @@ export async function deliverNextQuote(db: PrismaClient, config: Config, mailer:
   }
   try {
     const bytes = await readPdf(await privateDirectory(config), doc.storageKey, { sha256: doc.sha256, sizeBytes: doc.sizeBytes })
+    const wording = await published(db, 'EMAIL')
     const result = await mailer.sendMail({
       from: config.SMTP_FROM, to: { name: '', address: quote.client.email },
-      subject: 'Zahraoui Cover - Proposition de test ' + snapshot.data.reference,
-      text: 'Document de développement. Cette proposition ne constitue pas une couverture ou un contrat.',
+      subject: (snapshot.data.agency?.agencyName ?? 'Zahraoui Cover') + ' - Proposition de test ' + snapshot.data.reference,
+      text: 'Document de développement. Cette proposition ne constitue pas une couverture ou un contrat.' + (wording ? '\n\n' + wording.body : ''),
       messageId: '<zc-quote-' + job.id + '@' + config.SMTP_FROM?.split('@')[1] + '>',
       attachments: [{ filename: snapshot.data.reference + '.pdf', content: bytes, contentType: 'application/pdf' }],
     })

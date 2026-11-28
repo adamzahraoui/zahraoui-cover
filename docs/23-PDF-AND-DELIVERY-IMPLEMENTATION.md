@@ -29,6 +29,8 @@ B9 reuses the same private storage for [insurer-provided contract attachments](2
 
 B11 provides [centralized document management](27-DOCUMENT-MANAGEMENT-IMPLEMENTATION.md) with the same private file directory and download URL. It links directly to each generated revision and preserves inline preview for generated quote PDFs.
 
+B13 includes approved agency details and versioned proposal wording in new issuance snapshots. Historical documents and checksums stay intact. [Agency settings](30-AGENCY-SETTINGS-IMPLEMENTATION.md)
+
 ## Verification
 
 [Integration tests](../backend/tests/issued-quotes.integration.ts) cover PDF authorization, invalid document paths, symbolic-link rejection, revision snapshots, exact attachment bytes, retry and request synchronization. The browser exercises the workflow with Mailpit. PDF layout is reviewed using Poppler renders and text extraction. [Implementation status](15-IMPLEMENTATION-STATUS.md)

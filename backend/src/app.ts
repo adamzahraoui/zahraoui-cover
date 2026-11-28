@@ -20,6 +20,8 @@ import { documentRoutes } from './modules/documents/routes.js'
 import { contractRoutes } from './modules/contracts/routes.js'
 import { partnerAdminRoutes, publicPartnerRoutes } from './modules/partners/routes.js'
 import { dashboardRoutes } from './modules/dashboard/routes.js'
+import { agencyAdminRoutes, publicAgencyRoutes } from './modules/agency/routes.js'
+import { staffAdminRoutes } from './modules/agency/staff.js'
 import { hashPassword, randomToken } from './utils/crypto.js'
 
 export async function createApp(database: PrismaClient, config: Config) {
@@ -50,7 +52,7 @@ export async function createApp(database: PrismaClient, config: Config) {
       const [migration] = await database.$queryRaw<{ ready: boolean }[]>`
         SELECT EXISTS (
           SELECT 1 FROM "_prisma_migrations"
-          WHERE migration_name = '20261127070000_spreadsheet_imports' AND finished_at IS NOT NULL AND rolled_back_at IS NULL
+          WHERE migration_name = '20261128080000_agency_administration' AND finished_at IS NOT NULL AND rolled_back_at IS NULL
         ) AS ready
       `
       if (!migration?.ready) { response.status(503).json({ status: 'unavailable' }); return }
@@ -66,7 +68,10 @@ export async function createApp(database: PrismaClient, config: Config) {
   app.use('/api/contact', supportIntakeRoutes(database, config, 'CONTACT'))
   app.use('/api/assistance', supportIntakeRoutes(database, config, 'ASSISTANCE'))
   app.use('/api/partners', publicPartnerRoutes(database))
+  app.use('/api/agency', publicAgencyRoutes(database))
   app.use('/api/admin', requireSession(database, config))
+  app.use('/api/admin/settings', agencyAdminRoutes(database, config))
+  app.use('/api/admin/staff', staffAdminRoutes(database, config))
   app.use('/api/admin/catalog', adminCatalogRoutes(database))
   app.use('/api/admin/quote-requests', quoteAdminRoutes(database))
   app.use('/api/admin/clients', clientRoutes(database))

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { CatalogCards, usePublicCatalog } from '../../../components/public/PublicCatalog'
 import { Accordion, ActionBand, ContentCard, MediaPlaceholder } from '../../../components/public/PublicSections'
 import { ActionLink } from '../../../components/ui/Button'
-import { company } from '../../../config/company'
+import { useCompany } from '../../../config/CompanyProvider'
 import { useApiData } from '../../../hooks/useApiData'
 import { api } from '../../../services/api'
 import { faqs } from '../../../data/faq'
@@ -28,6 +28,7 @@ const steps = [
 ]
 
 export default function Home() {
+  const company = useCompany()
   const { data: products = [] } = usePublicCatalog()
   const { data: partners = [] } = useApiData(api.publicPartners)
   return (

@@ -27,6 +27,8 @@ B11 adds the staff document inventory to the existing Express API and React cons
 
 B12 adds the administrator-only import and export module. It receives bounded spreadsheet bytes, uses the same CRM, partner and policy services, and stores only job metadata and redacted results in PostgreSQL. Exports apply existing list filters and fixed field allowlists. [Spreadsheet implementation](28-EXCEL-IMPORT-EXPORT-IMPLEMENTATION.md)
 
+B13 adds an agency settings module that supplies approved public content and versions. Customer intake and quote issuance freeze the applicable content at the transaction boundary. Staff administration reuses the existing session, credential revocation and notification services. [Agency settings](30-AGENCY-SETTINGS-IMPLEMENTATION.md) · [Staff administration](31-STAFF-ADMINISTRATION-GUIDE.md)
+
 ## Proposed implementation tree
 
 ```text

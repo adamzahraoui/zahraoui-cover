@@ -4,7 +4,7 @@ import { ActionBand, Accordion, ContentCard, MediaPlaceholder } from './PublicSe
 import { ActionLink, Button } from '../ui/Button'
 import { Breadcrumb } from '../ui/Breadcrumb'
 import { InsuranceCard } from './InsuranceCard'
-import { company } from '../../config/company'
+import { useCompany } from '../../config/CompanyProvider'
 import type { ProductSlug } from '../../config/navigation'
 import { getInsurance } from '../../data/insurance'
 import { useApiData } from '../../hooks/useApiData'
@@ -13,6 +13,7 @@ import { EmptyState, ErrorState, LoadingState } from '../ui/States'
 import { usePublicCatalog } from './PublicCatalog'
 
 export function ProductDetail({ slug }: { slug: ProductSlug }) {
+  const company = useCompany()
   const load = useCallback((signal: AbortSignal) => api.product(slug, signal), [slug])
   const { data: product, error, reload } = useApiData(load)
   const { data: products = [] } = usePublicCatalog()

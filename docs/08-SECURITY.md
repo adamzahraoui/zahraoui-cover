@@ -29,6 +29,8 @@ B11 centralizes document reads and audits access. Each download checks the docum
 
 B12 spreadsheet endpoints require ADMIN. Import mutations also require CSRF and check preview versions and the original digest. XLSX unpacking is bounded and uploads, templates and exports use account throttling. Import reports omit raw cells. Exports use content allowlists, spreadsheet formula protection and no-store responses. Production imports are disabled. [Spreadsheet safeguards](28-EXCEL-IMPORT-EXPORT-IMPLEMENTATION.md)
 
+B13 separates approved public fields from internal settings using an explicit projection. Published notices are immutable and new intake records preserve the text presented. Administrative staff and settings writes require the current administrator, CSRF and a current version where applicable. Readiness indicators do not authorize production behavior. [Settings security](30-AGENCY-SETTINGS-IMPLEMENTATION.md)
+
 ## Privacy before launch
 
 - Assign a controller and an approved privacy contact. Review data categories, lawful basis, rights and records with the agency's privacy adviser. The acknowledgement fields record the published notice and timestamp. The owner must confirm where a separate consent record and controls are required. [CNDP website compliance](https://www.cndp.ma/conformite-des-sites-web/)

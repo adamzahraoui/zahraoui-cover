@@ -1,5 +1,6 @@
 import type { Contract, OutboxJob, Prisma, PrismaClient } from '@prisma/client'
 import type { Config } from '../../config/env.js'
+import { agencySettings, localMail, notificationPolicy, publicCompany, published } from '../agency/model.js'
 import { casablancaDate } from '../business-inputs.js'
 import type { Mailer } from '../notifications/mail-jobs.js'
 import { claimJob, maxAttempts, retryTime } from '../notifications/outbox.js'
@@ -58,7 +59,10 @@ async function complete(db: PrismaClient, job: OutboxJob, result: 'accepted' | '
 }
 
 export async function deliverNextRenewal(db: PrismaClient, config: Config, mailer: Mailer) {
-  if (config.NODE_ENV === 'production' || config.SMTP_MODE !== 'local' || !config.RENEWAL_NOTIFY_EMAIL) return false
+  if (!localMail(config)) return false
+  const settings = await agencySettings(db)
+  const initial = notificationPolicy(settings, config)
+  if (!initial.delivery.renewal.enabled || !initial.delivery.renewal.recipient) return false
   const claim = await claimJob(db, [reminderKind])
   if (!claim) return false
   const job = await db.outboxJob.findFirst({ where: claim })
@@ -66,6 +70,13 @@ export async function deliverNextRenewal(db: PrismaClient, config: Config, maile
   const contractId = job.contractId
   const term = job.reminderExpiresOn
   if (!contractId || !term || !job.reminderDays) {
+    await complete(db, job, 'obsolete')
+    return true
+  }
+  const currentSettings = await agencySettings(db)
+  const policySettings = notificationPolicy(currentSettings, config)
+  const recipient = policySettings.delivery.renewal.recipient
+  if (!policySettings.delivery.renewal.enabled || !recipient) {
     await complete(db, job, 'obsolete')
     return true
   }
@@ -78,14 +89,14 @@ export async function deliverNextRenewal(db: PrismaClient, config: Config, maile
     } })
     if (current.status !== 'ACTIVE' || !current.confirmationOn || !current.renewalReminders || current.successors.length ||
         dateOnly(current.expiresOn) !== dateOnly(term) || dateOnly(term) <= casablancaDate(now) ||
-        !config.RENEWAL_REMINDER_DAYS.includes(job.reminderDays!)) return undefined
+        !policySettings.offsets.includes(job.reminderDays!)) return undefined
     // Once a later reminder is due (or already sent), older pending windows are obsolete.
     const [window] = await transaction.$queryRaw<{ newer: boolean }[]>`
       SELECT EXISTS (
         SELECT 1 FROM outbox_jobs
         WHERE kind='RENEWAL_ALERT' AND contract_id=${contractId}::uuid AND reminder_expires_on=${term}::date
-          AND reminder_days < ${job.reminderDays!} AND reminder_days = ANY(${config.RENEWAL_REMINDER_DAYS}::int[])
-          AND ((reminder_expires_on - reminder_days + TIME '09:00') AT TIME ZONE 'Africa/Casablanca') <= ${now}
+          AND reminder_days < ${job.reminderDays!} AND (state='SUCCEEDED' OR (reminder_days = ANY(${policySettings.offsets}::int[])
+            AND ((reminder_expires_on - reminder_days + TIME '09:00') AT TIME ZONE 'Africa/Casablanca') <= ${now}))
       ) AS newer
     `
     return window.newer ? undefined : current
@@ -94,11 +105,12 @@ export async function deliverNextRenewal(db: PrismaClient, config: Config, maile
     await complete(db, job, 'obsolete')
     return true
   }
+  const wording = await published(db, 'EMAIL')
   try {
     const mail = await mailer.sendMail({
-      from: config.SMTP_FROM, to: { name: '', address: config.RENEWAL_NOTIFY_EMAIL },
-      subject: 'Zahraoui Cover - Échéance à préparer ' + policy.reference,
-      text: `Référence interne : ${policy.reference}\nÉchéance : ${dateOnly(policy.expiresOn)}\nConsultez le contrat dans l’espace sécurisé : ${new URL('/admin/contrats/' + contractId, config.PUBLIC_ORIGIN).href}\nCe rappel ne confirme aucun renouvellement.`,
+      from: config.SMTP_FROM, to: { name: '', address: recipient },
+      subject: publicCompany(currentSettings).agencyName + ' - Échéance à préparer ' + policy.reference,
+      text: `Référence interne : ${policy.reference}\nÉchéance : ${dateOnly(policy.expiresOn)}\nConsultez le contrat dans l’espace sécurisé : ${new URL('/admin/contrats/' + contractId, config.PUBLIC_ORIGIN).href}\nCe rappel ne confirme aucun renouvellement.` + (wording ? '\n\n' + wording.body : ''),
       messageId: '<zc-renewal-' + job.id + '@' + config.SMTP_FROM?.split('@')[1] + '>',
     })
     if (!mail.accepted.length) throw new Error('Reminder rejected')
@@ -134,4 +146,50 @@ export async function maintainContracts(db: PrismaClient, now = new Date()) {
       data: { state: 'FAILED', lastErrorCode: 'RENEWAL_EXHAUSTED', leaseUntil: null, leaseToken: null, finishedAt: now },
     })
   })
+}
+
+export async function lockRenewalConfiguration(db: Prisma.TransactionClient) {
+  await db.$executeRaw`SELECT pg_advisory_xact_lock(381972, 2)`
+}
+
+export async function reconcileRenewals(db: Prisma.TransactionClient, offsets: number[], now = new Date()) {
+  const today = casablancaDate(now)
+  const jobs = await db.$queryRaw<{ running: boolean }[]>`
+    SELECT (state='RUNNING' AND lease_until>${now}) AS running FROM outbox_jobs
+    WHERE kind='RENEWAL_ALERT' AND state IN ('PENDING','RUNNING') FOR UPDATE
+  `
+  if (jobs.some(job => job.running)) throw contractConflict('Un rappel est en cours d’envoi. Réessayez après son traitement.')
+
+  await db.$executeRaw`
+    UPDATE outbox_jobs job
+    SET state='FAILED', finished_at=${now}, last_error_code='RENEWAL_SETTINGS_OBSOLETE', lease_until=NULL, lease_token=NULL
+    WHERE job.kind='RENEWAL_ALERT' AND job.state IN ('PENDING','RUNNING')
+      AND (NOT (job.reminder_days=ANY(${offsets}::int[])) OR NOT EXISTS (
+        SELECT 1 FROM contracts policy WHERE policy.id=job.contract_id AND policy.status='ACTIVE'
+          AND policy.confirmation_on IS NOT NULL AND policy.renewal_reminders AND policy.expires_on> ${today}::date
+          AND policy.expires_on=job.reminder_expires_on
+          AND NOT EXISTS (SELECT 1 FROM contracts successor WHERE successor.previous_id=policy.id AND successor.activated_at IS NOT NULL)
+      ) OR EXISTS (SELECT 1 FROM outbox_jobs sent WHERE sent.contract_id=job.contract_id AND sent.kind='RENEWAL_ALERT'
+        AND sent.reminder_expires_on=job.reminder_expires_on AND sent.state='SUCCEEDED' AND sent.reminder_days<job.reminder_days))
+  `
+  await db.$executeRaw`
+    WITH windows AS (
+      SELECT policy.id, policy.expires_on, days,
+        (policy.expires_on-days+TIME '09:00') AT TIME ZONE 'Africa/Casablanca' AS due_at,
+        min(days) FILTER (WHERE policy.expires_on-days<=${today}::date) OVER (PARTITION BY policy.id) AS latest_due
+      FROM contracts policy CROSS JOIN unnest(${offsets}::int[]) AS reminder(days)
+      WHERE policy.status='ACTIVE' AND policy.confirmation_on IS NOT NULL AND policy.renewal_reminders
+        AND policy.expires_on>${today}::date
+        AND NOT EXISTS (SELECT 1 FROM contracts successor WHERE successor.previous_id=policy.id AND successor.activated_at IS NOT NULL)
+    )
+    INSERT INTO outbox_jobs (kind, dedupe_key, contract_id, reminder_expires_on, reminder_days, next_attempt_at)
+    SELECT 'RENEWAL_ALERT', 'renewal:' || id || ':' || expires_on || ':' || days, id, expires_on, days, greatest(due_at,${now})
+    FROM windows
+    WHERE (expires_on-days>${today}::date OR days=latest_due)
+      AND NOT EXISTS (SELECT 1 FROM outbox_jobs sent WHERE sent.contract_id=windows.id AND sent.kind='RENEWAL_ALERT'
+        AND sent.reminder_expires_on=windows.expires_on AND sent.state='SUCCEEDED' AND sent.reminder_days<=windows.days)
+    ON CONFLICT (dedupe_key) DO UPDATE SET state='PENDING', next_attempt_at=EXCLUDED.next_attempt_at,
+      finished_at=NULL, last_error_code=NULL, attempt_count=0
+    WHERE outbox_jobs.state='FAILED' AND outbox_jobs.last_error_code='RENEWAL_SETTINGS_OBSOLETE'
+  `
 }

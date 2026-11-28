@@ -24,7 +24,7 @@ M05 can start alongside M03/M04. M08 worker integration can start alongside the 
 | ID | Task | Depends on | Acceptance criteria |
 | --- | --- | --- | --- |
 | V01 | Advanced admin workflows and missing mobile layout approval | M09 | Product owner signs off mobile quote create/detail, shared inbox navigation, partner data, actual quote/contract terms and approved PDF template. |
-| V02 | Partner and settings management | V01 | Admin can edit approved values with audit and conflict handling. Catalog management was delivered in B4 with six reserved public slugs. Partner management was delivered in B10. Carrier deactivation preserves linked records. Agency settings remain pending. |
+| V02 | Partner and settings management | V01 | Admin can edit approved values with audit and conflict handling. Catalog management was delivered in B4 with six reserved public slugs. Partner management was delivered in B10. Carrier deactivation preserves linked records. Agency settings and staff controls were delivered in B13. |
 | V03 | Advanced quote management | V01, V02, M06–M07 | Staff can create/edit compatible drafts, Admin can issue and record decisions, and list/detail show actual history on both widths. Document queue integrates with V05. |
 | V04 | Contract management | V02, V03 | Authorized users can draft, activate/cancel by role and link accepted quotes correctly. Policy uniqueness and term checks hold. PDF and renewal integration complete with V05–V06. |
 | V05 | Private PDF generation and retrieval | V01, V03/V04 snapshot contracts | Approved templates generate PDFs in the worker. State is visible, retries preserve revisions, and unauthorized or unavailable downloads fail safely. Test restored database/file pairs. |
