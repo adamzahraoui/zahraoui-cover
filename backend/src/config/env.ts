@@ -5,6 +5,7 @@ const optional = (value: unknown) => value === '' ? undefined : value
 
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  STAGING_MODE: z.enum(['true', 'false']).default('false').transform(value => value === 'true'),
   HOST: z.string().min(1).default('127.0.0.1'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   PUBLIC_ORIGIN: z.string().url().pipe(z.string().refine(value => {
@@ -60,8 +61,14 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Config
   if (config.NODE_ENV === 'production' && !config.PUBLIC_ORIGIN.startsWith('https://')) {
     throw new Error('PUBLIC_ORIGIN requires HTTPS in production')
   }
+  if (config.STAGING_MODE && (config.NODE_ENV !== 'test' || config.PUBLIC_INDEXING_ENABLED ||
+    !/^http:\/\/127\.0\.0\.1(?::\d+)?$/.test(config.PUBLIC_ORIGIN) ||
+    config.SMTP_MODE !== 'local' || config.SMTP_HOST !== 'mailpit' || config.SMTP_PORT !== 1025 ||
+    !config.SMTP_FROM?.endsWith('.invalid') || config.SMTP_USER || config.SMTP_PASSWORD)) {
+    throw new Error('Staging requires test mode, loopback web access, disabled indexing and the isolated Mailpit sink')
+  }
   if (config.SMTP_MODE === 'local' && (
-    config.NODE_ENV === 'production' || !['127.0.0.1', '::1', 'localhost'].includes(config.SMTP_HOST ?? '')
+    config.NODE_ENV === 'production' || (!config.STAGING_MODE && !['127.0.0.1', '::1', 'localhost'].includes(config.SMTP_HOST ?? ''))
   )) {
     throw new Error('Local SMTP is available only on loopback outside production')
   }

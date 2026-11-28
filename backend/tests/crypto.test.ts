@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { randomBytes, randomUUID } from 'node:crypto'
 import test from 'node:test'
 import { loadConfig } from '../src/config/env.js'
+import { localMail } from '../src/modules/agency/model.js'
 import { csrfFor, digestToken, hashPassword, openResetToken, passwordMatches, randomToken, sealResetToken, tokenFormat, validCsrf } from '../src/utils/crypto.js'
 
 test('passwords have distinct Argon2id hashes with the configured work factor', async () => {
@@ -50,4 +51,23 @@ test('production requires HTTPS, rejects local SMTP and enforces independent key
   assert.throws(() => loadConfig({ ...env, PUBLIC_ORIGIN: 'http://example.invalid' }), /HTTPS/)
   assert.throws(() => loadConfig({ ...env, SMTP_MODE: 'local', SMTP_HOST: '127.0.0.1' }), /loopback outside production/)
   assert.throws(() => loadConfig({ ...env, CSRF_SECRET: env.RATE_KEY_SECRET }), /different/)
+})
+
+test('staging mail is restricted to the isolated Mailpit sink', () => {
+  const env = {
+    NODE_ENV: 'test', STAGING_MODE: 'true', PUBLIC_ORIGIN: 'http://127.0.0.1:8088',
+    DATABASE_URL: 'postgresql://postgres/zc_stage',
+    RATE_KEY_SECRET: randomBytes(32).toString('hex'),
+    CSRF_SECRET: randomBytes(32).toString('hex'),
+    RESET_JOB_KEY: randomBytes(32).toString('hex'),
+    SMTP_MODE: 'local', SMTP_HOST: 'mailpit', SMTP_PORT: '1025', SMTP_FROM: 'stage@example.invalid',
+  }
+  assert.equal(localMail(loadConfig(env)), true)
+  for (const settings of [
+    { SMTP_HOST: 'smtp.example.invalid' }, { SMTP_MODE: 'starttls' }, { SMTP_PORT: '2525' },
+    { SMTP_FROM: 'stage@example.org' }, { SMTP_USER: 'user', SMTP_PASSWORD: 'password' },
+    { PUBLIC_ORIGIN: 'http://example.invalid' }, { PUBLIC_INDEXING_ENABLED: 'true' },
+    { NODE_ENV: 'production', PUBLIC_ORIGIN: 'https://example.invalid' },
+  ]) assert.throws(() => loadConfig({ ...env, ...settings }), /Staging requires/)
+  assert.throws(() => loadConfig({ ...env, STAGING_MODE: 'false' }), /loopback outside production/)
 })

@@ -86,7 +86,8 @@ export function notificationPolicy(row: AgencySettings | null, config: Config) {
 
 export function localMail(config: Config) {
   return config.NODE_ENV !== 'production' && config.SMTP_MODE === 'local' &&
-    ['127.0.0.1', '::1', 'localhost'].includes(config.SMTP_HOST ?? '')
+    (['127.0.0.1', '::1', 'localhost'].includes(config.SMTP_HOST ?? '') ||
+      (config.NODE_ENV === 'test' && config.STAGING_MODE && config.SMTP_HOST === 'mailpit'))
 }
 
 export async function lockAdmin(db: Prisma.TransactionClient, session: Session) {

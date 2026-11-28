@@ -30,7 +30,7 @@ The agency records insurer confirmation. An accepted quote or a renewal draft do
 5. Configure supervised restarts, CPU and memory limits, log rotation, and alerts on DB health, API latency/errors, TLS expiry, private storage space, queue age/failures and backup age. Assign incident and recovery ownership.
 6. Rehearse [recovery](35-BACKUP-AND-RECOVERY.md) with the operator. Decide the rollback window and verify whether the last image can run against the upgraded schema.
 
-The current Compose file is a local harness. B14 deployed no external environment.
+B15A provides a [dedicated Compose stack for controlled staging](38-STAGING-DEPLOYMENT.md). The existing Compose file remains the local dependency harness. No external environment was deployed.
 
 ## Release approvals and blockers
 
@@ -46,6 +46,6 @@ The current Compose file is a local harness. B14 deployed no external environmen
 | Legacy workbook and migration | Review a private approved sample, mappings, duplicates, validations and rollback. B14 inspected no real workbooks. |
 | Backup and recovery | Approve a recovery operator, hosting/storage, encryption and offsite retention, then repeat the drill at an appropriate scale. |
 | HTTPS and proxy | Verify public origin, forwarding, TLS, cookie behavior, redirects and headers in controlled staging. |
-| Runtime dependency inventory | The Prisma advisories were resolved in the locked npm install. Verify the assembled production image against that lockfile and rerun audits before release. |
+| Runtime dependency inventory | The Prisma advisories were resolved in the locked npm install. Review the remaining Debian image findings in the [Docker infrastructure guide](39-DOCKER-INFRASTRUCTURE-GUIDE.md), then scan the assembled production images against current advisories before release. |
 
 Public API outputs are field-limited and intake avoids document uploads and confidential medical details. Agree who may export records and how long downstream extracts may be stored before allowing any production data migration.

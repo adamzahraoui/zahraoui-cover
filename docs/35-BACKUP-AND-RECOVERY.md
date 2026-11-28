@@ -23,3 +23,7 @@ Four generated quote PDFs were stored by the application. With the isolated serv
 The application PDF reader verified all four ready files with their parent quote IDs, lengths and digests, totaling 11,302 bytes. One previously downloaded historical quote PDF retained SHA-256 `88ad44b4bed3e8653c16565647e2c520989b64cede3eb8566fc070408a3f9a16`. The worker and mail delivery were absent from the restore. Backup and restore each completed within the first two seconds of the local measurement. The drill copied the files associated with ready records. Production procedure covers the complete approved volume and requires provisioned encryption and offsite copies.
 
 Proposed targets are 24 hours of data-loss exposure (RPO) and four hours to recover service (RTO). Approve these with the operator and rehearse on the eventual hosting and storage before relying on them.
+
+## B15A container operations
+
+The [staging runbook](40-OPERATIONS-RUNBOOK.md) documents the Compose backup and restore scripts. They pause staging writers and verify a disposable recovery project without starting its web or mail services. The scripts are exercised with synthetic staging data.
